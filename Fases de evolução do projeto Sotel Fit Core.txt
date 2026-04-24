@@ -1,0 +1,225 @@
+ROADMAP EVOLUTIVO — SOTEL FIT CORE
+
+🔹 FASE 1 — FUNDAÇÃO OPERACIONAL (onde você está entrando)
+
+🎯 Objetivo:
+
+Fazer o sistema funcionar de verdade.
+
+O que precisa existir:
+	•	Painel do admin funcionando (clientes, treino, dieta)
+	•	Painel do cliente simples e usável
+	•	WhatsApp integrado (entrada + suporte básico)
+	•	IA básica (resposta + apoio)
+
+O que você valida aqui:
+	•	Cliente consegue entrar e usar
+	•	Você consegue atender sem se perder
+	•	Fluxo WhatsApp → App funciona
+	•	Cliente EXECUTA o que você passa
+
+🚫 O que NÃO entra:
+	•	Automação avançada
+	•	IA inteligente de verdade
+	•	Integração com wearable
+	•	Nada em tempo real
+
+⚠️ Risco:
+
+Querer “embelezar” antes de funcionar.
+
+⸻
+
+🔹 FASE 2 — INTELIGÊNCIA OPERACIONAL
+
+🎯 Objetivo:
+
+Parar de pensar manualmente em tudo.
+
+O que entra:
+	•	IA lendo check-in do cliente
+	•	IA gerando alertas:
+	•	baixa adesão
+	•	possível abandono
+	•	dificuldade alimentar
+	•	IA sugerindo ajustes básicos
+
+O que você valida:
+	•	Você começa a tomar decisão mais rápido
+	•	Menos tempo analisando aluno
+	•	Mais alunos sendo atendidos
+
+🚫 O que NÃO entra:
+	•	Automação de decisão final
+	•	Alteração automática de treino/dieta
+	•	Tempo real ainda NÃO
+
+⸻
+
+🔹 FASE 3 — EXPERIÊNCIA DO CLIENTE (aqui começa escalar percepção de valor)
+
+🎯 Objetivo:
+
+Fazer o cliente sentir que está num sistema diferente
+
+O que entra:
+	•	IA explicando exercícios dentro do app
+	•	IA respondendo dúvidas no app
+	•	Melhorias de interface
+	•	Organização do treino mais intuitiva
+	•	Conteúdo guiado dentro do treino
+
+O que você valida:
+	•	Cliente entende melhor o treino
+	•	Menos dúvida no WhatsApp
+	•	Mais adesão
+	•	Mais retenção
+
+🚫 O que NÃO entra:
+	•	Correção em tempo real
+	•	Integração com smartwatch ainda
+
+⸻
+
+🔹 FASE 4 — INTEGRAÇÃO COM DADOS REAIS
+
+🎯 Objetivo:
+
+Parar de depender só do que o cliente fala
+
+O que entra:
+	•	Integração com:
+	•	Apple Watch
+	•	Garmin
+	•	Coleta de:
+	•	frequência cardíaca
+	•	tempo de treino
+	•	padrão de atividade
+
+O que você valida:
+	•	Dados reais vs percepção do cliente
+	•	Ajustes mais precisos
+	•	Base para IA evoluir
+
+🚫 O que NÃO entra:
+	•	Feedback em tempo real ainda
+	•	Correção de execução ainda
+
+⸻
+
+🔹 FASE 5 — IA ADAPTATIVA (aqui começa o jogo virar)
+
+🎯 Objetivo:
+
+Sistema começa a pensar com você
+
+O que entra:
+	•	Sugestão de carga baseada em histórico
+	•	Ajuste de volume baseado em resposta
+	•	Padrão de comportamento do aluno
+	•	Previsão de abandono
+
+O que você valida:
+	•	Sistema começa a antecipar problema
+	•	Menos intervenção manual sua
+	•	Mais consistência nos resultados
+
+🚫 O que NÃO entra:
+	•	Áudio em tempo real ainda
+	•	Correção instantânea ainda
+
+⸻
+
+🔹 FASE 6 — COACHING EM TEMPO REAL (sua ideia entra aqui)
+
+🎯 Objetivo:
+
+Substituir a instrução presencial
+
+O que entra:
+	•	Fone Bluetooth + app
+	•	IA guiando treino AO VIVO
+	•	Comandos como:
+	•	ritmo de execução
+	•	respiração
+	•	intensidade
+	•	descanso
+
+Exemplo real:
+	•	“Desce em 2 segundos”
+	•	“Subida explosiva”
+	•	“Recupera 30 segundos”
+	•	“Carga leve, aumenta na próxima”
+
+O que você valida:
+	•	Cliente treina melhor sozinho
+	•	Redução de erro de execução
+	•	Aumento de intensidade real
+
+⸻
+
+🔹 FASE 7 — CORREÇÃO DE MOVIMENTO (nível absurdo)
+
+🎯 Objetivo:
+
+Chegar perto de um personal físico
+
+O que entra:
+	•	Câmera do celular
+	•	IA analisando movimento
+	•	Correção de execução
+
+Ex:
+	•	“Amplitude incompleta”
+	•	“Quadril subindo primeiro”
+	•	“Postura errada”
+
+⸻
+
+🔹 FASE 8 — SISTEMA AUTÔNOMO (nível empresa grande)
+
+🎯 Objetivo:
+
+Sistema roda quase sozinho
+
+O que entra:
+	•	IA ajustando treino automaticamente (com aprovação)
+	•	IA personalizando jornada completa
+	•	Sistema adaptando tudo ao perfil
+
+⸻
+
+🧠 VISÃO ESTRATÉGICA (grava isso)
+
+Você não está criando:
+
+❌ um app de treino
+❌ uma consultoria online
+
+Você está criando:
+
+👉 um sistema que reduz a dependência do personal físico
+
+⸻
+
+⚠️ AGORA O PONTO MAIS IMPORTANTE
+
+Se você pular fase:
+
+👉 você quebra o projeto
+
+Se você respeitar:
+
+👉 você constrói algo que ninguém tem
+
+⸻
+
+📌 RESUMO SECO
+	•	Fase 1 → fazer funcionar
+	•	Fase 2 → pensar melhor
+	•	Fase 3 → melhorar experiência
+	•	Fase 4 → trazer dados reais
+	•	Fase 5 → sistema começa a aprender
+	•	Fase 6 → IA entra no treino
+	•	Fase 7 → IA corrige execução
+	•	Fase 8 → sistema autônomo
