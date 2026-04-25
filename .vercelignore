@@ -1,0 +1,4 @@
+﻿app/
+venv/
+*.py
+requirements.txt
