@@ -1,0 +1,13 @@
+from sqlalchemy import Column, Integer, String, ForeignKey
+from database import Base
+
+class DecisionLog(Base):
+    __tablename__ = "decision_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    checkin_id = Column(Integer, ForeignKey("checkins.id"), nullable=False)
+    decision = Column(String, nullable=False)
+    status = Column(String, nullable=False)
+    alerts = Column(String, nullable=False)
+    summary = Column(String, nullable=False)

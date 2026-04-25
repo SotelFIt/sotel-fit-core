@@ -1,0 +1,14 @@
+from sqlalchemy import Column, Integer, String, ForeignKey
+from database import Base
+
+class PlanVersion(Base):
+    __tablename__ = "plan_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    plan_id = Column(Integer, nullable=False)
+    version_number = Column(Integer, nullable=False)
+    training_plan = Column(String, nullable=False)
+    diet_plan = Column(String, nullable=False)
+    notes = Column(String, nullable=False)
+    change_reason = Column(String, nullable=False)

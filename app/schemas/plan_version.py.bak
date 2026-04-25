@@ -1,0 +1,14 @@
+from pydantic import BaseModel
+
+class PlanVersionResponse(BaseModel):
+    id: int
+    client_id: int
+    plan_id: int
+    version_number: int
+    training_plan: str
+    diet_plan: str
+    notes: str
+    change_reason: str
+
+    class Config:
+        from_attributes = True

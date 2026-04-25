@@ -1,0 +1,103 @@
+﻿from dotenv import load_dotenv
+load_dotenv()
+
+from datetime import datetime, timedelta
+from typing import Optional
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+import jwt
+from fastapi import HTTPException, status, Header
+from pydantic import BaseModel
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY nao configurada.")
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_HOURS", "24"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+
+LANDBOT_SECRET_TOKEN = os.getenv("LANDBOT_SECRET_TOKEN")
+if not LANDBOT_SECRET_TOKEN:
+    raise RuntimeError("LANDBOT_SECRET_TOKEN nao configurada.")
+
+class TokenPayload(BaseModel):
+    sub: int
+    iat: int
+    exp: int
+    type: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+def create_access_token(client_id: int) -> str:
+    now = datetime.utcnow()
+    expire = now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    payload = {"sub": client_id, "iat": int(now.timestamp()), "exp": int(expire.timestamp()), "type": "access"}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_refresh_token(client_id: int) -> str:
+    now = datetime.utcnow()
+    expire = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {"sub": client_id, "iat": int(now.timestamp()), "exp": int(expire.timestamp()), "type": "refresh"}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_token_pair(client_id: int) -> TokenResponse:
+    access = create_access_token(client_id)
+    refresh = create_refresh_token(client_id)
+    return TokenResponse(access_token=access, refresh_token=refresh, expires_in=ACCESS_TOKEN_EXPIRE_HOURS * 3600)
+
+def verify_token(token: str, token_type: str = "access") -> int:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != token_type:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+        client_id = payload.get("sub")
+        if client_id is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        return client_id
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+def verify_dual_auth(authorization: Optional[str] = Header(None), x_api_key: Optional[str] = Header(None)) -> int:
+    if authorization:
+        try:
+            scheme, _, credentials = authorization.partition(" ")
+            if scheme.lower() == "bearer":
+                return verify_token(credentials, token_type="access")
+        except HTTPException:
+            pass
+    if x_api_key:
+        if x_api_key == LANDBOT_SECRET_TOKEN:
+            return 0
+        else:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
+
+def verify_jwt_only(authorization: Optional[str] = Header(None)) -> int:
+    if not authorization:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
+    scheme, _, credentials = authorization.partition(" ")
+    if scheme.lower() != "bearer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid scheme")
+    return verify_token(credentials, token_type="access")
+
+def verify_refresh_token(authorization: Optional[str] = Header(None)) -> int:
+    if not authorization:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
+    scheme, _, credentials = authorization.partition(" ")
+    if scheme.lower() != "bearer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid scheme")
+    return verify_token(credentials, token_type="refresh")
