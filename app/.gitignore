@@ -26,3 +26,4 @@ sotel.db
 sotel.db-shm
 sotel.db-wal
 .env
+.vercel

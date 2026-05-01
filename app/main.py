@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import sys
 from dotenv import load_dotenv
 load_dotenv()
@@ -11,12 +11,14 @@ logger = logging.getLogger(__name__)
 
 from core.database import Base, engine
 from routers import landbot, clients, auth
+from routers.admin import router as admin_router
+from routers.cron import router as cron_router
 
 try:
     Base.metadata.create_all(bind=engine)
-    logger.info("✅ Banco de dados inicializado")
+    logger.info("Banco de dados inicializado")
 except Exception as e:
-    logger.warning(f"⚠️ Banco de dados nao disponivel: {e}")
+    logger.warning(f"Banco de dados nao disponivel: {e}")
 
 app = FastAPI(title="Sotel Fit Core", version="1.0.0")
 
@@ -30,15 +32,17 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 STARTUP OK")
+    logger.info("STARTUP OK")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("🛑 SHUTDOWN OK")
+    logger.info("SHUTDOWN OK")
 
 app.include_router(landbot.router)
 app.include_router(clients.router)
 app.include_router(auth.router)
+app.include_router(admin_router)
+app.include_router(cron_router)
 
 @app.get("/health")
 def health():

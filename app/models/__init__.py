@@ -7,5 +7,5 @@ from models.diet import Diet
 from models.diet_version import DietVersion
 from models.checkin import Checkin
 from models.decision_log import DecisionLog
-
-__all__ = ['Base', 'Client', 'Onboarding', 'Plan', 'PlanVersion', 'Diet', 'DietVersion', 'Checkin', 'DecisionLog']
+from models.subscription import Subscription
+__all__ = ['Base', 'Client', 'Onboarding', 'Plan', 'PlanVersion', 'Diet', 'DietVersion', 'Checkin', 'DecisionLog', 'Subscription']
