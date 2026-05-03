@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from models.conversation_state import ConversationState
 
 PAYMENT_LINK = "https://COLOCAR-LINK-DE-PAGAMENTO"
-APP_LINK = "https://SEU-LINK-DO-APP"
+APP_LINK = "https://frontend-iota-rose-78.vercel.app"
 
 def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
     if not phone:

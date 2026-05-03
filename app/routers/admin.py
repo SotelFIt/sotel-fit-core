@@ -11,7 +11,7 @@ from models.conversation_state import ConversationState
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-APP_LINK = "https://SEU-LINK-DO-APP"
+APP_LINK = "https://frontend-iota-rose-78.vercel.app"
 
 def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
     if auth_client_id != 0:
