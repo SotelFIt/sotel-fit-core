@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from models.conversation_state import ConversationState
 
-PAYMENT_LINK = "https://COLOCAR-LINK-DE-PAGAMENTO"
+PAYMENT_LINK = "https://buy.stripe.com/test_dRm4gzc9haB32Im4e7fbq00"
 APP_LINK = "https://frontend-iota-rose-78.vercel.app"
 
 def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
