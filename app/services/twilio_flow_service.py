@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from models.conversation_state import ConversationState
 
 PAYMENT_LINK = "https://COLOCAR-LINK-DE-PAGAMENTO"
+APP_LINK = "https://SEU-LINK-DO-APP"
 
 def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
     if not phone:
@@ -52,5 +53,8 @@ def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
 
     if step == "waiting_payment":
         return "Seu cadastro inicial já está salvo. Agora falta apenas confirmar o pagamento para liberar seu acesso ao app."
+
+    if step == "active_client":
+        return f"Seu acesso já está liberado. Acesse seu painel aqui:\n{APP_LINK}"
 
     return "Não entendi. Pode repetir?"
