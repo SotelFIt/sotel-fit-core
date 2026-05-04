@@ -25,6 +25,15 @@ try:
 except Exception as e:
     logger.warning(f"Banco de dados nao disponivel: {e}")
 
+# Migrações manuais — adiciona colunas novas sem quebrar banco existente
+from sqlalchemy import text
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE conversation_states ADD COLUMN onboarding_link_sent BOOLEAN DEFAULT FALSE"))
+        conn.commit()
+    except Exception:
+        pass  # Coluna já existe, ignora
+
 app = FastAPI(title="Sotel Fit Core", version="1.0.0")
 
 app.add_middleware(
