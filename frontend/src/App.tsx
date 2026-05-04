@@ -18,7 +18,6 @@ function Navbar({ client, onLogout }: any) {
 }
 
 function Onboarding() {
-  const navigate = useNavigate();
   const [step, setStep] = useState<"welcome" | "form" | "done">("welcome");
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -35,7 +34,7 @@ function Onboarding() {
     e.preventDefault();
     setLoading(true);
     try {
-     await fetch(API + "/onboarding/lead", {
+      await fetch(API + "/onboarding/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -51,32 +50,24 @@ function Onboarding() {
   const input = (label: string, name: string, type = "text", placeholder = "") => (
     <div style={{ marginBottom: "16px" }}>
       <label style={{ display: "block", fontWeight: "600", marginBottom: "6px", color: "#374151", fontSize: "14px" }}>{label}</label>
-      <input
-        type={type} name={name} placeholder={placeholder}
-        value={(form as any)[name]} onChange={handleChange} required
-        style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }}
-      />
+      <input type={type} name={name} placeholder={placeholder} value={(form as any)[name]} onChange={handleChange} required
+        style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }} />
     </div>
   );
 
   const textarea = (label: string, name: string, placeholder = "") => (
     <div style={{ marginBottom: "16px" }}>
       <label style={{ display: "block", fontWeight: "600", marginBottom: "6px", color: "#374151", fontSize: "14px" }}>{label}</label>
-      <textarea
-        name={name} placeholder={placeholder}
-        value={(form as any)[name]} onChange={handleChange}
-        style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", height: "80px", resize: "vertical" }}
-      />
+      <textarea name={name} placeholder={placeholder} value={(form as any)[name]} onChange={handleChange}
+        style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box", height: "80px", resize: "vertical" }} />
     </div>
   );
 
   const select = (label: string, name: string, options: string[]) => (
     <div style={{ marginBottom: "16px" }}>
       <label style={{ display: "block", fontWeight: "600", marginBottom: "6px", color: "#374151", fontSize: "14px" }}>{label}</label>
-      <select
-        name={name} value={(form as any)[name]} onChange={handleChange} required
-        style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }}
-      >
+      <select name={name} value={(form as any)[name]} onChange={handleChange} required
+        style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }}>
         <option value="">Selecione...</option>
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -126,20 +117,17 @@ function Onboarding() {
           {input("Idade", "idade", "number", "Ex: 28")}
           {input("Peso atual (kg)", "peso", "number", "Ex: 75")}
           {input("Altura (cm)", "altura", "number", "Ex: 175")}
-
           <h2 style={{ fontSize: "20px", fontWeight: "700", margin: "24px 0 16px", color: "#1e40af" }}>🎯 Objetivo e Rotina</h2>
           {select("Objetivo principal", "objetivo", ["Emagrecimento", "Ganho de massa", "Condicionamento", "Melhorar saúde e rotina"])}
           {select("Nível de treino", "nivel_treino", ["Iniciante", "Intermediário", "Avançado"])}
           {select("Quantos dias pode treinar por semana?", "dias_treino", ["1 dia", "2 dias", "3 dias", "4 dias", "5 dias", "6 dias"])}
           {select("Horário que costuma treinar", "horario_treino", ["Manhã", "Tarde", "Noite", "Variado"])}
-
           <h2 style={{ fontSize: "20px", fontWeight: "700", margin: "24px 0 16px", color: "#1e40af" }}>🩺 Saúde e Alimentação</h2>
           {textarea("Lesões ou restrições físicas", "lesoes", "Ex: Dor no joelho, hérnia... ou Nenhuma")}
           {textarea("Como está sua alimentação atual?", "alimentacao_atual", "Descreva sua rotina alimentar")}
           {textarea("Qual sua maior dificuldade hoje?", "maior_dificuldade", "Ex: Falta de tempo, fome, motivação...")}
           {textarea("Qual sua meta principal?", "meta_principal", "O que você quer conquistar?")}
-          {textarea("Observações adicionais", "observacoes", "Alguma informação extra que queira compartilhar?")}
-
+          {textarea("Observações adicionais", "observacoes", "Alguma informação extra?")}
           <button type="submit" disabled={loading} style={{ width: "100%", padding: "14px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "700", cursor: "pointer", marginTop: "8px" }}>
             {loading ? "Enviando..." : "Enviar meu cadastro ✓"}
           </button>
@@ -189,11 +177,13 @@ function Login() {
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: "16px" }}>
             <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151" }}>E-mail</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }} />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com"
+              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: "24px" }}>
             <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151" }}>Senha</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }} />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }} />
           </div>
           <button type="submit" disabled={loading} style={{ width: "100%", padding: "12px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}>
             {loading ? "Entrando..." : "Entrar"}
@@ -312,15 +302,18 @@ function Checkin() {
           </div>
           <div style={{ marginBottom: "20px" }}>
             <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Peso atual (kg)</label>
-            <input type="number" step="0.1" placeholder="Ex: 70.5" value={form.peso} onChange={e => setForm({...form, peso: e.target.value})} style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box" }} />
+            <input type="number" step="0.1" placeholder="Ex: 70.5" value={form.peso} onChange={e => setForm({...form, peso: e.target.value})}
+              style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: "20px" }}>
             <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Teve alguma dificuldade?</label>
-            <input type="text" placeholder="Ex: Fome a noite, dor no joelho..." value={form.dificuldade} onChange={e => setForm({...form, dificuldade: e.target.value})} style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box" }} />
+            <input type="text" placeholder="Ex: Fome a noite, dor no joelho..." value={form.dificuldade} onChange={e => setForm({...form, dificuldade: e.target.value})}
+              style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: "24px" }}>
             <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Observacoes gerais</label>
-            <textarea placeholder="Como voce esta se sentindo?" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box", height: "100px", resize: "vertical" }} />
+            <textarea placeholder="Como voce esta se sentindo?" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})}
+              style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box", height: "100px", resize: "vertical" }} />
           </div>
           <button type="submit" style={{ width: "100%", padding: "14px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}>
             Enviar Check-in
@@ -332,7 +325,7 @@ function Checkin() {
 }
 
 export default function App() {
-  return (notepad models\onboarding.py
+  return (
     <BrowserRouter>
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
