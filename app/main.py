@@ -15,17 +15,8 @@ from routers.cron import router as cron_router
 from routers.twilio_webhook import router as twilio_router
 from routers.stripe_webhook import router as stripe_router
 from routers.lead_onboarding import router as lead_onboarding_router
-from models import conversation_state  # noqa
-from models import lead_onboarding  # noqa
-from models import client  # noqa
-from models import subscription  # noqa
-from models import plan  # noqa
-from models import plan_version  # noqa
-from models import checkin  # noqa
-from models import diet  # noqa
-from models import diet_version  # noqa
-from models import onboarding  # noqa
-from models import decision_log  # noqa
+from models import *  # noqa
+
 logger.info("Importando routers...")
 
 try:
