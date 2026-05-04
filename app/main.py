@@ -13,7 +13,10 @@ from routers import landbot, clients, auth
 from routers.admin import router as admin_router
 from routers.cron import router as cron_router
 from routers.twilio_webhook import router as twilio_router
+from routers.stripe_webhook import router as stripe_router
 from models import conversation_state  # noqa
+
+logger.info("Importando routers...")
 
 try:
     Base.metadata.create_all(bind=engine)
@@ -45,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(admin_router)
 app.include_router(cron_router)
 app.include_router(twilio_router)
+app.include_router(stripe_router)
 
 @app.get("/health")
 def health():
