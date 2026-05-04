@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
-from sqlalchemy.orm import Session
 from fastapi import Depends
+from sqlalchemy.orm import Session
 import stripe
 import os
 from twilio.rest import Client as TwilioClient
@@ -9,24 +9,26 @@ from models.conversation_state import ConversationState
 
 router = APIRouter(prefix="/webhook", tags=["Stripe"])
 
-APP_LINK = "https://frontend-iota-rose-78.vercel.app"
+APP_LINK = "https://frontend-iota-rose-78.vercel.app/onboarding"
 
 @router.post("/stripe")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except ValueError:
         raise HTTPException(status_code=400, detail="Payload inválido")
-    except stripe.error.SignatureVerificationError:
+    except Exception:
         raise HTTPException(status_code=400, detail="Assinatura inválida")
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        customer_phone = session.get("customer_details", {}).get("phone")
+        customer_details = session.get("customer_details") or {}
+        customer_phone = customer_details.get("phone")
 
         if not customer_phone:
             return {"status": "ignored", "reason": "phone not found"}
@@ -47,7 +49,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             twilio_client.messages.create(
                 from_=from_number,
                 to=phone,
-                body=f"Seu acesso foi liberado. Acesse seu painel aqui:\n{APP_LINK}"
+                body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAgora precisamos que você complete seu cadastro inicial para montar seu plano personalizado.\n\nAcesse aqui:\n{APP_LINK}"
             )
 
     return {"status": "ok"}
