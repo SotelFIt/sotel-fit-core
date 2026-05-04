@@ -1,21 +1,21 @@
 from datetime import datetime
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Float
 from sqlalchemy.orm import relationship
-from database import Base
+from core.database import Base
 
 class Client(Base):
     __tablename__ = "clients"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    status = Column(String, nullable=True)
+    status = Column(String, nullable=True, default="lead")
     age = Column(Integer, nullable=True)
     weight = Column(Float, nullable=True)
     height = Column(Float, nullable=True)
     goal = Column(String, nullable=True)
     current_plan_id = Column(Integer, ForeignKey("plans.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     current_plan = relationship(
         "Plan",
         foreign_keys=[current_plan_id],
@@ -42,13 +42,11 @@ class Client(Base):
         back_populates="client",
         cascade="all, delete-orphan",
     )
-# ✅ Relacionamento com Diet
     diets = relationship(
         "Diet",
         back_populates="client",
         cascade="all, delete-orphan",
     )
-    
     diet_versions = relationship(
         "DietVersion",
         back_populates="client",

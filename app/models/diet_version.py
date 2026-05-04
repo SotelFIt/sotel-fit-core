@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON
 from sqlalchemy.orm import relationship
-from database import Base
+from core.database import Base
 
 class DietVersion(Base):
     __tablename__ = "diet_versions"

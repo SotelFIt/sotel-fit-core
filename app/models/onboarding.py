@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
-from database import Base
+from core.database import Base
 
 class Onboarding(Base):
     __tablename__ = "onboarding"

@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from database import Base
+from core.database import Base
 
 class DecisionLog(Base):
     __tablename__ = "decision_logs"
