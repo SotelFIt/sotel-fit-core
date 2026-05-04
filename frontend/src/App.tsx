@@ -1,7 +1,22 @@
-﻿import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// ─── TIPOS ───────────────────────────────────────────────────────────────────
+
+interface Lead {
+  phone: string;
+  name: string | null;
+  goal: string | null;
+  routine: string | null;
+  status: string;
+  step: string;
+  onboarding_link_sent: boolean;
+  created_at: string;
+}
+
+// ─── NAVBAR CLIENTE ───────────────────────────────────────────────────────────
 
 function Navbar({ client, onLogout }: any) {
   const navigate = useNavigate();
@@ -16,6 +31,8 @@ function Navbar({ client, onLogout }: any) {
     </nav>
   );
 }
+
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
 
 function Onboarding() {
   const [step, setStep] = useState<"welcome" | "form" | "done">("welcome");
@@ -137,6 +154,8 @@ function Onboarding() {
   );
 }
 
+// ─── LOGIN CLIENTE ────────────────────────────────────────────────────────────
+
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -194,6 +213,8 @@ function Login() {
   );
 }
 
+// ─── DASHBOARD CLIENTE ────────────────────────────────────────────────────────
+
 function Dashboard() {
   const navigate = useNavigate();
   const token = localStorage.getItem("accessToken");
@@ -241,6 +262,8 @@ function Dashboard() {
     </div>
   );
 }
+
+// ─── CHECKIN ──────────────────────────────────────────────────────────────────
 
 function Checkin() {
   const navigate = useNavigate();
@@ -324,6 +347,261 @@ function Checkin() {
   );
 }
 
+// ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
+
+function AdminLogin() {
+  const [apiKey, setApiKey] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(API + "/admin/leads", {
+        headers: { "x-api-key": apiKey },
+      });
+      if (res.ok) {
+        localStorage.setItem("adminKey", apiKey);
+        navigate("/admin/dashboard");
+      } else {
+        setError("Chave inválida. Verifique e tente novamente.");
+      }
+    } catch {
+      setError("Erro ao conectar com o servidor.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a", fontFamily: "Arial" }}>
+      <div style={{ background: "#1e293b", padding: "48px 40px", borderRadius: "16px", width: "380px", border: "1px solid #334155" }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔐</div>
+          <h1 style={{ fontSize: "24px", fontWeight: "700", color: "white" }}>Painel Admin</h1>
+          <p style={{ color: "#64748b", marginTop: "8px", fontSize: "14px" }}>Sotel Fit Core</p>
+        </div>
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: "24px" }}>
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500", color: "#94a3b8", fontSize: "14px" }}>Chave de acesso</label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="••••••••••••••••"
+              required
+              style={{ width: "100%", padding: "12px", background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: "14px", color: "white", boxSizing: "border-box" }}
+            />
+          </div>
+          {error && <p style={{ color: "#f87171", fontSize: "13px", marginBottom: "16px" }}>{error}</p>}
+          <button type="submit" disabled={loading} style={{ width: "100%", padding: "12px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}>
+            {loading ? "Verificando..." : "Entrar"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
+
+function AdminDashboard() {
+  const navigate = useNavigate();
+  const apiKey = localStorage.getItem("adminKey");
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  if (!apiKey) return <Navigate to="/admin" />;
+
+  const headers = { "x-api-key": apiKey, "Content-Type": "application/json" };
+
+  const fetchLeads = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(API + "/admin/leads", { headers });
+      const data = await res.json();
+      setLeads(Array.isArray(data) ? data : []);
+    } catch {
+      setMsg({ text: "Erro ao carregar leads.", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchLeads(); }, []);
+
+  const activateLead = async (phone: string) => {
+    setActionLoading(phone + "_activate");
+    try {
+      const res = await fetch(API + "/admin/twilio/activate-lead", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      setMsg({ text: data.message || "Lead ativado!", type: "success" });
+      fetchLeads();
+    } catch {
+      setMsg({ text: "Erro ao ativar lead.", type: "error" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const releasePlan = async (phone: string) => {
+    setActionLoading(phone + "_release");
+    try {
+      const res = await fetch(API + "/admin/twilio/release-plan", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      setMsg({ text: data.message || "Plano liberado!", type: "success" });
+      fetchLeads();
+    } catch {
+      setMsg({ text: "Erro ao liberar plano.", type: "error" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const logout = () => { localStorage.removeItem("adminKey"); navigate("/admin"); };
+
+  const statusColor: Record<string, string> = {
+    active: "#22c55e",
+    active_client: "#3b82f6",
+    onboarding_pending: "#f59e0b",
+    lead: "#94a3b8",
+  };
+
+  const statusLabel: Record<string, string> = {
+    active: "Ativo",
+    active_client: "Cliente ativo",
+    onboarding_pending: "Aguardando onboarding",
+    lead: "Lead",
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0f172a", fontFamily: "Arial", color: "white" }}>
+
+      {/* Navbar Admin */}
+      <nav style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "20px" }}>⚡</span>
+          <h1 style={{ fontSize: "18px", fontWeight: "700" }}>Sotel Fit — Admin</h1>
+        </div>
+        <button onClick={logout} style={{ background: "transparent", color: "#94a3b8", border: "1px solid #334155", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
+          Sair
+        </button>
+      </nav>
+
+      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 16px" }}>
+
+        {/* Mensagem de feedback */}
+        {msg && (
+          <div style={{ background: msg.type === "success" ? "#14532d" : "#7f1d1d", border: `1px solid ${msg.type === "success" ? "#22c55e" : "#ef4444"}`, borderRadius: "8px", padding: "12px 16px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "14px" }}>{msg.text}</span>
+            <button onClick={() => setMsg(null)} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer", fontSize: "16px" }}>×</button>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
+          {[
+            { label: "Total de leads", value: leads.length, icon: "👥" },
+            { label: "Clientes ativos", value: leads.filter(l => l.status === "active_client" || l.status === "active").length, icon: "✅" },
+            { label: "Aguardando onboarding", value: leads.filter(l => l.status === "onboarding_pending").length, icon: "⏳" },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "#1e293b", borderRadius: "12px", padding: "24px", border: "1px solid #334155" }}>
+              <div style={{ fontSize: "28px", marginBottom: "8px" }}>{s.icon}</div>
+              <p style={{ color: "#64748b", fontSize: "12px", marginBottom: "4px" }}>{s.label}</p>
+              <p style={{ fontSize: "32px", fontWeight: "700" }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabela de Leads */}
+        <div style={{ background: "#1e293b", borderRadius: "12px", border: "1px solid #334155", overflow: "hidden" }}>
+          <div style={{ padding: "20px 24px", borderBottom: "1px solid #334155", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ fontSize: "16px", fontWeight: "700" }}>📋 Leads e Clientes</h2>
+            <button onClick={fetchLeads} style={{ background: "#334155", color: "white", border: "none", padding: "8px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
+              🔄 Atualizar
+            </button>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: "48px", textAlign: "center", color: "#64748b" }}>Carregando...</div>
+          ) : leads.length === 0 ? (
+            <div style={{ padding: "48px", textAlign: "center", color: "#64748b" }}>Nenhum lead encontrado.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#0f172a" }}>
+                    {["Telefone", "Nome", "Objetivo", "Status", "Link enviado", "Data", "Ações"].map(h => (
+                      <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.map((lead, i) => (
+                    <tr key={i} style={{ borderTop: "1px solid #334155" }}>
+                      <td style={{ padding: "14px 16px", fontSize: "13px", color: "#94a3b8" }}>{lead.phone.replace("whatsapp:", "")}</td>
+                      <td style={{ padding: "14px 16px", fontSize: "13px" }}>{lead.name || <span style={{ color: "#475569" }}>—</span>}</td>
+                      <td style={{ padding: "14px 16px", fontSize: "13px" }}>{lead.goal || <span style={{ color: "#475569" }}>—</span>}</td>
+                      <td style={{ padding: "14px 16px" }}>
+                        <span style={{ background: statusColor[lead.status] + "22", color: statusColor[lead.status] || "#94a3b8", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
+                          {statusLabel[lead.status] || lead.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: "14px 16px", fontSize: "13px" }}>
+                        {lead.onboarding_link_sent ? <span style={{ color: "#22c55e" }}>✓ Sim</span> : <span style={{ color: "#475569" }}>Não</span>}
+                      </td>
+                      <td style={{ padding: "14px 16px", fontSize: "12px", color: "#64748b" }}>
+                        {new Date(lead.created_at).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td style={{ padding: "14px 16px" }}>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          {!lead.onboarding_link_sent && (
+                            <button
+                              onClick={() => activateLead(lead.phone)}
+                              disabled={actionLoading === lead.phone + "_activate"}
+                              style={{ background: "#1d4ed8", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}
+                            >
+                              {actionLoading === lead.phone + "_activate" ? "..." : "📲 Ativar"}
+                            </button>
+                          )}
+                          {(lead.status === "active_client" || lead.status === "onboarding_pending") && (
+                            <button
+                              onClick={() => releasePlan(lead.phone)}
+                              disabled={actionLoading === lead.phone + "_release"}
+                              style={{ background: "#15803d", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}
+                            >
+                              {actionLoading === lead.phone + "_release" ? "..." : "🚀 Liberar plano"}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -332,6 +610,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/checkin" element={<Checkin />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
