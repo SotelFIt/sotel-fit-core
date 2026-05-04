@@ -14,7 +14,9 @@ from routers.admin import router as admin_router
 from routers.cron import router as cron_router
 from routers.twilio_webhook import router as twilio_router
 from routers.stripe_webhook import router as stripe_router
+from routers.lead_onboarding import router as lead_onboarding_router
 from models import conversation_state  # noqa
+from models import lead_onboarding  # noqa
 
 logger.info("Importando routers...")
 
@@ -49,6 +51,7 @@ app.include_router(admin_router)
 app.include_router(cron_router)
 app.include_router(twilio_router)
 app.include_router(stripe_router)
+app.include_router(lead_onboarding_router)
 
 @app.get("/health")
 def health():

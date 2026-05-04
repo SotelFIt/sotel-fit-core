@@ -1,62 +1,66 @@
-import logging
-import sys
-from dotenv import load_dotenv
-load_dotenv()
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
+from core.database import get_db
+from models.lead_onboarding import LeadOnboarding
+from models.conversation_state import ConversationState
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", stream=sys.stdout)
-logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/onboarding", tags=["Onboarding"])
 
-from core.database import Base, engine
-from routers import landbot, clients, auth
-from routers.admin import router as admin_router
-from routers.cron import router as cron_router
-from routers.twilio_webhook import router as twilio_router
-from routers.stripe_webhook import router as stripe_router
-from routers.lead_onboarding import router as lead_onboarding_router
-from models import conversation_state  # noqa
-from models import lead_onboarding  # noqa
+class LeadOnboardingRequest(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    telefone: Optional[str] = None
+    idade: Optional[str] = None
+    peso: Optional[str] = None
+    altura: Optional[str] = None
+    objetivo: Optional[str] = None
+    nivel_treino: Optional[str] = None
+    dias_treino: Optional[str] = None
+    horario_treino: Optional[str] = None
+    lesoes: Optional[str] = None
+    alimentacao_atual: Optional[str] = None
+    maior_dificuldade: Optional[str] = None
+    meta_principal: Optional[str] = None
+    observacoes: Optional[str] = None
 
-logger.info("Importando routers...")
+@router.post("/lead")
+def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends(get_db)):
+    phone_formatted = None
+    if payload.telefone:
+        digits = ''.join(filter(str.isdigit, payload.telefone))
+        if not digits.startswith('55'):
+            digits = '55' + digits
+        phone_formatted = f"whatsapp:+{digits}"
 
-try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("Banco de dados inicializado")
-except Exception as e:
-    logger.warning(f"Banco de dados nao disponivel: {e}")
+    onboarding = LeadOnboarding(
+        phone=phone_formatted,
+        nome=payload.nome,
+        email=payload.email,
+        telefone=payload.telefone,
+        idade=payload.idade,
+        peso=payload.peso,
+        altura=payload.altura,
+        objetivo=payload.objetivo,
+        nivel_treino=payload.nivel_treino,
+        dias_treino=payload.dias_treino,
+        horario_treino=payload.horario_treino,
+        lesoes=payload.lesoes,
+        alimentacao_atual=payload.alimentacao_atual,
+        maior_dificuldade=payload.maior_dificuldade,
+        meta_principal=payload.meta_principal,
+        observacoes=payload.observacoes,
+    )
+    db.add(onboarding)
 
-app = FastAPI(title="Sotel Fit Core", version="1.0.0")
+    if phone_formatted:
+        state = db.query(ConversationState).filter(
+            ConversationState.phone == phone_formatted
+        ).first()
+        if state:
+            state.status = "onboarding_completed"
+            state.step = "onboarding_completed"
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("STARTUP OK")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("SHUTDOWN OK")
-
-app.include_router(landbot.router)
-app.include_router(clients.router)
-app.include_router(auth.router)
-app.include_router(admin_router)
-app.include_router(cron_router)
-app.include_router(twilio_router)
-app.include_router(stripe_router)
-app.include_router(lead_onboarding_router)
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-@app.get("/")
-def root():
-    return {"message": "Sotel Fit Core API"}
+    db.commit()
+    return {"status": "ok", "message": "Onboarding recebido com sucesso"}
