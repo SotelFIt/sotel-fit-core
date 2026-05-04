@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
+import os
+from twilio.rest import Client as TwilioClient
 from core.database import get_db
 from models.lead_onboarding import LeadOnboarding
 from models.conversation_state import ConversationState
@@ -63,4 +65,19 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             state.step = "onboarding_completed"
 
     db.commit()
+
+    if phone_formatted:
+        try:
+            account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+            auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+            from_number = os.getenv("TWILIO_WHATSAPP_FROM")
+            twilio_client = TwilioClient(account_sid, auth_token)
+            twilio_client.messages.create(
+                from_=from_number,
+                to=phone_formatted,
+                body="Cadastro recebido.\n\nAgora vamos montar seu plano personalizado com base nas suas respostas.\n\nAssim que estiver pronto, você será avisado aqui no WhatsApp."
+            )
+        except Exception:
+            pass
+
     return {"status": "ok", "message": "Onboarding recebido com sucesso"}

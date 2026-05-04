@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.sql import func
 from core.database import Base
 
@@ -11,6 +11,7 @@ class ConversationState(Base):
     name = Column(String, nullable=True)
     goal = Column(String, nullable=True)
     routine = Column(String, nullable=True)
-    status = Column(String, nullable=False, default="active")
+    status = Column(String, nullable=False, default="lead")
+    onboarding_link_sent = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

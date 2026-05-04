@@ -11,6 +11,7 @@ from models.conversation_state import ConversationState
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+ONBOARDING_LINK = "https://frontend-iota-rose-78.vercel.app/onboarding"
 APP_LINK = "https://frontend-iota-rose-78.vercel.app"
 
 def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
@@ -19,6 +20,9 @@ def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
     return auth_client_id
 
 class ActivateLeadRequest(BaseModel):
+    phone: str
+
+class ReleasePlanRequest(BaseModel):
     phone: str
 
 @router.post("/clients/{client_id}/activate-subscription", response_model=SubscriptionResponse)
@@ -51,8 +55,13 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
     if not state:
         raise HTTPException(status_code=404, detail="Lead nao encontrado")
 
-    state.status = "active_client"
+    state.status = "onboarding_pending"
     state.step = "active_client"
+
+    if state.onboarding_link_sent:
+        return {"status": "skipped", "phone": payload.phone, "message": "Link ja enviado anteriormente"}
+
+    state.onboarding_link_sent = True
     db.commit()
 
     account_sid = os.getenv("TWILIO_ACCOUNT_SID")
@@ -63,11 +72,48 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
     twilio_client.messages.create(
         from_=from_number,
         to=payload.phone,
-        body=f"Seu acesso foi liberado. Acesse seu painel aqui:\n{APP_LINK}"
+        body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAgora precisamos que você complete seu cadastro inicial para montar seu plano personalizado.\n\nAcesse aqui:\n{ONBOARDING_LINK}"
     )
 
-    return {
-        "status": "success",
-        "phone": payload.phone,
-        "message": "Lead ativado e mensagem enviada"
-    }
+    return {"status": "success", "phone": payload.phone, "message": "Lead ativado e link de onboarding enviado"}
+
+@router.post("/twilio/release-plan")
+def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    state = db.query(ConversationState).filter(ConversationState.phone == payload.phone).first()
+
+    if not state:
+        raise HTTPException(status_code=404, detail="Lead nao encontrado")
+
+    state.status = "active"
+    state.step = "active"
+    db.commit()
+
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+    from_number = os.getenv("TWILIO_WHATSAPP_FROM")
+
+    twilio_client = TwilioClient(account_sid, auth_token)
+    twilio_client.messages.create(
+        from_=from_number,
+        to=payload.phone,
+        body=f"Seu plano já está disponível no Sotel Fit Core.\n\nAcesse aqui:\n{APP_LINK}"
+    )
+
+    return {"status": "success", "phone": payload.phone, "message": "Plano liberado e cliente avisado"}
+
+@router.get("/leads")
+def list_leads(db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    leads = db.query(ConversationState).all()
+    return [
+        {
+            "phone": l.phone,
+            "name": l.name,
+            "goal": l.goal,
+            "routine": l.routine,
+            "status": l.status,
+            "step": l.step,
+            "onboarding_link_sent": l.onboarding_link_sent,
+            "created_at": l.created_at,
+        }
+        for l in leads
+    ]
