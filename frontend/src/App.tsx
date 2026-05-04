@@ -3,8 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// ─── TIPOS ───────────────────────────────────────────────────────────────────
-
 interface Lead {
   phone: string;
   name: string | null;
@@ -16,7 +14,26 @@ interface Lead {
   created_at: string;
 }
 
-// ─── NAVBAR CLIENTE ───────────────────────────────────────────────────────────
+interface Onboarding {
+  id: number;
+  phone: string | null;
+  nome: string | null;
+  email: string | null;
+  telefone: string | null;
+  idade: string | null;
+  peso: string | null;
+  altura: string | null;
+  objetivo: string | null;
+  nivel_treino: string | null;
+  dias_treino: string | null;
+  horario_treino: string | null;
+  lesoes: string | null;
+  alimentacao_atual: string | null;
+  maior_dificuldade: string | null;
+  meta_principal: string | null;
+  observacoes: string | null;
+  created_at: string;
+}
 
 function Navbar({ client, onLogout }: any) {
   const navigate = useNavigate();
@@ -32,7 +49,70 @@ function Navbar({ client, onLogout }: any) {
   );
 }
 
-// ─── ONBOARDING ───────────────────────────────────────────────────────────────
+function OnboardingModal({ onboarding, onClose }: { onboarding: Onboarding | null; onClose: () => void }) {
+  const field = (label: string, value: string | null) => value ? (
+    <div style={{ marginBottom: "12px" }}>
+      <p style={{ color: "#64748b", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px" }}>{label}</p>
+      <p style={{ color: "white", fontSize: "14px" }}>{value}</p>
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: "#1e293b", borderRadius: "16px", maxWidth: "680px", width: "100%", border: "1px solid #334155", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #334155", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ color: "white", fontSize: "18px", fontWeight: "700" }}>
+              {onboarding ? `📋 Onboarding — ${onboarding.nome || "Sem nome"}` : "📋 Onboarding não enviado"}
+            </h2>
+            {onboarding && (
+              <p style={{ color: "#64748b", fontSize: "12px", marginTop: "4px" }}>
+                Enviado em {new Date(onboarding.created_at).toLocaleDateString("pt-BR")} às {new Date(onboarding.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+          </div>
+          <button onClick={onClose} style={{ background: "#334155", color: "white", border: "none", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "16px" }}>×</button>
+        </div>
+        <div style={{ padding: "24px 28px", overflowY: "auto" }}>
+          {!onboarding ? (
+            <div style={{ textAlign: "center", padding: "32px 0" }}>
+              <div style={{ fontSize: "48px", marginBottom: "16px" }}>📋</div>
+              <p style={{ color: "#64748b" }}>Este lead ainda não preencheu o formulário de onboarding.</p>
+            </div>
+          ) : (
+            <>
+              <h3 style={{ color: "#3b82f6", fontSize: "13px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "16px" }}>Dados Pessoais</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" }}>
+                {field("Nome", onboarding.nome)}
+                {field("Email", onboarding.email)}
+                {field("Telefone", onboarding.telefone)}
+                {field("Idade", onboarding.idade ? onboarding.idade + " anos" : null)}
+                {field("Peso", onboarding.peso ? onboarding.peso + " kg" : null)}
+                {field("Altura", onboarding.altura ? onboarding.altura + " cm" : null)}
+              </div>
+              <div style={{ borderTop: "1px solid #334155", margin: "20px 0" }} />
+              <h3 style={{ color: "#3b82f6", fontSize: "13px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "16px" }}>Objetivo e Rotina</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" }}>
+                {field("Objetivo principal", onboarding.objetivo)}
+                {field("Nível de treino", onboarding.nivel_treino)}
+                {field("Dias de treino", onboarding.dias_treino)}
+                {field("Horário", onboarding.horario_treino)}
+              </div>
+              <div style={{ borderTop: "1px solid #334155", margin: "20px 0" }} />
+              <h3 style={{ color: "#3b82f6", fontSize: "13px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "16px" }}>Saúde e Alimentação</h3>
+              {field("Lesões / restrições", onboarding.lesoes)}
+              {field("Alimentação atual", onboarding.alimentacao_atual)}
+              {field("Maior dificuldade", onboarding.maior_dificuldade)}
+              {field("Meta principal", onboarding.meta_principal)}
+              {field("Observações", onboarding.observacoes)}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Onboarding() {
   const [step, setStep] = useState<"welcome" | "form" | "done">("welcome");
@@ -154,8 +234,6 @@ function Onboarding() {
   );
 }
 
-// ─── LOGIN CLIENTE ────────────────────────────────────────────────────────────
-
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -213,8 +291,6 @@ function Login() {
   );
 }
 
-// ─── DASHBOARD CLIENTE ────────────────────────────────────────────────────────
-
 function Dashboard() {
   const navigate = useNavigate();
   const token = localStorage.getItem("accessToken");
@@ -263,8 +339,6 @@ function Dashboard() {
   );
 }
 
-// ─── CHECKIN ──────────────────────────────────────────────────────────────────
-
 function Checkin() {
   const navigate = useNavigate();
   const token = localStorage.getItem("accessToken");
@@ -274,13 +348,9 @@ function Checkin() {
   const [enviado, setEnviado] = useState(false);
 
   if (!token) return <Navigate to="/login" />;
-
   const logout = () => { localStorage.clear(); navigate("/login"); };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setEnviado(true);
-  };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setEnviado(true); };
 
   if (enviado) return (
     <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "Arial" }}>
@@ -306,8 +376,7 @@ function Checkin() {
             <div style={{ display: "flex", gap: "12px" }}>
               {["Sim, todos os dias", "Sim, alguns dias", "Nao treinei"].map(op => (
                 <label key={op} style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                  <input type="radio" name="treinou" value={op} onChange={e => setForm({...form, treinou: e.target.value})} required />
-                  {op}
+                  <input type="radio" name="treinou" value={op} onChange={e => setForm({...form, treinou: e.target.value})} required />{op}
                 </label>
               ))}
             </div>
@@ -317,8 +386,7 @@ function Checkin() {
             <div style={{ display: "flex", gap: "12px" }}>
               {["Sim", "Parcialmente", "Nao"].map(op => (
                 <label key={op} style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                  <input type="radio" name="seguiu_dieta" value={op} onChange={e => setForm({...form, seguiu_dieta: e.target.value})} required />
-                  {op}
+                  <input type="radio" name="seguiu_dieta" value={op} onChange={e => setForm({...form, seguiu_dieta: e.target.value})} required />{op}
                 </label>
               ))}
             </div>
@@ -347,8 +415,6 @@ function Checkin() {
   );
 }
 
-// ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
-
 function AdminLogin() {
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
@@ -360,9 +426,7 @@ function AdminLogin() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(API + "/admin/leads", {
-        headers: { "x-api-key": apiKey },
-      });
+      const res = await fetch(API + "/admin/leads", { headers: { "x-api-key": apiKey } });
       if (res.ok) {
         localStorage.setItem("adminKey", apiKey);
         navigate("/admin/dashboard");
@@ -387,14 +451,8 @@ function AdminLogin() {
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: "24px" }}>
             <label style={{ display: "block", marginBottom: "8px", fontWeight: "500", color: "#94a3b8", fontSize: "14px" }}>Chave de acesso</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="••••••••••••••••"
-              required
-              style={{ width: "100%", padding: "12px", background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: "14px", color: "white", boxSizing: "border-box" }}
-            />
+            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="••••••••••••••••" required
+              style={{ width: "100%", padding: "12px", background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: "14px", color: "white", boxSizing: "border-box" }} />
           </div>
           {error && <p style={{ color: "#f87171", fontSize: "13px", marginBottom: "16px" }}>{error}</p>}
           <button type="submit" disabled={loading} style={{ width: "100%", padding: "12px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}>
@@ -406,8 +464,6 @@ function AdminLogin() {
   );
 }
 
-// ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
-
 function AdminDashboard() {
   const navigate = useNavigate();
   const apiKey = localStorage.getItem("adminKey");
@@ -415,6 +471,8 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [modalState, setModalState] = useState<"closed" | "loading" | "open">("closed");
+  const [modalData, setModalData] = useState<Onboarding | null>(null);
 
   if (!apiKey) return <Navigate to="/admin" />;
 
@@ -435,14 +493,25 @@ function AdminDashboard() {
 
   useEffect(() => { fetchLeads(); }, []);
 
+  const viewOnboarding = async (phone: string) => {
+    setModalState("loading");
+    setModalData(null);
+    try {
+      const encoded = encodeURIComponent(phone);
+      const res = await fetch(API + `/admin/onboardings/by-phone/${encoded}`, { headers });
+      const data = await res.json();
+      setModalData(data || null);
+    } catch {
+      setModalData(null);
+    } finally {
+      setModalState("open");
+    }
+  };
+
   const activateLead = async (phone: string) => {
     setActionLoading(phone + "_activate");
     try {
-      const res = await fetch(API + "/admin/twilio/activate-lead", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ phone }),
-      });
+      const res = await fetch(API + "/admin/twilio/activate-lead", { method: "POST", headers, body: JSON.stringify({ phone }) });
       const data = await res.json();
       setMsg({ text: data.message || "Lead ativado!", type: "success" });
       fetchLeads();
@@ -456,11 +525,7 @@ function AdminDashboard() {
   const releasePlan = async (phone: string) => {
     setActionLoading(phone + "_release");
     try {
-      const res = await fetch(API + "/admin/twilio/release-plan", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ phone }),
-      });
+      const res = await fetch(API + "/admin/twilio/release-plan", { method: "POST", headers, body: JSON.stringify({ phone }) });
       const data = await res.json();
       setMsg({ text: data.message || "Plano liberado!", type: "success" });
       fetchLeads();
@@ -474,36 +539,35 @@ function AdminDashboard() {
   const logout = () => { localStorage.removeItem("adminKey"); navigate("/admin"); };
 
   const statusColor: Record<string, string> = {
-    active: "#22c55e",
-    active_client: "#3b82f6",
-    onboarding_pending: "#f59e0b",
-    lead: "#94a3b8",
+    active: "#22c55e", active_client: "#3b82f6",
+    onboarding_pending: "#f59e0b", onboarding_completed: "#a855f7", lead: "#94a3b8",
   };
-
   const statusLabel: Record<string, string> = {
-    active: "Ativo",
-    active_client: "Cliente ativo",
-    onboarding_pending: "Aguardando onboarding",
-    lead: "Lead",
+    active: "Ativo", active_client: "Cliente ativo",
+    onboarding_pending: "Aguardando onboarding", onboarding_completed: "Onboarding feito", lead: "Lead",
   };
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f172a", fontFamily: "Arial", color: "white" }}>
 
-      {/* Navbar Admin */}
+      {modalState === "loading" && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ color: "white", fontSize: "18px" }}>Carregando...</div>
+        </div>
+      )}
+      {modalState === "open" && (
+        <OnboardingModal onboarding={modalData} onClose={() => setModalState("closed")} />
+      )}
+
       <nav style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span style={{ fontSize: "20px" }}>⚡</span>
           <h1 style={{ fontSize: "18px", fontWeight: "700" }}>Sotel Fit — Admin</h1>
         </div>
-        <button onClick={logout} style={{ background: "transparent", color: "#94a3b8", border: "1px solid #334155", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
-          Sair
-        </button>
+        <button onClick={logout} style={{ background: "transparent", color: "#94a3b8", border: "1px solid #334155", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>Sair</button>
       </nav>
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 16px" }}>
-
-        {/* Mensagem de feedback */}
         {msg && (
           <div style={{ background: msg.type === "success" ? "#14532d" : "#7f1d1d", border: `1px solid ${msg.type === "success" ? "#22c55e" : "#ef4444"}`, borderRadius: "8px", padding: "12px 16px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "14px" }}>{msg.text}</span>
@@ -511,12 +575,11 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
           {[
             { label: "Total de leads", value: leads.length, icon: "👥" },
             { label: "Clientes ativos", value: leads.filter(l => l.status === "active_client" || l.status === "active").length, icon: "✅" },
-            { label: "Aguardando onboarding", value: leads.filter(l => l.status === "onboarding_pending").length, icon: "⏳" },
+            { label: "Onboarding feito", value: leads.filter(l => l.status === "onboarding_completed").length, icon: "📋" },
           ].map((s, i) => (
             <div key={i} style={{ background: "#1e293b", borderRadius: "12px", padding: "24px", border: "1px solid #334155" }}>
               <div style={{ fontSize: "28px", marginBottom: "8px" }}>{s.icon}</div>
@@ -526,15 +589,11 @@ function AdminDashboard() {
           ))}
         </div>
 
-        {/* Tabela de Leads */}
         <div style={{ background: "#1e293b", borderRadius: "12px", border: "1px solid #334155", overflow: "hidden" }}>
           <div style={{ padding: "20px 24px", borderBottom: "1px solid #334155", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ fontSize: "16px", fontWeight: "700" }}>📋 Leads e Clientes</h2>
-            <button onClick={fetchLeads} style={{ background: "#334155", color: "white", border: "none", padding: "8px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
-              🔄 Atualizar
-            </button>
+            <button onClick={fetchLeads} style={{ background: "#334155", color: "white", border: "none", padding: "8px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>🔄 Atualizar</button>
           </div>
-
           {loading ? (
             <div style={{ padding: "48px", textAlign: "center", color: "#64748b" }}>Carregando...</div>
           ) : leads.length === 0 ? (
@@ -556,34 +615,30 @@ function AdminDashboard() {
                       <td style={{ padding: "14px 16px", fontSize: "13px" }}>{lead.name || <span style={{ color: "#475569" }}>—</span>}</td>
                       <td style={{ padding: "14px 16px", fontSize: "13px" }}>{lead.goal || <span style={{ color: "#475569" }}>—</span>}</td>
                       <td style={{ padding: "14px 16px" }}>
-                        <span style={{ background: statusColor[lead.status] + "22", color: statusColor[lead.status] || "#94a3b8", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
+                        <span style={{ background: (statusColor[lead.status] || "#94a3b8") + "22", color: statusColor[lead.status] || "#94a3b8", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
                           {statusLabel[lead.status] || lead.status}
                         </span>
                       </td>
                       <td style={{ padding: "14px 16px", fontSize: "13px" }}>
                         {lead.onboarding_link_sent ? <span style={{ color: "#22c55e" }}>✓ Sim</span> : <span style={{ color: "#475569" }}>Não</span>}
                       </td>
-                      <td style={{ padding: "14px 16px", fontSize: "12px", color: "#64748b" }}>
-                        {new Date(lead.created_at).toLocaleDateString("pt-BR")}
-                      </td>
+                      <td style={{ padding: "14px 16px", fontSize: "12px", color: "#64748b" }}>{new Date(lead.created_at).toLocaleDateString("pt-BR")}</td>
                       <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", gap: "8px" }}>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          <button onClick={() => viewOnboarding(lead.phone)}
+                            style={{ background: "#1e3a5f", color: "#93c5fd", border: "1px solid #1d4ed8", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}>
+                            📋 Onboarding
+                          </button>
                           {!lead.onboarding_link_sent && (
-                            <button
-                              onClick={() => activateLead(lead.phone)}
-                              disabled={actionLoading === lead.phone + "_activate"}
-                              style={{ background: "#1d4ed8", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}
-                            >
+                            <button onClick={() => activateLead(lead.phone)} disabled={actionLoading === lead.phone + "_activate"}
+                              style={{ background: "#1d4ed8", color: "white", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}>
                               {actionLoading === lead.phone + "_activate" ? "..." : "📲 Ativar"}
                             </button>
                           )}
-                          {(lead.status === "active_client" || lead.status === "onboarding_pending") && (
-                            <button
-                              onClick={() => releasePlan(lead.phone)}
-                              disabled={actionLoading === lead.phone + "_release"}
-                              style={{ background: "#15803d", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}
-                            >
-                              {actionLoading === lead.phone + "_release" ? "..." : "🚀 Liberar plano"}
+                          {(lead.status === "active_client" || lead.status === "onboarding_pending" || lead.status === "onboarding_completed") && (
+                            <button onClick={() => releasePlan(lead.phone)} disabled={actionLoading === lead.phone + "_release"}
+                              style={{ background: "#15803d", color: "white", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" }}>
+                              {actionLoading === lead.phone + "_release" ? "..." : "🚀 Liberar"}
                             </button>
                           )}
                         </div>
@@ -599,8 +654,6 @@ function AdminDashboard() {
     </div>
   );
 }
-
-// ─── APP ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   return (
