@@ -19,7 +19,7 @@ class Subscription(Base):
     notes = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    client = relationship("Client", backref="subscription", uselist=False)
+  
 
     __table_args__ = (
         Index("ix_subscription_client_status", "client_id", "status"),
