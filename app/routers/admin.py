@@ -117,3 +117,16 @@ def list_leads(db: Session = Depends(get_db), _: int = Depends(require_admin)):
         }
         for l in leads
     ]
+@router.get("/onboardings")
+def list_onboardings(db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    from models.lead_onboarding import LeadOnboarding
+    onboardings = db.query(LeadOnboarding).order_by(LeadOnboarding.created_at.desc()).all()
+    return [{"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at} for o in onboardings]
+
+@router.get("/onboardings/by-phone/{phone}")
+def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    from models.lead_onboarding import LeadOnboarding
+    o = db.query(LeadOnboarding).filter(LeadOnboarding.phone == phone).order_by(LeadOnboarding.created_at.desc()).first()
+    if not o:
+        return None
+    return {"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at}
