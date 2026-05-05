@@ -39,6 +39,7 @@ with engine.connect() as conn:
         "ALTER TABLE clients ALTER COLUMN email DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN name DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN objective DROP NOT NULL",
+        "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
     ]:
         try:
             conn.execute(text(sql))
@@ -54,7 +55,7 @@ with engine.connect() as conn:
                 cs.phone,
                 'lead',
                 '',
-                COALESCE(cs.goal, ''),
+                '',
                 cs.created_at
             FROM conversation_states cs
             WHERE cs.phone IS NOT NULL
