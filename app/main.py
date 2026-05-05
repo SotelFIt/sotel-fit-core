@@ -29,11 +29,17 @@ except Exception as e:
 from sqlalchemy import text
 with engine.connect() as conn:
     migrations = [
+       migrations = [
         "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS onboarding_link_sent BOOLEAN DEFAULT FALSE",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS email VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS objective VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'lead'",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS goal VARCHAR",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS age INTEGER",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS weight FLOAT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS height FLOAT",
+   
     ]
     for sql in migrations:
         try:
