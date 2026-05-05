@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// ─── TIPOS ───────────────────────────────────────────────────────────────────
+
 interface Lead {
   phone: string;
   name: string | null;
@@ -35,19 +37,51 @@ interface Onboarding {
   created_at: string;
 }
 
-function Navbar({ client, onLogout }: any) {
+interface ClientData {
+  client: {
+    id: number;
+    name: string;
+    email: string | null;
+    phone: string;
+    objective: string | null;
+    status: string;
+  };
+  onboarding: {
+    nome: string | null;
+    objetivo: string | null;
+    nivel_treino: string | null;
+    dias_treino: string | null;
+    meta_principal: string | null;
+  } | null;
+  plan: { id: number; content: string | null; created_at: string } | null;
+  diet: { id: number; content: string | null; created_at: string } | null;
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  const withCountry = digits.startsWith("55") ? digits : "55" + digits;
+  return `whatsapp:+${withCountry}`;
+}
+
+// ─── NAVBAR CLIENTE ───────────────────────────────────────────────────────────
+
+function Navbar({ name, onLogout }: { name: string; onLogout: () => void }) {
   const navigate = useNavigate();
   return (
     <nav style={{ background: "#2563eb", color: "white", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <h1 onClick={() => navigate("/dashboard")} style={{ fontSize: "22px", fontWeight: "700", cursor: "pointer" }}>Sotel Fit</h1>
       <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
         <span onClick={() => navigate("/checkin")} style={{ fontSize: "14px", cursor: "pointer", opacity: 0.8 }}>Check-in</span>
-        <span style={{ fontSize: "14px" }}>{client?.name}</span>
+        <span style={{ fontSize: "14px" }}>{name}</span>
         <button onClick={onLogout} style={{ background: "white", color: "#2563eb", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>Sair</button>
       </div>
     </nav>
   );
 }
+
+// ─── MODAL ONBOARDING ─────────────────────────────────────────────────────────
 
 function OnboardingModal({ onboarding, onClose }: { onboarding: Onboarding | null; onClose: () => void }) {
   const field = (label: string, value: string | null) => value ? (
@@ -68,7 +102,7 @@ function OnboardingModal({ onboarding, onClose }: { onboarding: Onboarding | nul
             </h2>
             {onboarding && (
               <p style={{ color: "#64748b", fontSize: "12px", marginTop: "4px" }}>
-                Enviado em {new Date(onboarding.created_at).toLocaleDateString("pt-BR")} às {new Date(onboarding.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                Enviado em {new Date(onboarding.created_at).toLocaleDateString("pt-BR")}
               </p>
             )}
           </div>
@@ -113,6 +147,8 @@ function OnboardingModal({ onboarding, onClose }: { onboarding: Onboarding | nul
     </div>
   );
 }
+
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
 
 function Onboarding() {
   const [step, setStep] = useState<"welcome" | "form" | "done">("welcome");
@@ -234,127 +270,198 @@ function Onboarding() {
   );
 }
 
+// ─── LOGIN POR TELEFONE ───────────────────────────────────────────────────────
+
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
     try {
-      const res = await fetch(API + "/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (data.access_token) {
-        localStorage.setItem("accessToken", data.access_token);
-        localStorage.setItem("client", JSON.stringify(data.client));
+      const formatted = formatPhone(phone);
+      const res = await fetch(API + `/clients/by-phone/${encodeURIComponent(formatted)}`);
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("clientPhone", formatted);
+        localStorage.setItem("clientData", JSON.stringify(data));
         navigate("/dashboard");
       } else {
-        alert("Email ou senha incorretos");
+        setError("Número não encontrado. Verifique se completou o cadastro.");
       }
     } catch {
-      alert("Erro ao conectar com servidor");
+      setError("Erro ao conectar com o servidor.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f4f8" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f4f8", fontFamily: "Arial" }}>
       <div style={{ background: "white", padding: "40px", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", width: "380px" }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div style={{ fontSize: "40px", marginBottom: "12px" }}>💪</div>
           <h1 style={{ fontSize: "28px", fontWeight: "700", color: "#1e40af" }}>Sotel Fit</h1>
-          <p style={{ color: "#6b7280", marginTop: "8px" }}>Entre na sua conta</p>
+          <p style={{ color: "#6b7280", marginTop: "8px" }}>Digite seu WhatsApp para acessar</p>
         </div>
         <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: "16px" }}>
-            <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151" }}>E-mail</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com"
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }} />
-          </div>
           <div style={{ marginBottom: "24px" }}>
-            <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151" }}>Senha</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", boxSizing: "border-box" }} />
+            <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151" }}>Número do WhatsApp</label>
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+55 17 99999-9999"
+              required
+              style={{ width: "100%", padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "16px", boxSizing: "border-box" }}
+            />
           </div>
+          {error && <p style={{ color: "#ef4444", fontSize: "13px", marginBottom: "16px" }}>{error}</p>}
           <button type="submit" disabled={loading} style={{ width: "100%", padding: "12px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}>
-            {loading ? "Entrando..." : "Entrar"}
+            {loading ? "Buscando..." : "Acessar meu plano"}
           </button>
         </form>
+        <p style={{ textAlign: "center", marginTop: "20px", color: "#9ca3af", fontSize: "13px" }}>
+          Ainda não tem cadastro?{" "}
+          <span onClick={() => window.location.href = "/onboarding"} style={{ color: "#2563eb", cursor: "pointer", fontWeight: "600" }}>
+            Fazer cadastro
+          </span>
+        </p>
       </div>
     </div>
   );
 }
 
+// ─── DASHBOARD CLIENTE ────────────────────────────────────────────────────────
+
 function Dashboard() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("accessToken");
-  const clientRaw = localStorage.getItem("client");
-  const client = clientRaw ? JSON.parse(clientRaw) : null;
+  const phone = localStorage.getItem("clientPhone");
+  const [data, setData] = useState<ClientData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!token) return <Navigate to="/login" />;
+  if (!phone) return <Navigate to="/login" />;
 
   const logout = () => { localStorage.clear(); navigate("/login"); };
 
-  const cards = [
-    { title: "Treino de Hoje", value: "Nenhum agendado", icon: "💪" },
-    { title: "Proximo Check-in", value: "Em 3 dias", icon: "📋" },
-    { title: "Objetivo", value: client?.objective || "-", icon: "🎯" },
-    { title: "Status", value: client?.is_active ? "Ativo" : "Inativo", icon: "✅" },
-  ];
+  useEffect(() => {
+    fetch(API + `/clients/by-phone/${encodeURIComponent(phone)}/data`)
+      .then(r => r.json())
+      .then(d => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "#f0f4f8", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Arial" }}>
+      <p style={{ color: "#6b7280" }}>Carregando seu plano...</p>
+    </div>
+  );
+
+  const client = data?.client;
+  const onboarding = data?.onboarding;
+  const plan = data?.plan;
+  const diet = data?.diet;
+  const firstName = client?.name?.split(" ")[0] || "Cliente";
 
   return (
     <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "Arial" }}>
-      <Navbar client={client} onLogout={logout} />
+      <Navbar name={firstName} onLogout={logout} />
       <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "32px 16px" }}>
-        <h2 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px" }}>Ola, {client?.name?.split(" ")[0]}! 👋</h2>
-        <p style={{ color: "#6b7280", marginBottom: "32px" }}>Aqui esta um resumo do seu progresso</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "32px" }}>
-          {cards.map((card, i) => (
+        <h2 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px" }}>Olá, {firstName}! 👋</h2>
+        <p style={{ color: "#6b7280", marginBottom: "32px" }}>Aqui está um resumo do seu progresso</p>
+
+        {/* Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+          {[
+            { title: "Objetivo", value: onboarding?.objetivo || client?.objective || "—", icon: "🎯" },
+            { title: "Nível", value: onboarding?.nivel_treino || "—", icon: "📊" },
+            { title: "Dias de treino", value: onboarding?.dias_treino || "—", icon: "📅" },
+            { title: "Status", value: client?.status === "onboarding_completed" ? "Aguardando plano" : client?.status === "active" ? "Ativo" : client?.status || "—", icon: "✅" },
+          ].map((card, i) => (
             <div key={i} style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
               <div style={{ fontSize: "32px", marginBottom: "12px" }}>{card.icon}</div>
               <p style={{ color: "#6b7280", fontSize: "12px", marginBottom: "4px" }}>{card.title}</p>
-              <p style={{ fontWeight: "700", fontSize: "16px" }}>{card.value}</p>
+              <p style={{ fontWeight: "700", fontSize: "15px" }}>{card.value}</p>
             </div>
           ))}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }}>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          {/* Plano de Treino */}
           <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-            <h3 style={{ fontWeight: "700", marginBottom: "16px" }}>📊 Seu Plano de Treino</h3>
-            <p style={{ color: "#6b7280" }}>Nenhum treino configurado ainda. Aguarde seu treinador montar seu plano.</p>
+            <h3 style={{ fontWeight: "700", marginBottom: "16px", fontSize: "16px" }}>💪 Plano de Treino</h3>
+            {plan?.content ? (
+              <div style={{ color: "#374151", fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>{plan.content}</div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <div style={{ fontSize: "40px", marginBottom: "12px" }}>⏳</div>
+                <p style={{ color: "#6b7280", fontSize: "14px" }}>Seu treinador está montando seu plano.</p>
+                <p style={{ color: "#9ca3af", fontSize: "13px", marginTop: "8px" }}>Você será avisado pelo WhatsApp quando estiver pronto.</p>
+              </div>
+            )}
           </div>
-          <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", cursor: "pointer" }} onClick={() => navigate("/checkin")}>
-            <h3 style={{ fontWeight: "700", marginBottom: "16px" }}>📋 Check-in Semanal</h3>
-            <p style={{ color: "#6b7280", marginBottom: "12px" }}>Responda como foi sua semana.</p>
-            <button style={{ background: "#2563eb", color: "white", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer" }}>Fazer Check-in</button>
+
+          {/* Dieta */}
+          <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+            <h3 style={{ fontWeight: "700", marginBottom: "16px", fontSize: "16px" }}>🥗 Plano Alimentar</h3>
+            {diet?.content ? (
+              <div style={{ color: "#374151", fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>{diet.content}</div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <div style={{ fontSize: "40px", marginBottom: "12px" }}>⏳</div>
+                <p style={{ color: "#6b7280", fontSize: "14px" }}>Seu plano alimentar será montado em breve.</p>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Check-in */}
+        <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h3 style={{ fontWeight: "700", marginBottom: "4px" }}>📋 Check-in Semanal</h3>
+            <p style={{ color: "#6b7280", fontSize: "14px" }}>Responda como foi sua semana para seu treinador acompanhar.</p>
+          </div>
+          <button onClick={() => navigate("/checkin")} style={{ background: "#2563eb", color: "white", border: "none", padding: "12px 24px", borderRadius: "8px", cursor: "pointer", fontWeight: "600", whiteSpace: "nowrap" }}>
+            Fazer Check-in
+          </button>
+        </div>
+
+        {/* Meta */}
+        {onboarding?.meta_principal && (
+          <div style={{ background: "#eff6ff", borderRadius: "12px", padding: "20px", marginTop: "16px", border: "1px solid #bfdbfe" }}>
+            <p style={{ color: "#1e40af", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>SUA META</p>
+            <p style={{ color: "#1e3a8a", fontSize: "15px" }}>"{onboarding.meta_principal}"</p>
+          </div>
+        )}
       </main>
     </div>
   );
 }
 
+// ─── CHECKIN ──────────────────────────────────────────────────────────────────
+
 function Checkin() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("accessToken");
-  const clientRaw = localStorage.getItem("client");
-  const client = clientRaw ? JSON.parse(clientRaw) : null;
+  const phone = localStorage.getItem("clientPhone");
+  const clientDataRaw = localStorage.getItem("clientData");
+  const clientData = clientDataRaw ? JSON.parse(clientDataRaw) : null;
   const [form, setForm] = useState({ treinou: "", seguiu_dieta: "", peso: "", dificuldade: "", observacoes: "" });
   const [enviado, setEnviado] = useState(false);
 
-  if (!token) return <Navigate to="/login" />;
+  if (!phone) return <Navigate to="/login" />;
   const logout = () => { localStorage.clear(); navigate("/login"); };
+  const firstName = clientData?.name?.split(" ")[0] || "Cliente";
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setEnviado(true); };
 
   if (enviado) return (
     <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "Arial" }}>
-      <Navbar client={client} onLogout={logout} />
+      <Navbar name={firstName} onLogout={logout} />
       <div style={{ maxWidth: "600px", margin: "80px auto", background: "white", borderRadius: "12px", padding: "40px", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         <div style={{ fontSize: "64px", marginBottom: "16px" }}>✅</div>
         <h2 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px" }}>Check-in Enviado!</h2>
@@ -366,15 +473,15 @@ function Checkin() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "Arial" }}>
-      <Navbar client={client} onLogout={logout} />
+      <Navbar name={firstName} onLogout={logout} />
       <main style={{ maxWidth: "600px", margin: "0 auto", padding: "32px 16px" }}>
         <h2 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px" }}>📋 Check-in Semanal</h2>
         <p style={{ color: "#6b7280", marginBottom: "24px" }}>Como foi sua semana?</p>
         <form onSubmit={handleSubmit} style={{ background: "white", borderRadius: "12px", padding: "32px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
           <div style={{ marginBottom: "20px" }}>
-            <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Voce treinou essa semana?</label>
-            <div style={{ display: "flex", gap: "12px" }}>
-              {["Sim, todos os dias", "Sim, alguns dias", "Nao treinei"].map(op => (
+            <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Você treinou essa semana?</label>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              {["Sim, todos os dias", "Sim, alguns dias", "Não treinei"].map(op => (
                 <label key={op} style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                   <input type="radio" name="treinou" value={op} onChange={e => setForm({...form, treinou: e.target.value})} required />{op}
                 </label>
@@ -382,9 +489,9 @@ function Checkin() {
             </div>
           </div>
           <div style={{ marginBottom: "20px" }}>
-            <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Seguiu a alimentacao?</label>
+            <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Seguiu a alimentação?</label>
             <div style={{ display: "flex", gap: "12px" }}>
-              {["Sim", "Parcialmente", "Nao"].map(op => (
+              {["Sim", "Parcialmente", "Não"].map(op => (
                 <label key={op} style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                   <input type="radio" name="seguiu_dieta" value={op} onChange={e => setForm({...form, seguiu_dieta: e.target.value})} required />{op}
                 </label>
@@ -398,12 +505,12 @@ function Checkin() {
           </div>
           <div style={{ marginBottom: "20px" }}>
             <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Teve alguma dificuldade?</label>
-            <input type="text" placeholder="Ex: Fome a noite, dor no joelho..." value={form.dificuldade} onChange={e => setForm({...form, dificuldade: e.target.value})}
+            <input type="text" placeholder="Ex: Fome à noite, dor no joelho..." value={form.dificuldade} onChange={e => setForm({...form, dificuldade: e.target.value})}
               style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: "24px" }}>
-            <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Observacoes gerais</label>
-            <textarea placeholder="Como voce esta se sentindo?" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})}
+            <label style={{ display: "block", fontWeight: "600", marginBottom: "8px" }}>Observações gerais</label>
+            <textarea placeholder="Como você está se sentindo?" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})}
               style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "8px", boxSizing: "border-box", height: "100px", resize: "vertical" }} />
           </div>
           <button type="submit" style={{ width: "100%", padding: "14px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}>
@@ -414,6 +521,8 @@ function Checkin() {
     </div>
   );
 }
+
+// ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
 
 function AdminLogin() {
   const [apiKey, setApiKey] = useState("");
@@ -463,6 +572,8 @@ function AdminLogin() {
     </div>
   );
 }
+
+// ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -549,7 +660,6 @@ function AdminDashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f172a", fontFamily: "Arial", color: "white" }}>
-
       {modalState === "loading" && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ color: "white", fontSize: "18px" }}>Carregando...</div>
@@ -654,6 +764,8 @@ function AdminDashboard() {
     </div>
   );
 }
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   return (
