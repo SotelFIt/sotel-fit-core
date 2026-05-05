@@ -42,6 +42,7 @@ with engine.connect() as conn:
         "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
+        "DROP INDEX IF EXISTS ix_clients_email",
     ]:
         try:
             conn.execute(text(sql))
@@ -56,8 +57,8 @@ with engine.connect() as conn:
                 COALESCE(cs.name, 'Lead WhatsApp'),
                 cs.phone,
                 'lead',
-                '',
-                '',
+                NULL,
+                NULL,
                 cs.created_at,
                 NOW()
             FROM conversation_states cs
