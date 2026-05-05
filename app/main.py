@@ -25,7 +25,6 @@ try:
 except Exception as e:
     logger.warning(f"Banco de dados nao disponivel: {e}")
 
-# Migrações manuais
 from sqlalchemy import text
 with engine.connect() as conn:
     migrations = [
@@ -33,6 +32,11 @@ with engine.connect() as conn:
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS email VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS objective VARCHAR",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'lead'",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS goal VARCHAR",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS age INTEGER",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS weight FLOAT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS height FLOAT",
     ]
     for sql in migrations:
         try:
@@ -40,6 +44,26 @@ with engine.connect() as conn:
             conn.commit()
         except Exception:
             pass
+
+    # Criar clients para leads do WhatsApp que ainda nao tem registro em clients
+    try:
+        result = conn.execute(text("""
+            INSERT INTO clients (name, phone, status, created_at)
+            SELECT
+                COALESCE(cs.name, 'Lead WhatsApp'),
+                cs.phone,
+                cs.status,
+                cs.created_at
+            FROM conversation_states cs
+            WHERE cs.phone IS NOT NULL
+            AND NOT EXISTS (
+                SELECT 1 FROM clients c WHERE c.phone = cs.phone
+            )
+        """))
+        conn.commit()
+        logger.info(f"Clientes criados a partir de leads: {result.rowcount}")
+    except Exception as e:
+        logger.warning(f"Erro ao criar clients de leads: {e}")
 
 logger.info("Migracoes executadas")
 
