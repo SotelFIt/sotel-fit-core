@@ -40,6 +40,8 @@ with engine.connect() as conn:
         "ALTER TABLE clients ALTER COLUMN name DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN objective DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
+        "ALTER TABLE clients ALTER COLUMN updated_at DROP NOT NULL",
+        "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
     ]:
         try:
             conn.execute(text(sql))
@@ -49,14 +51,15 @@ with engine.connect() as conn:
 
     try:
         result = conn.execute(text("""
-            INSERT INTO clients (name, phone, status, email, objective, created_at)
+            INSERT INTO clients (name, phone, status, email, objective, created_at, updated_at)
             SELECT
                 COALESCE(cs.name, 'Lead WhatsApp'),
                 cs.phone,
                 'lead',
                 '',
                 '',
-                cs.created_at
+                cs.created_at,
+                NOW()
             FROM conversation_states cs
             WHERE cs.phone IS NOT NULL
             AND NOT EXISTS (SELECT 1 FROM clients c WHERE c.phone = cs.phone)
