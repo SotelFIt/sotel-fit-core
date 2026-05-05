@@ -33,6 +33,7 @@ with engine.connect() as conn:
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS email VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS objective VARCHAR",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'lead'",
     ]
     for sql in migrations:
         try:
