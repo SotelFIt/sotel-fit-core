@@ -7,6 +7,7 @@ from twilio.rest import Client as TwilioClient
 from core.database import get_db
 from models.lead_onboarding import LeadOnboarding
 from models.conversation_state import ConversationState
+from models.client import Client
 
 router = APIRouter(prefix="/onboarding", tags=["Onboarding"])
 
@@ -36,6 +37,7 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             digits = '55' + digits
         phone_formatted = f"whatsapp:+{digits}"
 
+    # Salvar onboarding
     onboarding = LeadOnboarding(
         phone=phone_formatted,
         nome=payload.nome,
@@ -56,6 +58,7 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
     )
     db.add(onboarding)
 
+    # Atualizar ConversationState se existir
     if phone_formatted:
         state = db.query(ConversationState).filter(
             ConversationState.phone == phone_formatted
@@ -64,8 +67,30 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             state.status = "onboarding_completed"
             state.step = "onboarding_completed"
 
+    # Criar ou atualizar Client por telefone
+    if phone_formatted:
+        client = db.query(Client).filter(Client.phone == phone_formatted).first()
+        if not client:
+            client = Client(
+                name=payload.nome or "Cliente",
+                email=payload.email,
+                phone=phone_formatted,
+                objective=payload.objetivo,
+                status="onboarding_completed",
+                age=int(payload.idade) if payload.idade and payload.idade.isdigit() else None,
+                weight=float(payload.peso) if payload.peso else None,
+                height=float(payload.altura) if payload.altura else None,
+            )
+            db.add(client)
+        else:
+            client.name = payload.nome or client.name
+            client.email = payload.email or client.email
+            client.objective = payload.objetivo or client.objective
+            client.status = "onboarding_completed"
+
     db.commit()
 
+    # Enviar WhatsApp de confirmação
     if phone_formatted:
         try:
             account_sid = os.getenv("TWILIO_ACCOUNT_SID")
@@ -75,7 +100,7 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             twilio_client.messages.create(
                 from_=from_number,
                 to=phone_formatted,
-                body="Cadastro recebido.\n\nAgora vamos montar seu plano personalizado com base nas suas respostas.\n\nAssim que estiver pronto, você será avisado aqui no WhatsApp."
+                body="Cadastro recebido!\n\nAgora vamos montar seu plano personalizado com base nas suas respostas.\n\nAssim que estiver pronto, voce sera avisado aqui no WhatsApp."
             )
         except Exception:
             pass

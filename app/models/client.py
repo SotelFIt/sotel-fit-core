@@ -8,6 +8,9 @@ class Client(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True, index=True)
+    objective = Column(String, nullable=True)
     status = Column(String, nullable=True, default="lead")
     age = Column(Integer, nullable=True)
     weight = Column(Float, nullable=True)
@@ -52,7 +55,6 @@ class Client(Base):
         back_populates="client",
         cascade="all, delete-orphan",
     )
-# ✅ Relacionamento com Checkin
     checkins = relationship(
         "Checkin",
         back_populates="client",
