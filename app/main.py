@@ -38,6 +38,7 @@ with engine.connect() as conn:
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS height FLOAT",
         "ALTER TABLE clients ALTER COLUMN email DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN name DROP NOT NULL",
+        "ALTER TABLE clients ALTER COLUMN objective DROP NOT NULL",
     ]:
         try:
             conn.execute(text(sql))
@@ -47,8 +48,14 @@ with engine.connect() as conn:
 
     try:
         result = conn.execute(text("""
-            INSERT INTO clients (name, phone, status, email, created_at)
-            SELECT COALESCE(cs.name, 'Lead WhatsApp'), cs.phone, 'lead', '', cs.created_at
+            INSERT INTO clients (name, phone, status, email, objective, created_at)
+            SELECT
+                COALESCE(cs.name, 'Lead WhatsApp'),
+                cs.phone,
+                'lead',
+                '',
+                COALESCE(cs.goal, ''),
+                cs.created_at
             FROM conversation_states cs
             WHERE cs.phone IS NOT NULL
             AND NOT EXISTS (SELECT 1 FROM clients c WHERE c.phone = cs.phone)
