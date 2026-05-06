@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -511,7 +511,28 @@ function Checkin() {
   const logout = () => { localStorage.clear(); navigate("/login"); };
   const firstName = clientData?.name?.split(" ")[0] || "Cliente";
 
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setEnviado(true); };
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientData?.id) return;
+    try {
+      await fetch(API + "/admin/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: clientData.id,
+          treinou: form.treinou,
+          seguiu_dieta: form.seguiu_dieta,
+          peso: form.peso ? parseFloat(form.peso) : null,
+          energia: null,
+          dificuldade: form.dificuldade,
+          observacoes: form.observacoes,
+        }),
+      });
+    } catch (e) {
+      console.error("Erro ao enviar check-in:", e);
+    }
+    setEnviado(true);
+  };
 
   if (enviado) return (
     <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "Arial" }}>
