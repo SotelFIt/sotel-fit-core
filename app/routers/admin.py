@@ -1,4 +1,5 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from twilio.rest import Client as TwilioClient
@@ -137,9 +138,9 @@ def save_client_plan(client_id: int, payload: dict, db: Session = Depends(get_db
     db.execute(text("""
         INSERT INTO plan_versions (client_id, content, status, created_at)
         VALUES (:cid, :content, 'active', NOW())
-    """), {"cid": client_id, "content": content})
+    """), {"cid": client_id, "content": content})9
     db.commit()
-    return {"status": "ok", "message": "Plano salvo com sucesso"}
+    return {"status": "ok", "message": "Plano salvo com sucesso"}	
 
 @router.post("/clients/{client_id}/save-diet")
 def save_client_diet(client_id: int, payload: dict, db: Session = Depends(get_db), _: int = Depends(require_admin)):
