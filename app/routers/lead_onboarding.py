@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -7,7 +8,6 @@ from twilio.rest import Client as TwilioClient
 from core.database import get_db
 from models.lead_onboarding import LeadOnboarding
 from models.conversation_state import ConversationState
-from models.client import Client
 
 router = APIRouter(prefix="/onboarding", tags=["Onboarding"])
 
@@ -37,7 +37,6 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             digits = '55' + digits
         phone_formatted = f"whatsapp:+{digits}"
 
-    # Salvar onboarding
     onboarding = LeadOnboarding(
         phone=phone_formatted,
         nome=payload.nome,
@@ -58,7 +57,6 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
     )
     db.add(onboarding)
 
-    # Atualizar ConversationState se existir
     if phone_formatted:
         state = db.query(ConversationState).filter(
             ConversationState.phone == phone_formatted
@@ -67,40 +65,34 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             state.status = "onboarding_completed"
             state.step = "onboarding_completed"
 
-    # Criar ou atualizar Client por telefone
     if phone_formatted:
-        client = db.query(Client).filter(Client.phone == phone_formatted).first()
-        if not client:
-            client = Client(
-                name=payload.nome or "Cliente",
-                email=payload.email,
-                phone=phone_formatted,
-                objective=payload.objetivo,
-                status="onboarding_completed",
-                age=int(payload.idade) if payload.idade and payload.idade.isdigit() else None,
-                weight=float(payload.peso) if payload.peso else None,
-                height=float(payload.altura) if payload.altura else None,
+        existing = db.execute(
+            text("SELECT id FROM clients WHERE phone = :p LIMIT 1"),
+            {"p": phone_formatted}
+        ).fetchone()
+        if not existing:
+            db.execute(
+                text("""
+                    INSERT INTO clients (name, phone, status, email, objective, created_at, updated_at)
+                    VALUES (:name, :phone, 'onboarding_completed', NULL, :objective, NOW(), NOW())
+                """),
+                {"name": payload.nome or "Cliente", "phone": phone_formatted, "objective": payload.objetivo}
             )
-            db.add(client)
         else:
-            client.name = payload.nome or client.name
-            client.email = payload.email or client.email
-            client.objective = payload.objetivo or client.objective
-            client.status = "onboarding_completed"
+            db.execute(
+                text("UPDATE clients SET status = 'onboarding_completed', objective = :obj WHERE phone = :p"),
+                {"obj": payload.objetivo, "p": phone_formatted}
+            )
 
     db.commit()
 
-    # Enviar WhatsApp de confirmação
     if phone_formatted:
         try:
-            account_sid = os.getenv("TWILIO_ACCOUNT_SID")
-            auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-            from_number = os.getenv("TWILIO_WHATSAPP_FROM")
-            twilio_client = TwilioClient(account_sid, auth_token)
+            twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
             twilio_client.messages.create(
-                from_=from_number,
+                from_=os.getenv("TWILIO_WHATSAPP_FROM"),
                 to=phone_formatted,
-                body="Cadastro recebido!\n\nAgora vamos montar seu plano personalizado com base nas suas respostas.\n\nAssim que estiver pronto, voce sera avisado aqui no WhatsApp."
+                body="Cadastro recebido!\n\nAgora vamos montar seu plano personalizado.\n\nAssim que estiver pronto, voce sera avisado aqui no WhatsApp."
             )
         except Exception:
             pass
