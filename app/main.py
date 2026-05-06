@@ -17,6 +17,9 @@ from routers.stripe_webhook import router as stripe_router
 from routers.lead_onboarding import router as lead_onboarding_router
 from models import *  # noqa
 
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+
 logger.info("Importando routers...")
 
 try:
@@ -43,6 +46,7 @@ with engine.connect() as conn:
         "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
+	"ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_checkin_reminder_sent TIMESTAMP DEFAULT NULL",
         "DROP INDEX IF EXISTS ix_clients_email",
     ]
     for sql in migrations:
@@ -121,9 +125,33 @@ app.add_middleware(
 )
 
 
+def scheduled_checkin_reminders():
+    """Task agendada para enviar lembretes."""
+    try:
+        from services.checkin_reminder import send_checkin_reminders
+        result = send_checkin_reminders()
+        logger.info(f"Checkin reminders job executado: {result}")
+    except Exception as e:
+        logger.error(f"Erro em scheduled_checkin_reminders: {e}")
+
+scheduler = BackgroundScheduler()
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("STARTUP OK")
+    
+    # Agenda lembretes de check-in
+    # Roda de segunda a sexta às 8h
+    scheduler.add_job(
+        scheduled_checkin_reminders,
+        CronTrigger(day_of_week="0-4", hour=8, minute=0),
+        id="checkin_reminders",
+        name="Checkin Reminders",
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    logger.info("Scheduler iniciado - Lembretes agendados para seg-sex 8h")
 
 
 @app.on_event("shutdown")

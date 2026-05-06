@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -178,6 +178,16 @@ def get_checkins(client_id: int, db: Session = Depends(get_db), _: int = Depends
         {"cid": client_id}
     ).fetchall()
     return [{"id": r[0], "client_id": r[1], "treinou": r[2], "seguiu_dieta": r[3], "peso": r[4], "energia": r[5], "dificuldade": r[6], "observacoes": r[7], "created_at": str(r[8])} for r in rows]
+
+@router.post("/send-checkin-reminders")
+async def send_checkin_reminders_endpoint(api_key: str = Header(None, alias="x-api-key")):
+    """Envia lembretes de check-in para clientes ativos."""
+    if api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Chave inválida")
+    
+    from services.checkin_reminder import send_checkin_reminders
+    result = send_checkin_reminders()
+    return result
 
 @router.get("/clients")
 def list_clients_admin(db: Session = Depends(get_db), _: int = Depends(require_admin)):
