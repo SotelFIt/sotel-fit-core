@@ -42,11 +42,17 @@ with engine.connect() as conn:
         "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
-	"ALTER TABLE plan_versions ADD COLUMN IF NOT EXISTS content TEXT",
+        "ALTER TABLE plan_versions ADD COLUMN IF NOT EXISTS content TEXT",
         "ALTER TABLE plan_versions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active'",
         "ALTER TABLE diet_versions ADD COLUMN IF NOT EXISTS content TEXT",
         "ALTER TABLE diet_versions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active'",
         "DROP INDEX IF EXISTS ix_clients_email",
+        "ALTER TABLE plan_versions ALTER COLUMN source_plan_id DROP NOT NULL",
+        "ALTER TABLE plan_versions ALTER COLUMN version_number DROP NOT NULL",
+        "ALTER TABLE plan_versions ALTER COLUMN snapshot_json DROP NOT NULL",
+        "ALTER TABLE diet_versions ALTER COLUMN source_diet_id DROP NOT NULL",
+        "ALTER TABLE diet_versions ALTER COLUMN version_number DROP NOT NULL",
+        "ALTER TABLE diet_versions ALTER COLUMN snapshot_json DROP NOT NULL",
     ]:
         try:
             conn.execute(text(sql))
@@ -57,14 +63,7 @@ with engine.connect() as conn:
     try:
         result = conn.execute(text("""
             INSERT INTO clients (name, phone, status, email, objective, created_at, updated_at)
-            SELECT
-                COALESCE(cs.name, 'Lead WhatsApp'),
-                cs.phone,
-                'lead',
-                NULL,
-                NULL,
-                cs.created_at,
-                NOW()
+            SELECT COALESCE(cs.name, 'Lead WhatsApp'), cs.phone, 'lead', NULL, NULL, cs.created_at, NOW()
             FROM conversation_states cs
             WHERE cs.phone IS NOT NULL
             AND NOT EXISTS (SELECT 1 FROM clients c WHERE c.phone = cs.phone)
