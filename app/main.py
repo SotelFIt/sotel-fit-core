@@ -26,8 +26,9 @@ except Exception as e:
     logger.warning(f"Banco de dados nao disponivel: {e}")
 
 from sqlalchemy import text
+
 with engine.connect() as conn:
-    for sql in [
+    migrations = [
         "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS onboarding_link_sent BOOLEAN DEFAULT FALSE",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS email VARCHAR",
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone VARCHAR",
@@ -42,24 +43,45 @@ with engine.connect() as conn:
         "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
-        "ALTER TABLE plan_versions ADD COLUMN IF NOT EXISTS content TEXT",
-        "ALTER TABLE plan_versions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active'",
-        "ALTER TABLE diet_versions ADD COLUMN IF NOT EXISTS content TEXT",
-        "ALTER TABLE diet_versions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active'",
         "DROP INDEX IF EXISTS ix_clients_email",
-        "ALTER TABLE plan_versions ALTER COLUMN source_plan_id DROP NOT NULL",
-        "ALTER TABLE plan_versions ALTER COLUMN version_number DROP NOT NULL",
-        "ALTER TABLE plan_versions ALTER COLUMN snapshot_json DROP NOT NULL",
-        "ALTER TABLE diet_versions ALTER COLUMN source_diet_id DROP NOT NULL",
-        "ALTER TABLE diet_versions ALTER COLUMN version_number DROP NOT NULL",
-        "ALTER TABLE diet_versions ALTER COLUMN snapshot_json DROP NOT NULL",
-    ]:
+    ]
+    for sql in migrations:
         try:
             conn.execute(text(sql))
             conn.commit()
         except Exception:
             conn.rollback()
 
+    # Criar tabelas simples para planos e dietas
+    for sql in [
+        """
+        CREATE TABLE IF NOT EXISTS client_plans (
+            id SERIAL PRIMARY KEY,
+            client_id INTEGER NOT NULL,
+            content TEXT,
+            status VARCHAR DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS client_diets (
+            id SERIAL PRIMARY KEY,
+            client_id INTEGER NOT NULL,
+            content TEXT,
+            status VARCHAR DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+        """,
+    ]:
+        try:
+            conn.execute(text(sql))
+            conn.commit()
+            logger.info("Tabela criada/verificada com sucesso")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Erro ao criar tabela: {e}")
+
+    # Sincronizar clientes de leads
     try:
         result = conn.execute(text("""
             INSERT INTO clients (name, phone, status, email, objective, created_at, updated_at)
@@ -87,13 +109,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("STARTUP OK")
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("SHUTDOWN OK")
+
 
 app.include_router(landbot.router)
 app.include_router(clients.router)
@@ -104,9 +129,11 @@ app.include_router(twilio_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.get("/")
 def root():

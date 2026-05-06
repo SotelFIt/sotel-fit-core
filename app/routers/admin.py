@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -10,6 +11,7 @@ from schemas.subscription import ActivateSubscriptionRequest, RenewSubscriptionR
 from services.subscription_service import activate_subscription, renew_subscription, get_subscription, get_expiring_subscriptions, get_expired_subscriptions
 from models.conversation_state import ConversationState
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 ONBOARDING_LINK = "https://frontend-iota-rose-78.vercel.app/onboarding"
@@ -28,6 +30,20 @@ class ActivateLeadRequest(BaseModel):
 
 class ReleasePlanRequest(BaseModel):
     phone: str
+
+
+class SavePlanRequest(BaseModel):
+    content: str
+
+
+class SaveDietRequest(BaseModel):
+    content: str
+
+
+class SaveFullPlanRequest(BaseModel):
+    training_content: str = ""
+    diet_content: str = ""
+    release_to_client: bool = False
 
 
 @router.post("/clients/{client_id}/activate-subscription", response_model=SubscriptionResponse)
@@ -69,16 +85,13 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
         return {"status": "skipped", "phone": payload.phone, "message": "Link ja enviado anteriormente"}
     state.onboarding_link_sent = True
     db.commit()
-    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
-    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-    from_number = os.getenv("TWILIO_WHATSAPP_FROM")
-    twilio_client = TwilioClient(account_sid, auth_token)
+    twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
     twilio_client.messages.create(
-        from_=from_number,
+        from_=os.getenv("TWILIO_WHATSAPP_FROM"),
         to=payload.phone,
-        body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAgora precisamos que voce complete seu cadastro inicial para montar seu plano personalizado.\n\nAcesse aqui:\n{ONBOARDING_LINK}"
+        body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}"
     )
-    return {"status": "success", "phone": payload.phone, "message": "Lead ativado e link de onboarding enviado"}
+    return {"status": "success", "phone": payload.phone, "message": "Lead ativado"}
 
 
 @router.post("/twilio/release-plan")
@@ -89,51 +102,26 @@ def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: 
     state.status = "active"
     state.step = "active"
     db.commit()
-    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
-    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-    from_number = os.getenv("TWILIO_WHATSAPP_FROM")
-    twilio_client = TwilioClient(account_sid, auth_token)
+    twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
     twilio_client.messages.create(
-        from_=from_number,
+        from_=os.getenv("TWILIO_WHATSAPP_FROM"),
         to=payload.phone,
-        body=f"Seu plano ja esta disponivel no Sotel Fit Core.\n\nAcesse aqui:\n{APP_LINK}"
+        body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}"
     )
-    return {"status": "success", "phone": payload.phone, "message": "Plano liberado e cliente avisado"}
+    return {"status": "success", "phone": payload.phone, "message": "Plano liberado"}
 
 
 @router.get("/leads")
 def list_leads(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     leads = db.query(ConversationState).all()
-    return [
-        {
-            "phone": l.phone,
-            "name": l.name,
-            "goal": l.goal,
-            "routine": l.routine,
-            "status": l.status,
-            "step": l.step,
-            "onboarding_link_sent": l.onboarding_link_sent,
-            "created_at": l.created_at,
-        }
-        for l in leads
-    ]
+    return [{"phone": l.phone, "name": l.name, "goal": l.goal, "routine": l.routine, "status": l.status, "step": l.step, "onboarding_link_sent": l.onboarding_link_sent, "created_at": l.created_at} for l in leads]
 
 
 @router.get("/onboardings")
 def list_onboardings(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     from models.lead_onboarding import LeadOnboarding
     onboardings = db.query(LeadOnboarding).order_by(LeadOnboarding.created_at.desc()).all()
-    return [
-        {
-            "id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email,
-            "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura,
-            "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino,
-            "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual,
-            "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal,
-            "observacoes": o.observacoes, "created_at": o.created_at,
-        }
-        for o in onboardings
-    ]
+    return [{"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at} for o in onboardings]
 
 
 @router.get("/onboardings/by-phone/{phone}")
@@ -142,37 +130,59 @@ def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = 
     o = db.query(LeadOnboarding).filter(LeadOnboarding.phone == phone).order_by(LeadOnboarding.created_at.desc()).first()
     if not o:
         return None
-    return {
-        "id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email,
-        "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura,
-        "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino,
-        "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual,
-        "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal,
-        "observacoes": o.observacoes, "created_at": o.created_at,
-    }
+    return {"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at}
 
 
 @router.post("/clients/{client_id}/save-plan")
-def save_client_plan(client_id: int, payload: dict, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    content = payload.get("content", "")
-    db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-    db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": content})
-    db.commit()
-    return {"status": "ok", "message": "Plano salvo com sucesso"}
+def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    logger.info(f"save-plan chamado: client_id={client_id}, content_len={len(payload.content)}")
+    try:
+        db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+        db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
+        db.commit()
+        logger.info(f"Plano salvo com sucesso para client_id={client_id}")
+        return {"status": "ok", "message": "Plano salvo com sucesso"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao salvar plano: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/clients/{client_id}/save-diet")
-def save_client_diet(client_id: int, payload: dict, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    content = payload.get("content", "")
-    db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-    db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": content})
-    db.commit()
-    return {"status": "ok", "message": "Dieta salva com sucesso"}
+def save_client_diet(client_id: int, payload: SaveDietRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    logger.info(f"save-diet chamado: client_id={client_id}, content_len={len(payload.content)}")
+    try:
+        db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+        db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
+        db.commit()
+        logger.info(f"Dieta salva com sucesso para client_id={client_id}")
+        return {"status": "ok", "message": "Dieta salva com sucesso"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao salvar dieta: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/clients/{client_id}/save-full-plan")
+def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    logger.info(f"save-full-plan chamado: client_id={client_id}")
+    try:
+        if payload.training_content:
+            db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+            db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.training_content})
+        if payload.diet_content:
+            db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+            db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.diet_content})
+        db.commit()
+        logger.info(f"Plano completo salvo para client_id={client_id}")
+        return {"status": "ok", "message": "Plano completo salvo com sucesso"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao salvar plano completo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/clients")
 def list_clients_admin(db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    rows = db.execute(
-        text("SELECT id, name, phone, objective, status FROM clients ORDER BY created_at DESC")
-    ).fetchall()
+    rows = db.execute(text("SELECT id, name, phone, objective, status FROM clients ORDER BY created_at DESC")).fetchall()
     return [{"id": r[0], "name": r[1], "phone": r[2], "objective": r[3], "status": r[4]} for r in rows]
