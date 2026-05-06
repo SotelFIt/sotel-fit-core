@@ -130,3 +130,30 @@ def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = 
     if not o:
         return None
     return {"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at}
+@router.post("/clients/{client_id}/save-plan")
+def save_client_plan(client_id: int, payload: dict, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    content = payload.get("content", "")
+    db.execute(text("UPDATE plan_versions SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+    db.execute(text("""
+        INSERT INTO plan_versions (client_id, content, status, created_at)
+        VALUES (:cid, :content, 'active', NOW())
+    """), {"cid": client_id, "content": content})
+    db.commit()
+    return {"status": "ok", "message": "Plano salvo com sucesso"}
+
+@router.post("/clients/{client_id}/save-diet")
+def save_client_diet(client_id: int, payload: dict, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    content = payload.get("content", "")
+    db.execute(text("UPDATE diet_versions SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+    db.execute(text("""
+        INSERT INTO diet_versions (client_id, content, status, created_at)
+        VALUES (:cid, :content, 'active', NOW())
+    """), {"cid": client_id, "content": content})
+    db.commit()
+    return {"status": "ok", "message": "Dieta salva com sucesso"}
+
+@router.get("/clients")
+def list_clients_admin(db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    from sqlalchemy import text as t
+    rows = db.execute(t("SELECT id, name, phone, objective, status FROM clients ORDER BY created_at DESC")).fetchall()
+    return [{"id": r[0], "name": r[1], "phone": r[2], "objective": r[3], "status": r[4]} for r in rows]

@@ -42,6 +42,10 @@ with engine.connect() as conn:
         "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at DROP NOT NULL",
         "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
+	"ALTER TABLE plan_versions ADD COLUMN IF NOT EXISTS content TEXT",
+        "ALTER TABLE plan_versions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active'",
+        "ALTER TABLE diet_versions ADD COLUMN IF NOT EXISTS content TEXT",
+        "ALTER TABLE diet_versions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active'",
         "DROP INDEX IF EXISTS ix_clients_email",
     ]:
         try:
