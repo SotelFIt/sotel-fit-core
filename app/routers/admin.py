@@ -155,11 +155,8 @@ def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = 
 @router.post("/clients/{client_id}/save-plan")
 def save_client_plan(client_id: int, payload: dict, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     content = payload.get("content", "")
-    db.execute(text("UPDATE plan_versions SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-    db.execute(
-        text("INSERT INTO plan_versions (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"),
-        {"cid": client_id, "content": content}
-    )
+    db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+    db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": content})
     db.commit()
     return {"status": "ok", "message": "Plano salvo com sucesso"}
 
@@ -167,11 +164,8 @@ def save_client_plan(client_id: int, payload: dict, db: Session = Depends(get_db
 @router.post("/clients/{client_id}/save-diet")
 def save_client_diet(client_id: int, payload: dict, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     content = payload.get("content", "")
-    db.execute(text("UPDATE diet_versions SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-    db.execute(
-        text("INSERT INTO diet_versions (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"),
-        {"cid": client_id, "content": content}
-    )
+    db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
+    db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": content})
     db.commit()
     return {"status": "ok", "message": "Dieta salva com sucesso"}
 
