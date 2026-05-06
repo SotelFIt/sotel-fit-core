@@ -1,8 +1,9 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
+from typing import Optional
 from twilio.rest import Client as TwilioClient
 import os
 from core.database import get_db
@@ -27,34 +28,37 @@ def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
 class ActivateLeadRequest(BaseModel):
     phone: str
 
-
 class ReleasePlanRequest(BaseModel):
     phone: str
-
 
 class SavePlanRequest(BaseModel):
     content: str
 
-
 class SaveDietRequest(BaseModel):
     content: str
-
 
 class SaveFullPlanRequest(BaseModel):
     training_content: str = ""
     diet_content: str = ""
     release_to_client: bool = False
 
+class CheckinRequest(BaseModel):
+    client_id: int
+    treinou: Optional[str] = None
+    seguiu_dieta: Optional[str] = None
+    peso: Optional[float] = None
+    energia: Optional[str] = None
+    dificuldade: Optional[str] = None
+    observacoes: Optional[str] = None
+
 
 @router.post("/clients/{client_id}/activate-subscription", response_model=SubscriptionResponse)
 def activate(client_id: int, payload: ActivateSubscriptionRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     return activate_subscription(db=db, client_id=client_id, plan_type=payload.plan_type, payment_method=payload.payment_method, notes=payload.notes)
 
-
 @router.post("/clients/{client_id}/renew-subscription", response_model=SubscriptionResponse)
 def renew(client_id: int, payload: RenewSubscriptionRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     return renew_subscription(db=db, client_id=client_id, plan_type=payload.plan_type, payment_method=payload.payment_method, notes=payload.notes)
-
 
 @router.get("/clients/{client_id}/subscription", response_model=SubscriptionResponse)
 def get_sub(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
@@ -63,16 +67,13 @@ def get_sub(client_id: int, db: Session = Depends(get_db), _: int = Depends(requ
         raise HTTPException(status_code=404, detail="Assinatura nao encontrada")
     return sub
 
-
 @router.get("/subscriptions/expiring")
 def list_expiring(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     return get_expiring_subscriptions(db)
 
-
 @router.get("/subscriptions/expired")
 def list_expired(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     return get_expired_subscriptions(db)
-
 
 @router.post("/twilio/activate-lead")
 def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
@@ -86,13 +87,8 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
     state.onboarding_link_sent = True
     db.commit()
     twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
-    twilio_client.messages.create(
-        from_=os.getenv("TWILIO_WHATSAPP_FROM"),
-        to=payload.phone,
-        body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}"
-    )
+    twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}")
     return {"status": "success", "phone": payload.phone, "message": "Lead ativado"}
-
 
 @router.post("/twilio/release-plan")
 def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
@@ -103,26 +99,19 @@ def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: 
     state.step = "active"
     db.commit()
     twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
-    twilio_client.messages.create(
-        from_=os.getenv("TWILIO_WHATSAPP_FROM"),
-        to=payload.phone,
-        body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}"
-    )
+    twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}")
     return {"status": "success", "phone": payload.phone, "message": "Plano liberado"}
-
 
 @router.get("/leads")
 def list_leads(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     leads = db.query(ConversationState).all()
     return [{"phone": l.phone, "name": l.name, "goal": l.goal, "routine": l.routine, "status": l.status, "step": l.step, "onboarding_link_sent": l.onboarding_link_sent, "created_at": l.created_at} for l in leads]
 
-
 @router.get("/onboardings")
 def list_onboardings(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     from models.lead_onboarding import LeadOnboarding
     onboardings = db.query(LeadOnboarding).order_by(LeadOnboarding.created_at.desc()).all()
     return [{"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at} for o in onboardings]
-
 
 @router.get("/onboardings/by-phone/{phone}")
 def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = Depends(require_admin)):
@@ -132,40 +121,30 @@ def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = 
         return None
     return {"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at}
 
-
 @router.post("/clients/{client_id}/save-plan")
 def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    logger.info(f"save-plan chamado: client_id={client_id}, content_len={len(payload.content)}")
     try:
         db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
         db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
         db.commit()
-        logger.info(f"Plano salvo com sucesso para client_id={client_id}")
         return {"status": "ok", "message": "Plano salvo com sucesso"}
     except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao salvar plano: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.post("/clients/{client_id}/save-diet")
 def save_client_diet(client_id: int, payload: SaveDietRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    logger.info(f"save-diet chamado: client_id={client_id}, content_len={len(payload.content)}")
     try:
         db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
         db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
         db.commit()
-        logger.info(f"Dieta salva com sucesso para client_id={client_id}")
         return {"status": "ok", "message": "Dieta salva com sucesso"}
     except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao salvar dieta: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.post("/clients/{client_id}/save-full-plan")
 def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    logger.info(f"save-full-plan chamado: client_id={client_id}")
     try:
         if payload.training_content:
             db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
@@ -174,13 +153,31 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
             db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
             db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.diet_content})
         db.commit()
-        logger.info(f"Plano completo salvo para client_id={client_id}")
-        return {"status": "ok", "message": "Plano completo salvo com sucesso"}
+        return {"status": "ok", "message": "Plano completo salvo"}
     except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao salvar plano completo: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/checkin")
+def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
+    try:
+        db.execute(text("""
+            INSERT INTO client_checkins (client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at)
+            VALUES (:cid, :treinou, :seguiu_dieta, :peso, :energia, :dificuldade, :observacoes, NOW())
+        """), {"cid": payload.client_id, "treinou": payload.treinou, "seguiu_dieta": payload.seguiu_dieta, "peso": payload.peso, "energia": payload.energia, "dificuldade": payload.dificuldade, "observacoes": payload.observacoes})
+        db.commit()
+        return {"status": "ok", "message": "Check-in salvo com sucesso"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/checkins/{client_id}")
+def get_checkins(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    rows = db.execute(
+        text("SELECT id, client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC"),
+        {"cid": client_id}
+    ).fetchall()
+    return [{"id": r[0], "client_id": r[1], "treinou": r[2], "seguiu_dieta": r[3], "peso": r[4], "energia": r[5], "dificuldade": r[6], "observacoes": r[7], "created_at": str(r[8])} for r in rows]
 
 @router.get("/clients")
 def list_clients_admin(db: Session = Depends(get_db), _: int = Depends(require_admin)):

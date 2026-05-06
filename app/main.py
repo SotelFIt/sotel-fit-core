@@ -52,7 +52,6 @@ with engine.connect() as conn:
         except Exception:
             conn.rollback()
 
-    # Criar tabelas simples para planos e dietas
     for sql in [
         """
         CREATE TABLE IF NOT EXISTS client_plans (
@@ -72,6 +71,19 @@ with engine.connect() as conn:
             created_at TIMESTAMP DEFAULT NOW()
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS client_checkins (
+            id SERIAL PRIMARY KEY,
+            client_id INTEGER NOT NULL,
+            treinou VARCHAR,
+            seguiu_dieta VARCHAR,
+            peso FLOAT,
+            energia VARCHAR,
+            dificuldade TEXT,
+            observacoes TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+        """,
     ]:
         try:
             conn.execute(text(sql))
@@ -81,7 +93,6 @@ with engine.connect() as conn:
             conn.rollback()
             logger.error(f"Erro ao criar tabela: {e}")
 
-    # Sincronizar clientes de leads
     try:
         result = conn.execute(text("""
             INSERT INTO clients (name, phone, status, email, objective, created_at, updated_at)
