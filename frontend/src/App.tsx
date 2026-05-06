@@ -3,8 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// ─── TIPOS ───────────────────────────────────────────────────────────────────
-
 interface Lead {
   phone: string;
   name: string | null;
@@ -37,6 +35,14 @@ interface Onboarding {
   created_at: string;
 }
 
+interface ClientInfo {
+  id: number;
+  name: string;
+  phone: string;
+  objective: string | null;
+  status: string;
+}
+
 interface ClientData {
   client: {
     id: number;
@@ -57,15 +63,11 @@ interface ClientData {
   diet: { id: number; content: string | null; created_at: string } | null;
 }
 
-// ─── UTILS ───────────────────────────────────────────────────────────────────
-
-function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
+function normalize_phone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
   const withCountry = digits.startsWith("55") ? digits : "55" + digits;
   return `whatsapp:+${withCountry}`;
 }
-
-// ─── NAVBAR CLIENTE ───────────────────────────────────────────────────────────
 
 function Navbar({ name, onLogout }: { name: string; onLogout: () => void }) {
   const navigate = useNavigate();
@@ -80,8 +82,6 @@ function Navbar({ name, onLogout }: { name: string; onLogout: () => void }) {
     </nav>
   );
 }
-
-// ─── MODAL ONBOARDING ─────────────────────────────────────────────────────────
 
 function OnboardingModal({ onboarding, onClose }: { onboarding: Onboarding | null; onClose: () => void }) {
   const field = (label: string, value: string | null) => value ? (
@@ -100,11 +100,7 @@ function OnboardingModal({ onboarding, onClose }: { onboarding: Onboarding | nul
             <h2 style={{ color: "white", fontSize: "18px", fontWeight: "700" }}>
               {onboarding ? `📋 Onboarding — ${onboarding.nome || "Sem nome"}` : "📋 Onboarding não enviado"}
             </h2>
-            {onboarding && (
-              <p style={{ color: "#64748b", fontSize: "12px", marginTop: "4px" }}>
-                Enviado em {new Date(onboarding.created_at).toLocaleDateString("pt-BR")}
-              </p>
-            )}
+            {onboarding && <p style={{ color: "#64748b", fontSize: "12px", marginTop: "4px" }}>Enviado em {new Date(onboarding.created_at).toLocaleDateString("pt-BR")}</p>}
           </div>
           <button onClick={onClose} style={{ background: "#334155", color: "white", border: "none", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "16px" }}>×</button>
         </div>
@@ -148,7 +144,110 @@ function OnboardingModal({ onboarding, onClose }: { onboarding: Onboarding | nul
   );
 }
 
-// ─── ONBOARDING ───────────────────────────────────────────────────────────────
+function PlanModal({ client, onClose, apiKey }: { client: ClientInfo; onClose: () => void; apiKey: string }) {
+  const [treino, setTreino] = useState("");
+  const [dieta, setDieta] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const headers = { "x-api-key": apiKey, "Content-Type": "application/json" };
+
+  const savePlan = async () => {
+    if (!treino.trim()) { setMsg({ text: "Preencha o plano de treino.", type: "error" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(API + `/admin/clients/${client.id}/save-plan`, {
+        method: "POST", headers, body: JSON.stringify({ content: treino })
+      });
+      if (res.ok) setMsg({ text: "Treino salvo!", type: "success" });
+      else setMsg({ text: "Erro ao salvar treino.", type: "error" });
+    } catch { setMsg({ text: "Erro de conexão.", type: "error" }); }
+    finally { setLoading(false); }
+  };
+
+  const saveDiet = async () => {
+    if (!dieta.trim()) { setMsg({ text: "Preencha o plano alimentar.", type: "error" }); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(API + `/admin/clients/${client.id}/save-diet`, {
+        method: "POST", headers, body: JSON.stringify({ content: dieta })
+      });
+      if (res.ok) setMsg({ text: "Dieta salva!", type: "success" });
+      else setMsg({ text: "Erro ao salvar dieta.", type: "error" });
+    } catch { setMsg({ text: "Erro de conexão.", type: "error" }); }
+    finally { setLoading(false); }
+  };
+
+  const saveAll = async () => {
+    setLoading(true);
+    setMsg(null);
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(API + `/admin/clients/${client.id}/save-plan`, { method: "POST", headers, body: JSON.stringify({ content: treino }) }),
+        fetch(API + `/admin/clients/${client.id}/save-diet`, { method: "POST", headers, body: JSON.stringify({ content: dieta }) }),
+      ]);
+      if (r1.ok && r2.ok) setMsg({ text: "Treino e dieta salvos com sucesso!", type: "success" });
+      else setMsg({ text: "Erro ao salvar um dos planos.", type: "error" });
+    } catch { setMsg({ text: "Erro de conexão.", type: "error" }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: "#1e293b", borderRadius: "16px", maxWidth: "800px", width: "100%", border: "1px solid #334155", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #334155", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ color: "white", fontSize: "18px", fontWeight: "700" }}>🏋️ Montar Plano — {client.name}</h2>
+            <p style={{ color: "#64748b", fontSize: "12px", marginTop: "4px" }}>Objetivo: {client.objective || "não informado"}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "#334155", color: "white", border: "none", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "16px" }}>×</button>
+        </div>
+
+        <div style={{ padding: "24px 28px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+          {msg && (
+            <div style={{ background: msg.type === "success" ? "#14532d" : "#7f1d1d", border: `1px solid ${msg.type === "success" ? "#22c55e" : "#ef4444"}`, borderRadius: "8px", padding: "10px 14px", color: "white", fontSize: "14px" }}>
+              {msg.text}
+            </div>
+          )}
+
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <label style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>💪 Plano de Treino</label>
+              <button onClick={savePlan} disabled={loading} style={{ background: "#1d4ed8", color: "white", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                Salvar treino
+              </button>
+            </div>
+            <textarea
+              value={treino}
+              onChange={(e) => setTreino(e.target.value)}
+              placeholder={`Exemplo:\nSEGUNDA - Peito e Tríceps\nSupino reto: 4x10\nCrucifixo: 3x12\n\nTERÇA - Costas e Bíceps\nPuxada frontal: 4x10\n...`}
+              style={{ width: "100%", height: "200px", background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", padding: "12px", color: "white", fontSize: "13px", resize: "vertical", boxSizing: "border-box", fontFamily: "monospace", lineHeight: "1.5" }}
+            />
+          </div>
+
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <label style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>🥗 Plano Alimentar</label>
+              <button onClick={saveDiet} disabled={loading} style={{ background: "#15803d", color: "white", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                Salvar dieta
+              </button>
+            </div>
+            <textarea
+              value={dieta}
+              onChange={(e) => setDieta(e.target.value)}
+              placeholder={`Exemplo:\nCAFÉ DA MANHÃ (7h)\n3 ovos mexidos\n2 fatias de pão integral\n1 banana\n\nALMOÇO (12h)\n150g de frango grelhado\nArroz integral + brócolis\n...`}
+              style={{ width: "100%", height: "200px", background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", padding: "12px", color: "white", fontSize: "13px", resize: "vertical", boxSizing: "border-box", fontFamily: "monospace", lineHeight: "1.5" }}
+            />
+          </div>
+
+          <button onClick={saveAll} disabled={loading} style={{ width: "100%", padding: "14px", background: "#7c3aed", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: "700", cursor: "pointer" }}>
+            {loading ? "Salvando..." : "💾 Salvar treino + dieta e liberar para o cliente"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Onboarding() {
   const [step, setStep] = useState<"welcome" | "form" | "done">("welcome");
@@ -168,16 +267,11 @@ function Onboarding() {
     setLoading(true);
     try {
       await fetch(API + "/onboarding/lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
       });
       setStep("done");
-    } catch {
-      alert("Erro ao enviar. Tente novamente.");
-    } finally {
-      setLoading(false);
-    }
+    } catch { alert("Erro ao enviar. Tente novamente."); }
+    finally { setLoading(false); }
   };
 
   const input = (label: string, name: string, type = "text", placeholder = "") => (
@@ -212,12 +306,8 @@ function Onboarding() {
       <div style={{ maxWidth: "480px", width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: "48px", marginBottom: "16px" }}>💪</div>
         <h1 style={{ fontSize: "28px", fontWeight: "700", color: "white", marginBottom: "12px" }}>Bem-vindo ao Sotel Fit Core</h1>
-        <p style={{ color: "#94a3b8", fontSize: "16px", marginBottom: "32px", lineHeight: "1.6" }}>
-          Antes de liberar seu plano personalizado, precisamos conhecer sua rotina, objetivo e ponto de partida.
-        </p>
-        <button onClick={() => setStep("form")} style={{ width: "100%", padding: "16px", background: "#2563eb", color: "white", border: "none", borderRadius: "10px", fontSize: "18px", fontWeight: "700", cursor: "pointer" }}>
-          Começar meu cadastro →
-        </button>
+        <p style={{ color: "#94a3b8", fontSize: "16px", marginBottom: "32px", lineHeight: "1.6" }}>Antes de liberar seu plano personalizado, precisamos conhecer sua rotina, objetivo e ponto de partida.</p>
+        <button onClick={() => setStep("form")} style={{ width: "100%", padding: "16px", background: "#2563eb", color: "white", border: "none", borderRadius: "10px", fontSize: "18px", fontWeight: "700", cursor: "pointer" }}>Começar meu cadastro →</button>
       </div>
     </div>
   );
@@ -227,10 +317,7 @@ function Onboarding() {
       <div style={{ maxWidth: "480px", width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "16px" }}>✅</div>
         <h2 style={{ fontSize: "26px", fontWeight: "700", color: "white", marginBottom: "12px" }}>Cadastro recebido!</h2>
-        <p style={{ color: "#94a3b8", fontSize: "16px", lineHeight: "1.6" }}>
-          Agora o time Sotel vai montar seu plano personalizado.<br />
-          Assim que estiver pronto, você será avisado pelo WhatsApp.
-        </p>
+        <p style={{ color: "#94a3b8", fontSize: "16px", lineHeight: "1.6" }}>Agora o time Sotel vai montar seu plano personalizado.<br />Assim que estiver pronto, você será avisado pelo WhatsApp.</p>
       </div>
     </div>
   );
@@ -270,8 +357,6 @@ function Onboarding() {
   );
 }
 
-// ─── LOGIN POR TELEFONE ───────────────────────────────────────────────────────
-
 function Login() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -283,7 +368,7 @@ function Login() {
     setLoading(true);
     setError("");
     try {
-      const formatted = formatPhone(phone);
+      const formatted = normalize_phone(phone);
       const res = await fetch(API + `/clients/by-phone/${encodeURIComponent(formatted)}`);
       if (res.ok) {
         const data = await res.json();
@@ -293,11 +378,8 @@ function Login() {
       } else {
         setError("Número não encontrado. Verifique se completou o cadastro.");
       }
-    } catch {
-      setError("Erro ao conectar com o servidor.");
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError("Erro ao conectar com o servidor."); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -311,14 +393,8 @@ function Login() {
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: "24px" }}>
             <label style={{ display: "block", marginBottom: "6px", fontWeight: "500", color: "#374151" }}>Número do WhatsApp</label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+55 17 99999-9999"
-              required
-              style={{ width: "100%", padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "16px", boxSizing: "border-box" }}
-            />
+            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+55 17 99999-9999" required
+              style={{ width: "100%", padding: "12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "16px", boxSizing: "border-box" }} />
           </div>
           {error && <p style={{ color: "#ef4444", fontSize: "13px", marginBottom: "16px" }}>{error}</p>}
           <button type="submit" disabled={loading} style={{ width: "100%", padding: "12px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}>
@@ -327,16 +403,12 @@ function Login() {
         </form>
         <p style={{ textAlign: "center", marginTop: "20px", color: "#9ca3af", fontSize: "13px" }}>
           Ainda não tem cadastro?{" "}
-          <span onClick={() => window.location.href = "/onboarding"} style={{ color: "#2563eb", cursor: "pointer", fontWeight: "600" }}>
-            Fazer cadastro
-          </span>
+          <span onClick={() => window.location.href = "/onboarding"} style={{ color: "#2563eb", cursor: "pointer", fontWeight: "600" }}>Fazer cadastro</span>
         </p>
       </div>
     </div>
   );
 }
-
-// ─── DASHBOARD CLIENTE ────────────────────────────────────────────────────────
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -345,15 +417,11 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   if (!phone) return <Navigate to="/login" />;
-
   const logout = () => { localStorage.clear(); navigate("/login"); };
 
   useEffect(() => {
     fetch(API + `/clients/by-phone/${encodeURIComponent(phone)}/data`)
-      .then(r => r.json())
-      .then(d => setData(d))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+      .then(r => r.json()).then(d => setData(d)).catch(() => setData(null)).finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
@@ -374,8 +442,6 @@ function Dashboard() {
       <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "32px 16px" }}>
         <h2 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "8px" }}>Olá, {firstName}! 👋</h2>
         <p style={{ color: "#6b7280", marginBottom: "32px" }}>Aqui está um resumo do seu progresso</p>
-
-        {/* Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "32px" }}>
           {[
             { title: "Objetivo", value: onboarding?.objetivo || client?.objective || "—", icon: "🎯" },
@@ -390,9 +456,7 @@ function Dashboard() {
             </div>
           ))}
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          {/* Plano de Treino */}
           <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <h3 style={{ fontWeight: "700", marginBottom: "16px", fontSize: "16px" }}>💪 Plano de Treino</h3>
             {plan?.content ? (
@@ -405,8 +469,6 @@ function Dashboard() {
               </div>
             )}
           </div>
-
-          {/* Dieta */}
           <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <h3 style={{ fontWeight: "700", marginBottom: "16px", fontSize: "16px" }}>🥗 Plano Alimentar</h3>
             {diet?.content ? (
@@ -419,19 +481,13 @@ function Dashboard() {
             )}
           </div>
         </div>
-
-        {/* Check-in */}
         <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h3 style={{ fontWeight: "700", marginBottom: "4px" }}>📋 Check-in Semanal</h3>
             <p style={{ color: "#6b7280", fontSize: "14px" }}>Responda como foi sua semana para seu treinador acompanhar.</p>
           </div>
-          <button onClick={() => navigate("/checkin")} style={{ background: "#2563eb", color: "white", border: "none", padding: "12px 24px", borderRadius: "8px", cursor: "pointer", fontWeight: "600", whiteSpace: "nowrap" }}>
-            Fazer Check-in
-          </button>
+          <button onClick={() => navigate("/checkin")} style={{ background: "#2563eb", color: "white", border: "none", padding: "12px 24px", borderRadius: "8px", cursor: "pointer", fontWeight: "600", whiteSpace: "nowrap" }}>Fazer Check-in</button>
         </div>
-
-        {/* Meta */}
         {onboarding?.meta_principal && (
           <div style={{ background: "#eff6ff", borderRadius: "12px", padding: "20px", marginTop: "16px", border: "1px solid #bfdbfe" }}>
             <p style={{ color: "#1e40af", fontSize: "13px", fontWeight: "600", marginBottom: "4px" }}>SUA META</p>
@@ -442,8 +498,6 @@ function Dashboard() {
     </div>
   );
 }
-
-// ─── CHECKIN ──────────────────────────────────────────────────────────────────
 
 function Checkin() {
   const navigate = useNavigate();
@@ -522,8 +576,6 @@ function Checkin() {
   );
 }
 
-// ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
-
 function AdminLogin() {
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
@@ -536,17 +588,10 @@ function AdminLogin() {
     setError("");
     try {
       const res = await fetch(API + "/admin/leads", { headers: { "x-api-key": apiKey } });
-      if (res.ok) {
-        localStorage.setItem("adminKey", apiKey);
-        navigate("/admin/dashboard");
-      } else {
-        setError("Chave inválida. Verifique e tente novamente.");
-      }
-    } catch {
-      setError("Erro ao conectar com o servidor.");
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) { localStorage.setItem("adminKey", apiKey); navigate("/admin/dashboard"); }
+      else setError("Chave inválida. Verifique e tente novamente.");
+    } catch { setError("Erro ao conectar com o servidor."); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -573,50 +618,47 @@ function AdminLogin() {
   );
 }
 
-// ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
-
 function AdminDashboard() {
   const navigate = useNavigate();
   const apiKey = localStorage.getItem("adminKey");
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [clients, setClients] = useState<ClientInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [modalState, setModalState] = useState<"closed" | "loading" | "open">("closed");
   const [modalData, setModalData] = useState<Onboarding | null>(null);
+  const [planModal, setPlanModal] = useState<ClientInfo | null>(null);
 
   if (!apiKey) return <Navigate to="/admin" />;
-
   const headers = { "x-api-key": apiKey, "Content-Type": "application/json" };
 
-  const fetchLeads = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API + "/admin/leads", { headers });
-      const data = await res.json();
-      setLeads(Array.isArray(data) ? data : []);
-    } catch {
-      setMsg({ text: "Erro ao carregar leads.", type: "error" });
-    } finally {
-      setLoading(false);
-    }
+      const [leadsRes, clientsRes] = await Promise.all([
+        fetch(API + "/admin/leads", { headers }),
+        fetch(API + "/admin/clients", { headers }),
+      ]);
+      const leadsData = await leadsRes.json();
+      const clientsData = await clientsRes.json();
+      setLeads(Array.isArray(leadsData) ? leadsData : []);
+      setClients(Array.isArray(clientsData) ? clientsData : []);
+    } catch { setMsg({ text: "Erro ao carregar dados.", type: "error" }); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const viewOnboarding = async (phone: string) => {
     setModalState("loading");
     setModalData(null);
     try {
-      const encoded = encodeURIComponent(phone);
-      const res = await fetch(API + `/admin/onboardings/by-phone/${encoded}`, { headers });
+      const res = await fetch(API + `/admin/onboardings/by-phone/${encodeURIComponent(phone)}`, { headers });
       const data = await res.json();
       setModalData(data || null);
-    } catch {
-      setModalData(null);
-    } finally {
-      setModalState("open");
-    }
+    } catch { setModalData(null); }
+    finally { setModalState("open"); }
   };
 
   const activateLead = async (phone: string) => {
@@ -625,12 +667,9 @@ function AdminDashboard() {
       const res = await fetch(API + "/admin/twilio/activate-lead", { method: "POST", headers, body: JSON.stringify({ phone }) });
       const data = await res.json();
       setMsg({ text: data.message || "Lead ativado!", type: "success" });
-      fetchLeads();
-    } catch {
-      setMsg({ text: "Erro ao ativar lead.", type: "error" });
-    } finally {
-      setActionLoading(null);
-    }
+      fetchData();
+    } catch { setMsg({ text: "Erro ao ativar lead.", type: "error" }); }
+    finally { setActionLoading(null); }
   };
 
   const releasePlan = async (phone: string) => {
@@ -639,12 +678,9 @@ function AdminDashboard() {
       const res = await fetch(API + "/admin/twilio/release-plan", { method: "POST", headers, body: JSON.stringify({ phone }) });
       const data = await res.json();
       setMsg({ text: data.message || "Plano liberado!", type: "success" });
-      fetchLeads();
-    } catch {
-      setMsg({ text: "Erro ao liberar plano.", type: "error" });
-    } finally {
-      setActionLoading(null);
-    }
+      fetchData();
+    } catch { setMsg({ text: "Erro ao liberar plano.", type: "error" }); }
+    finally { setActionLoading(null); }
   };
 
   const logout = () => { localStorage.removeItem("adminKey"); navigate("/admin"); };
@@ -665,9 +701,8 @@ function AdminDashboard() {
           <div style={{ color: "white", fontSize: "18px" }}>Carregando...</div>
         </div>
       )}
-      {modalState === "open" && (
-        <OnboardingModal onboarding={modalData} onClose={() => setModalState("closed")} />
-      )}
+      {modalState === "open" && <OnboardingModal onboarding={modalData} onClose={() => setModalState("closed")} />}
+      {planModal && <PlanModal client={planModal} onClose={() => setPlanModal(null)} apiKey={apiKey} />}
 
       <nav style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -699,10 +734,49 @@ function AdminDashboard() {
           ))}
         </div>
 
+        {/* Clientes com plano */}
+        {clients.length > 0 && (
+          <div style={{ background: "#1e293b", borderRadius: "12px", border: "1px solid #334155", overflow: "hidden", marginBottom: "24px" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #334155" }}>
+              <h2 style={{ fontSize: "16px", fontWeight: "700" }}>🏋️ Montar Treino e Dieta</h2>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#0f172a" }}>
+                    {["Nome", "Telefone", "Objetivo", "Status", "Ação"].map(h => (
+                      <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", color: "#64748b", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {clients.map((client, i) => (
+                    <tr key={i} style={{ borderTop: "1px solid #334155" }}>
+                      <td style={{ padding: "14px 16px", fontSize: "13px", fontWeight: "600" }}>{client.name || "—"}</td>
+                      <td style={{ padding: "14px 16px", fontSize: "13px", color: "#94a3b8" }}>{client.phone?.replace("whatsapp:", "") || "—"}</td>
+                      <td style={{ padding: "14px 16px", fontSize: "13px" }}>{client.objective || "—"}</td>
+                      <td style={{ padding: "14px 16px", fontSize: "13px" }}>
+                        <span style={{ background: "#1e3a5f", color: "#93c5fd", padding: "3px 8px", borderRadius: "12px", fontSize: "11px" }}>{client.status}</span>
+                      </td>
+                      <td style={{ padding: "14px 16px" }}>
+                        <button onClick={() => setPlanModal(client)}
+                          style={{ background: "#7c3aed", color: "white", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                          🏋️ Montar plano
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tabela de Leads */}
         <div style={{ background: "#1e293b", borderRadius: "12px", border: "1px solid #334155", overflow: "hidden" }}>
           <div style={{ padding: "20px 24px", borderBottom: "1px solid #334155", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ fontSize: "16px", fontWeight: "700" }}>📋 Leads e Clientes</h2>
-            <button onClick={fetchLeads} style={{ background: "#334155", color: "white", border: "none", padding: "8px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>🔄 Atualizar</button>
+            <button onClick={fetchData} style={{ background: "#334155", color: "white", border: "none", padding: "8px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>🔄 Atualizar</button>
           </div>
           {loading ? (
             <div style={{ padding: "48px", textAlign: "center", color: "#64748b" }}>Carregando...</div>
@@ -764,8 +838,6 @@ function AdminDashboard() {
     </div>
   );
 }
-
-// ─── APP ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   return (
