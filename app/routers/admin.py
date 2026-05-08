@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from fastapi import APIRouter, HTTPException, Header, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -15,8 +15,8 @@ from models.conversation_state import ConversationState
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ONBOARDING_LINK = "https://frontend-iota-rose-78.vercel.app/onboarding"
-APP_LINK = "https://frontend-iota-rose-78.vercel.app"
+ONBOARDING_LINK = "https://sotel-client.vercel.app/onboarding"
+APP_LINK = "https://sotel-client.vercel.app"
 
 
 def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
