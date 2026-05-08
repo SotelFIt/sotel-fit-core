@@ -79,7 +79,52 @@ def get_client_data(phone: str, db: Session = Depends(get_db)):
         "plan": {"id": plan[0], "content": plan[1], "created_at": str(plan[2])} if plan else None,
         "diet": {"id": diet[0], "content": diet[1], "created_at": str(diet[2])} if diet else None,
     }
+from pydantic import BaseModel
+from typing import Optional
 
+class CreateClientRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    objective: str
+    difficulty: str
+    age: Optional[int] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
+
+@router.post("")
+def create_client(payload: CreateClientRequest, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
+    if auth_client_id != 0:
+        raise HTTPException(status_code=403, detail="Apenas admin")
+    existing = db.execute(
+        text("SELECT id FROM clients WHERE email = :email LIMIT 1"),
+        {"email": payload.email}
+    ).fetchone()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email ja cadastrado")
+    result = db.execute(
+        text("""
+            INSERT INTO clients (name, email, phone, objective, difficulty, age, weight, height, status, created_at)
+            VALUES (:name, :email, :phone, :objective, :difficulty, :age, :weight, :height, 'active', NOW())
+            RETURNING id, name, email, phone, objective, difficulty, age, weight, height, status
+        """),
+        {
+            "name": payload.name,
+            "email": payload.email,
+            "phone": payload.phone,
+            "objective": payload.objective,
+            "difficulty": payload.difficulty,
+            "age": payload.age,
+            "weight": payload.weight,
+            "height": payload.height,
+        }
+    ).fetchone()
+    db.commit()
+    return {
+        "id": result[0], "name": result[1], "email": result[2], "phone": result[3],
+        "objective": result[4], "difficulty": result[5], "age": result[6],
+        "weight": result[7], "height": result[8], "status": result[9]
+    }
 
 @router.get("")
 def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
