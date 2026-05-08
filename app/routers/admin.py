@@ -122,6 +122,26 @@ def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = 
     return {"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at}
 
 @router.post("/clients/{client_id}/save-plan")
+@router.get("/clients/{client_id}/plan")
+def get_client_plan(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    result = db.execute(
+        text("SELECT id, client_id, content, status, created_at FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+    if not result:
+        return {"content": ""}
+    return {"id": result[0], "client_id": result[1], "content": result[2], "status": result[3], "created_at": str(result[4])}
+
+@router.get("/clients/{client_id}/diet")
+def get_client_diet(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    result = db.execute(
+        text("SELECT id, client_id, content, status, created_at FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+    if not result:
+        return {"content": ""}
+    return {"id": result[0], "client_id": result[1], "content": result[2], "status": result[3], "created_at": str(result[4])}
+
 def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
         db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
