@@ -1,5 +1,4 @@
 ﻿from core.database import Base
-from models.user import User
 from models.client import Client
 from models.plan import Plan
 from models.plan_version import PlanVersion
@@ -13,7 +12,7 @@ from models.conversation_state import ConversationState
 from models.lead_onboarding import LeadOnboarding
 
 __all__ = [
-    'Base', 'User', 'Client', 'Onboarding', 'Plan', 'PlanVersion',
+    'Base', 'Client', 'Onboarding', 'Plan', 'PlanVersion',
     'Diet', 'DietVersion', 'Checkin', 'DecisionLog', 'Subscription',
     'ConversationState', 'LeadOnboarding'
 ]
