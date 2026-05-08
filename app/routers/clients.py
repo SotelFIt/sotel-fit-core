@@ -2,11 +2,24 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from pydantic import BaseModel
+from typing import Optional
 from core.database import get_db
 from core.security import verify_dual_auth
 from services.client_service import get_or_create_client_from_phone, normalize_phone
 
 router = APIRouter(prefix="/clients", tags=["clients"])
+
+
+class CreateClientRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    objective: str
+    difficulty: Optional[str] = None
+    age: Optional[int] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
 
 
 @router.get("/by-phone/{phone}")
@@ -79,18 +92,7 @@ def get_client_data(phone: str, db: Session = Depends(get_db)):
         "plan": {"id": plan[0], "content": plan[1], "created_at": str(plan[2])} if plan else None,
         "diet": {"id": diet[0], "content": diet[1], "created_at": str(diet[2])} if diet else None,
     }
-from pydantic import BaseModel
-from typing import Optional
 
-class CreateClientRequest(BaseModel):
-    name: str
-    email: str
-    phone: str
-    objective: str
-    difficulty: str
-    age: Optional[int] = None
-    weight: Optional[float] = None
-    height: Optional[float] = None
 
 @router.post("")
 def create_client(payload: CreateClientRequest, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
@@ -104,16 +106,15 @@ def create_client(payload: CreateClientRequest, db: Session = Depends(get_db), a
         raise HTTPException(status_code=400, detail="Email ja cadastrado")
     result = db.execute(
         text("""
-            INSERT INTO clients (name, email, phone, objective, difficulty, age, weight, height, status, created_at)
-            VALUES (:name, :email, :phone, :objective, :difficulty, :age, :weight, :height, 'active', NOW())
-            RETURNING id, name, email, phone, objective, difficulty, age, weight, height, status
+            INSERT INTO clients (name, email, phone, objective, age, weight, height, status, created_at)
+            VALUES (:name, :email, :phone, :objective, :age, :weight, :height, 'active', NOW())
+            RETURNING id, name, email, phone, objective, age, weight, height, status
         """),
         {
             "name": payload.name,
             "email": payload.email,
             "phone": payload.phone,
             "objective": payload.objective,
-            "difficulty": payload.difficulty,
             "age": payload.age,
             "weight": payload.weight,
             "height": payload.height,
@@ -122,28 +123,40 @@ def create_client(payload: CreateClientRequest, db: Session = Depends(get_db), a
     db.commit()
     return {
         "id": result[0], "name": result[1], "email": result[2], "phone": result[3],
-        "objective": result[4], "difficulty": result[5], "age": result[6],
-        "weight": result[7], "height": result[8], "status": result[9]
+        "objective": result[4], "age": result[5], "weight": result[6],
+        "height": result[7], "status": result[8], "difficulty": payload.difficulty
     }
+
 
 @router.get("")
 def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
-    from models.client import Client
     if auth_client_id == 0:
-        return db.query(Client).offset(skip).limit(min(limit, 500)).all()
-    client = db.query(Client).filter(Client.id == auth_client_id).first()
-    return [client] if client else []
+        rows = db.execute(
+            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients ORDER BY created_at DESC LIMIT :limit OFFSET :skip"),
+            {"limit": min(limit, 500), "skip": skip}
+        ).fetchall()
+    else:
+        rows = db.execute(
+            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid LIMIT 1"),
+            {"cid": auth_client_id}
+        ).fetchall()
+    return [
+        {"id": r[0], "name": r[1], "email": r[2], "phone": r[3], "objective": r[4],
+         "status": r[5], "age": r[6], "weight": r[7], "height": r[8], "difficulty": None}
+        for r in rows
+    ]
 
 
 @router.get("/{client_id}")
 def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
     row = db.execute(
-        text("SELECT id, name, email, phone, objective, status FROM clients WHERE id = :cid LIMIT 1"),
+        text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid LIMIT 1"),
         {"cid": client_id}
     ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Cliente nao encontrado")
-    return {"id": row[0], "name": row[1], "email": row[2], "phone": row[3], "objective": row[4], "status": row[5]}
+    return {"id": row[0], "name": row[1], "email": row[2], "phone": row[3], "objective": row[4],
+            "status": row[5], "age": row[6], "weight": row[7], "height": row[8], "difficulty": None}
 
 
 @router.patch("/{client_id}")
