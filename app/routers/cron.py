@@ -8,16 +8,16 @@ from services.checkin_reminder import send_checkin_reminders
 router = APIRouter(prefix="/cron", tags=["cron"])
 
 
-def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
-    if auth_client_id != 0:
-        raise HTTPException(status_code=403, detail="Apenas admin pode executar cron jobs")
+def require_auth(auth_client_id: int = Depends(verify_dual_auth)):
+    if auth_client_id is None:
+        raise HTTPException(status_code=403, detail="Acesso negado")
     return auth_client_id
 
 
 @router.post("/check-subscriptions")
 def check_subscriptions(
     db: Session = Depends(get_db),
-    _: int = Depends(require_admin)
+    _: int = Depends(require_auth)
 ):
     result = update_all_subscriptions_status(db)
     return {
@@ -28,7 +28,6 @@ def check_subscriptions(
 
 
 @router.post("/send-checkin-reminders")
-def trigger_checkin_reminders(_: int = Depends(require_admin)):
-    """Dispara lembretes de check-in manualmente. Usar para teste ou reforço."""
+def trigger_checkin_reminders(_: int = Depends(require_auth)):
     result = send_checkin_reminders()
     return {"status": "ok", **result}
