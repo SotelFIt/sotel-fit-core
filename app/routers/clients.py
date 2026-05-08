@@ -126,7 +126,25 @@ def create_client(payload: CreateClientRequest, db: Session = Depends(get_db), a
         "objective": result[4], "age": result[5], "weight": result[6],
         "height": result[7], "status": result[8], "difficulty": payload.difficulty
     }
+	@router.get("/{client_id}/plan")
+def get_my_plan(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
+    if auth_client_id != 0 and auth_client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    result = db.execute(
+        text("SELECT content FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+    return {"content": result[0] if result else ""}
 
+@router.get("/{client_id}/diet")
+def get_my_diet(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
+    if auth_client_id != 0 and auth_client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    result = db.execute(
+        text("SELECT content FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+    return {"content": result[0] if result else ""}
 
 @router.get("")
 def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
