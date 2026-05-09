@@ -123,7 +123,7 @@ app = FastAPI(title="Sotel Fit Core", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://sotel-admin.vercel.app", "https://sotel-client.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
