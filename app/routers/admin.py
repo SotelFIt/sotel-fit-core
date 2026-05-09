@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from fastapi import APIRouter, HTTPException, Header, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -179,7 +179,7 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/checkin")
-def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
+def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
         db.execute(text("INSERT INTO client_checkins (client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at) VALUES (:cid, :treinou, :seguiu_dieta, :peso, :energia, :dificuldade, :observacoes, NOW())"),
                    {"cid": payload.client_id, "treinou": payload.treinou, "seguiu_dieta": payload.seguiu_dieta, "peso": payload.peso, "energia": payload.energia, "dificuldade": payload.dificuldade, "observacoes": payload.observacoes})
