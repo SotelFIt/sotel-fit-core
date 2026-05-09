@@ -101,22 +101,7 @@ with engine.connect() as conn:
             conn.rollback()
             logger.error(f"Erro ao criar tabela: {e}")
 
-    sync_sql = (
-        "INSERT INTO clients (name, phone, status, email, objective, created_at, updated_at) "
-        "SELECT COALESCE(cs.name, 'Lead WhatsApp'), cs.phone, 'lead', NULL, NULL, cs.created_at, NOW() "
-        "FROM conversation_states cs "
-        "WHERE cs.phone IS NOT NULL "
-        "AND NOT EXISTS (SELECT 1 FROM clients c WHERE c.phone = cs.phone)"
-    )
-    try:
-        result = conn.execute(text(sync_sql))
-        conn.commit()
-        if result.rowcount > 0:
-            logger.info(f"Clientes criados a partir de leads: {result.rowcount}")
-    except Exception as e:
-        conn.rollback()
-        logger.warning(f"Sync clients erro: {e}")
-
+  
 logger.info("Migracoes executadas")
 
 app = FastAPI(title="Sotel Fit Core", version="1.0.0")
