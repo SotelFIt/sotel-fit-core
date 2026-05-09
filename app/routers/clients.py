@@ -132,7 +132,7 @@ def create_client(payload: CreateClientRequest, db: Session = Depends(get_db), a
 def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
     if auth_client_id == 0:
         rows = db.execute(
-            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients ORDER BY created_at DESC LIMIT :limit OFFSET :skip"),
+            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE status != 'inactive' ORDER BY created_at DESC LIMIT :limit OFFSET :skip"),
             {"limit": min(limit, 500), "skip": skip}
         ).fetchall()
     else:
