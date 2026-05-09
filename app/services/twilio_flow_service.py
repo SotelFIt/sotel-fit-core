@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy.orm import Session
 from models.conversation_state import ConversationState
+from core.phone import normalize_phone_for_whatsapp
 
 logger = logging.getLogger(__name__)
 
