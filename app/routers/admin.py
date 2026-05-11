@@ -207,5 +207,5 @@ async def send_checkin_reminders_endpoint(_: int = Depends(require_admin)):
 
 @router.get("/clients")
 def list_clients_admin(db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    rows = db.execute(text("SELECT id, name, phone, objective, status FROM clients WHERE status != 'inactive' ORDER BY created_at DESC")).fetchall()
+    rows = db.execute(text("SELECT id, name, phone, objective, status FROM clients WHERE status != 'inactive' ORDER BY created_at DESC LIMIT 500")).fetchall()
     return [{"id": r[0], "name": r[1], "phone": r[2], "objective": r[3], "status": r[4]} for r in rows]
