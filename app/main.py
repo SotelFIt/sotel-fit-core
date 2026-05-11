@@ -22,6 +22,7 @@ from routers.twilio_webhook import router as twilio_router
 from routers.stripe_webhook import router as stripe_router
 from routers.lead_onboarding import router as lead_onboarding_router
 from models import *  # noqa
+from migrate import run_migrations
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -34,75 +35,10 @@ try:
 except Exception as e:
     logger.warning(f"Banco de dados nao disponivel: {e}")
 
-from sqlalchemy import text
-
-with engine.connect() as conn:
-    migrations = [
-        "ALTER TABLE conversation_states ADD COLUMN IF NOT EXISTS onboarding_link_sent BOOLEAN DEFAULT FALSE",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS email VARCHAR",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone VARCHAR",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS objective VARCHAR",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'lead'",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS age INTEGER",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS weight FLOAT",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS height FLOAT",
-        "ALTER TABLE clients ALTER COLUMN email DROP NOT NULL",
-        "ALTER TABLE clients ALTER COLUMN name DROP NOT NULL",
-        "ALTER TABLE clients ALTER COLUMN objective DROP NOT NULL",
-        "ALTER TABLE clients ALTER COLUMN difficulty DROP NOT NULL",
-        "ALTER TABLE clients ALTER COLUMN updated_at DROP NOT NULL",
-        "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_checkin_reminder_sent TIMESTAMP DEFAULT NULL",
-        "DROP INDEX IF EXISTS ix_clients_email",
-    ]
-    for sql in migrations:
-        try:
-            conn.execute(text(sql))
-            conn.commit()
-        except Exception:
-            conn.rollback()
-
-    table_sqls = [
-        (
-            "CREATE TABLE IF NOT EXISTS client_plans ("
-            "id SERIAL PRIMARY KEY, "
-            "client_id INTEGER NOT NULL, "
-            "content TEXT, "
-            "status VARCHAR DEFAULT 'active', "
-            "created_at TIMESTAMP DEFAULT NOW())"
-        ),
-        (
-            "CREATE TABLE IF NOT EXISTS client_diets ("
-            "id SERIAL PRIMARY KEY, "
-            "client_id INTEGER NOT NULL, "
-            "content TEXT, "
-            "status VARCHAR DEFAULT 'active', "
-            "created_at TIMESTAMP DEFAULT NOW())"
-        ),
-        (
-            "CREATE TABLE IF NOT EXISTS client_checkins ("
-            "id SERIAL PRIMARY KEY, "
-            "client_id INTEGER NOT NULL, "
-            "treinou VARCHAR, "
-            "seguiu_dieta VARCHAR, "
-            "peso FLOAT, "
-            "energia VARCHAR, "
-            "dificuldade TEXT, "
-            "observacoes TEXT, "
-            "created_at TIMESTAMP DEFAULT NOW())"
-        ),
-    ]
-    for sql in table_sqls:
-        try:
-            conn.execute(text(sql))
-            conn.commit()
-            logger.info("Tabela criada/verificada com sucesso")
-        except Exception as e:
-            conn.rollback()
-            logger.error(f"Erro ao criar tabela: {e}")
-
-  
-logger.info("Migracoes executadas")
+try:
+    run_migrations(engine)
+except Exception as e:
+    logger.error(f"Erro nas migrations: {e}")
 
 app = FastAPI(title="Sotel Fit Core", version="1.0.0")
 
