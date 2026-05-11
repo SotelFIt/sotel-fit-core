@@ -1,0 +1,6 @@
+backups/
+*.sql
+venv_novo/
+__pycache__/
+*.pyc
+.envs
