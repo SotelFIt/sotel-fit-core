@@ -42,6 +42,19 @@ except Exception as e:
     logger.error(f"Erro nas migrations: {e}")
 
 app = FastAPI(title="Sotel Fit Core", version="1.0.0")
+import time
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = round((time.time() - start) * 1000)
+    logger.info(
+        f"{request.method} {request.url.path} "
+        f"status={response.status_code} "
+        f"duration={duration}ms"
+    )
+    return response
 
 app.add_middleware(
     CORSMiddleware,
