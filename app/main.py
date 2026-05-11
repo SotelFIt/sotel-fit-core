@@ -15,6 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from core.database import Base, engine
+from sqlalchemy import text
 from routers import landbot, clients, auth
 from routers.admin import router as admin_router
 from routers.cron import router as cron_router
