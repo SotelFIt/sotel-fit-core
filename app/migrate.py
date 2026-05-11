@@ -67,7 +67,13 @@ def run_migrations(engine):
                 dificuldade TEXT,
                 observacoes TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
-            )""",
+            )"""
+	    """CREATE TABLE IF NOT EXISTS stripe_events (
+            id SERIAL PRIMARY KEY,
+            event_id VARCHAR UNIQUE NOT NULL,
+            event_type VARCHAR,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""",
         ]
 
         for sql in tables:
