@@ -109,8 +109,16 @@ app.include_router(lead_onboarding_router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
-
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        logger.error(f"Health check falhou: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "database": "disconnected"}
+        )
 
 @app.get("/")
 def root():
