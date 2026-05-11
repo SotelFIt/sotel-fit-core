@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from core.database import get_db
@@ -8,7 +8,9 @@ from core.security import (
     verify_dual_auth,
     TokenResponse,
 )
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -37,17 +39,25 @@ def get_current_user(db: Session = Depends(get_db), auth_client_id: int = Depend
 
 
 @router.post("/login", status_code=200)
-def login(payload: dict, db: Session = Depends(get_db)):
+def login(request: Request, payload: dict, db: Session = Depends(get_db)):
     email = payload.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email obrigatorio")
+
+    # Rate limit manual: max 10 tentativas por minuto por IP
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info(f"Login attempt from {client_ip} for email={email}")
+
     row = db.execute(
         text("SELECT id, name, email, objective FROM clients WHERE email = :email LIMIT 1"),
         {"email": email}
     ).fetchone()
     if not row:
+        logger.warning(f"Login failed: email nao encontrado {email} from {client_ip}")
         raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+
     tokens = create_token_pair(row[0])
+    logger.info(f"Login sucesso: client_id={row[0]} email={email}")
     return {
         "access_token": tokens.access_token,
         "refresh_token": tokens.refresh_token,

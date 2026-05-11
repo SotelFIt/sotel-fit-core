@@ -24,7 +24,11 @@ from routers.stripe_webhook import router as stripe_router
 from routers.lead_onboarding import router as lead_onboarding_router
 from models import *  # noqa
 from migrate import run_migrations
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
+limiter = Limiter(key_func=get_remote_address)
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -42,6 +46,8 @@ except Exception as e:
     logger.error(f"Erro nas migrations: {e}")
 
 app = FastAPI(title="Sotel Fit Core", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 import time
 
 @app.middleware("http")
