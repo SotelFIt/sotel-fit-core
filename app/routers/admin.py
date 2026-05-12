@@ -1,15 +1,14 @@
 import logging
-from fastapi import APIRouter, HTTPException, Header, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
 from typing import Optional
 from twilio.rest import Client as TwilioClient
 import os
-audit_log(db, action="activate_lead", client_id=None, details=f"phone={payload.phone}")
-    return {"status": "success", "phone": payload.phone, "message": "Lead ativado"}
-from services.audit_service import audit_log
+from core.database import get_db
 from core.security import verify_dual_auth
+from services.audit_service import audit_log
 from schemas.subscription import ActivateSubscriptionRequest, RenewSubscriptionRequest, SubscriptionResponse
 from services.subscription_service import activate_subscription, renew_subscription, get_subscription, get_expiring_subscriptions, get_expired_subscriptions
 from models.conversation_state import ConversationState
@@ -90,6 +89,7 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
     db.commit()
     twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
     twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}")
+    audit_log(db, action="activate_lead", client_id=None, details=f"phone={payload.phone}")
     return {"status": "success", "phone": payload.phone, "message": "Lead ativado"}
 
 @router.post("/twilio/release-plan")
@@ -124,7 +124,6 @@ def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = 
         return None
     return {"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at}
 
-@router.post("/clients/{client_id}/save-plan")
 @router.get("/clients/{client_id}/plan")
 def get_client_plan(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     result = db.execute(
@@ -145,6 +144,7 @@ def get_client_diet(client_id: int, db: Session = Depends(get_db), _: int = Depe
         return {"content": ""}
     return {"id": result[0], "client_id": result[1], "content": result[2], "status": result[3], "created_at": str(result[4])}
 
+@router.post("/clients/{client_id}/save-plan")
 def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
         db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
@@ -205,8 +205,6 @@ def get_checkins(client_id: int, db: Session = Depends(get_db), _: int = Depends
 
 @router.post("/send-checkin-reminders")
 async def send_checkin_reminders_endpoint(_: int = Depends(require_admin)):
-    """Envia lembretes de check-in para clientes ativos."""
-    
     from services.checkin_reminder import send_checkin_reminders
     result = send_checkin_reminders()
     return result
