@@ -82,7 +82,13 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Erro interno do servidor. Tente novamente."}
     )
-
+def scheduled_workout_reminders():
+    try:
+        from services.workout_reminder import send_workout_reminders
+        result = send_workout_reminders()
+        logger.info(f"Workout reminders job executado: {result}")
+    except Exception as e:
+        logger.error(f"Erro em scheduled_workout_reminders: {e}")
 
 def scheduled_checkin_reminders():
     try:
@@ -104,6 +110,13 @@ async def startup_event():
         CronTrigger(day_of_week="0-4", hour=8, minute=0),
         id="checkin_reminders",
         name="Checkin Reminders",
+        replace_existing=True
+    )
+scheduler.add_job(
+        scheduled_workout_reminders,
+        CronTrigger(day_of_week="0-6", hour=7, minute=0),
+        id="workout_reminders",
+        name="Workout Reminders",
         replace_existing=True
     )
     scheduler.start()

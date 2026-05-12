@@ -32,7 +32,7 @@ def run_migrations(engine):
             "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
             "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_checkin_reminder_sent TIMESTAMP DEFAULT NULL",
             "DROP INDEX IF EXISTS ix_clients_email",
-        ]
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_workout_reminder_sent TIMESTAMP DEFAULT NULL",]
 
         for sql in alterations:
             try:
