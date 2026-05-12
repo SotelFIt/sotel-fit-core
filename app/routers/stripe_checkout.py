@@ -19,8 +19,11 @@ def create_checkout(data: CheckoutRequest):
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
     price_id = os.getenv("STRIPE_PRICE_ID")
 
+    logger.info(f"STRIPE_SECRET_KEY presente: {bool(stripe.api_key)}")
+    logger.info(f"STRIPE_PRICE_ID presente: {bool(price_id)}")
+
     if not stripe.api_key or not price_id:
-        raise HTTPException(status_code=500, detail="Stripe nao configurado")
+        raise HTTPException(status_code=500, detail=f"Stripe nao configurado: key={bool(stripe.api_key)} price={bool(price_id)}")
 
     try:
         session = stripe.checkout.Session.create(
