@@ -22,6 +22,7 @@ from routers.cron import router as cron_router
 from routers.twilio_webhook import router as twilio_router
 from routers.stripe_webhook import router as stripe_router
 from routers.lead_onboarding import router as lead_onboarding_router
+from routers.stripe_checkout import router as stripe_checkout_router
 from models import *  # noqa
 from migrate import run_migrations
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -134,6 +135,7 @@ app.include_router(cron_router)
 app.include_router(twilio_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
+app.include_router(stripe_checkout_router)
 
 @app.get("/health")
 def health():
