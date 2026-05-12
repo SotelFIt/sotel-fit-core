@@ -32,10 +32,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     event_type = event.get("type")
     logger.info(f"Stripe webhook recebido: {event_type} id={event_id}")
 
-    if event_type == "checkout.session.completed":
+    if event_type in ("checkout.session.completed", "invoice.payment_succeeded"):
         session = event["data"]["object"]
 
-        # Idempotencia — verificar se esse evento ja foi processado
         already = db.execute(
             text("SELECT 1 FROM stripe_events WHERE event_id = :eid LIMIT 1"),
             {"eid": event_id}
@@ -45,7 +44,6 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             logger.info(f"Stripe evento duplicado ignorado: {event_id}")
             return {"status": "duplicate", "event_id": event_id}
 
-        # Registrar evento
         try:
             db.execute(
                 text("INSERT INTO stripe_events (event_id, event_type, created_at) VALUES (:eid, :etype, NOW())"),
@@ -56,31 +54,49 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             logger.warning(f"Nao foi possivel registrar stripe_event: {e}")
             db.rollback()
 
+        # Pegar phone: primeiro do metadata, depois do customer_details
+        metadata = session.get("metadata") or {}
         customer_details = session.get("customer_details") or {}
-        customer_phone = customer_details.get("phone")
+
+        customer_phone = (
+            metadata.get("phone")
+            or customer_details.get("phone")
+        )
 
         if not customer_phone:
-            logger.warning("Stripe webhook: phone nao encontrado no checkout")
+            logger.warning(f"Stripe webhook: phone nao encontrado. event_id={event_id}")
             return {"status": "ignored", "reason": "phone not found"}
 
         phone_normalized = normalize_phone(customer_phone)
         phone_whatsapp = normalize_phone_for_whatsapp(customer_phone)
 
         # Atualizar status do cliente
-        db.execute(
-            text("UPDATE clients SET status = 'active' WHERE phone = :p"),
+        result = db.execute(
+            text("UPDATE clients SET status = 'paid' WHERE phone = :p"),
             {"p": phone_normalized}
         )
         db.commit()
 
+        if result.rowcount == 0:
+            logger.warning(f"Cliente nao encontrado para phone={phone_normalized}, criando registro basico")
+            db.execute(
+                text("INSERT INTO clients (phone, status, created_at) VALUES (:p, 'paid', NOW()) ON CONFLICT DO NOTHING"),
+                {"p": phone_normalized}
+            )
+            db.commit()
+
         # Enviar WhatsApp
         message = (
-            f"Seu acesso ao Sotel Fit Core foi liberado.\n\n"
-            f"Agora precisamos que voce complete seu cadastro inicial "
-            f"para montar seu plano personalizado.\n\n"
+            "Seu acesso ao Sotel Fit Core foi liberado.\n\n"
+            "Agora precisamos que voce complete seu cadastro inicial "
+            "para montar seu plano personalizado.\n\n"
             f"Acesse aqui:\n{APP_LINK}"
         )
-        send_whatsapp_message(phone_whatsapp, message)
-        logger.info(f"Stripe checkout processado para {phone_normalized}")
+        try:
+            send_whatsapp_message(phone_whatsapp, message)
+        except Exception as e:
+            logger.error(f"Erro ao enviar WhatsApp: {e}")
+
+        logger.info(f"Stripe {event_type} processado para {phone_normalized}")
 
     return {"status": "ok"}
