@@ -1,75 +1,115 @@
-import os
 import logging
-import anthropic
+import re
 
 logger = logging.getLogger(__name__)
 
 APP_LINK = "https://sotel-client.vercel.app"
 
-SYSTEM_PROMPT = f"""Voce e o assistente virtual do Sotel Fit Core, uma plataforma de consultoria fitness online.
+FAQ = [
+    {
+        "keywords": ["acesso", "acessar", "entrar", "login", "logar", "app", "plataforma", "abrir"],
+        "response": (
+            f"Para acessar seu painel, entre em {APP_LINK} e faça login com o e-mail cadastrado.\n\n"
+            "Se tiver dificuldade, me fala que te ajudo!"
+        )
+    },
+    {
+        "keywords": ["senha", "esqueci", "recuperar", "redefinir", "reset"],
+        "response": (
+            "Para recuperar sua senha, acesse o app e clique em *Esqueci minha senha*.\n\n"
+            "Um e-mail de recuperação será enviado. Não recebeu? Me avisa aqui."
+        )
+    },
+    {
+        "keywords": ["treino", "exercicio", "exercício", "musculacao", "musculação", "treinar"],
+        "response": (
+            f"Seu treino está disponível no app: {APP_LINK}\n\n"
+            "Acesse, faça login e ele aparece direto no seu painel. "
+            "Qualquer dúvida sobre os exercícios, fala com o personal!"
+        )
+    },
+    {
+        "keywords": ["dieta", "alimentacao", "alimentação", "comer", "refeicao", "refeição", "plano alimentar"],
+        "response": (
+            f"Seu plano alimentar está no app: {APP_LINK}\n\n"
+            "Lá você encontra todas as refeições organizadas. "
+            "Para ajustes específicos, o personal é quem define."
+        )
+    },
+    {
+        "keywords": ["substituir", "substituicao", "substituição", "trocar", "trocar arroz", "trocar batata", "alternativa"],
+        "response": (
+            "Substituições simples geralmente são tranquilas — por exemplo, arroz e batata são carboidratos similares.\n\n"
+            "Mas ajustes mais específicos ficam com o personal para garantir que seu plano continue no ponto certo."
+        )
+    },
+    {
+        "keywords": ["check-in", "checkin", "check in", "relatorio", "relatório", "responder semana"],
+        "response": (
+            f"Seu check-in semanal está disponível no app: {APP_LINK}\n\n"
+            "Acesse, responda como foi sua semana e o personal vai analisar tudo. "
+            "É importante não pular — é por ali que o plano evolui!"
+        )
+    },
+    {
+        "keywords": ["plano", "vence", "vencimento", "prazo", "mensalidade", "pagamento", "renovar"],
+        "response": (
+            "Informações sobre seu plano e pagamento você encontra diretamente no app ou falando com o personal.\n\n"
+            f"Acesse: {APP_LINK}"
+        )
+    },
+    {
+        "keywords": ["resultado", "resultado", "emagrecer", "perder peso", "ganhar massa", "definir"],
+        "response": (
+            "Os resultados dependem da consistência no treino, na dieta e nos check-ins semanais.\n\n"
+            "Seguindo o plano que o personal montou pra você, o caminho fica muito mais claro. Bora!"
+        )
+    },
+    {
+        "keywords": ["suporte", "ajuda", "problema", "erro", "nao funciona", "não funciona", "bug"],
+        "response": (
+            "Vou passar sua dúvida para o personal Sotel. Ele vai te responder em breve!\n\n"
+            f"Enquanto isso, tente acessar o app por aqui: {APP_LINK}"
+        )
+    },
+    {
+        "keywords": ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite", "tudo bem", "tudo bom"],
+        "response": (
+            "Olá! Tudo certo por aqui. 💪\n\n"
+            "Sou o assistente do Sotel Fit Core. Como posso te ajudar hoje?"
+        )
+    },
+]
 
-Seu papel e responder duvidas simples dos clientes sobre:
-- Como acessar o app e o treino
-- Como fazer check-in semanal
-- Como ver a dieta
-- Duvidas simples sobre substituicoes alimentares basicas
-- Problemas de acesso ou login
-- O que esperar do metodo
-
-Link do app: {APP_LINK}
-
-REGRAS OBRIGATORIAS:
-- Responda APENAS sobre a plataforma Sotel Fit Core e duvidas gerais de fitness basico
-- NUNCA crie treinos, altere dietas ou prescrevam exercicios especificos
-- NUNCA responda questoes clinicas, medicas ou sobre suplementos
-- NUNCA prometa resultados especificos
-- Se a pergunta estiver fora do escopo, diga que vai encaminhar para o personal
-- Respostas CURTAS: maximo 3 paragrafos pequenos
-- Tom: amigavel, direto, encorajador
-- Se nao souber responder, diga: "Vou passar sua duvida para o personal Sotel. Ele vai te responder em breve!"
-
-EXEMPLOS DE RESPOSTAS:
-- "Como acesso meu treino?" -> Explique que basta acessar {APP_LINK} e fazer login com o email cadastrado
-- "Posso trocar arroz por batata?" -> Sim, sao carboidratos similares. Mas ajustes detalhados ficam com o personal
-- "Esqueci minha senha" -> No app, use a opcao de recuperacao de email, ou fale com o suporte
-- "Quando vence meu plano?" -> Oriente a verificar no app ou falar com o personal"""
+DEFAULT_RESPONSE = (
+    "Vou passar sua dúvida para o personal Sotel. Ele vai te responder em breve!\n\n"
+    f"Enquanto isso, você pode acessar seu painel aqui: {APP_LINK}"
+)
 
 
 def get_ai_response(message: str, client_name: str = None) -> str:
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-
-    if not api_key:
-        logger.warning("ANTHROPIC_API_KEY nao configurada — usando fallback")
-        return _fallback_response()
-
     try:
-        client = anthropic.Anthropic(api_key=api_key)
+        normalized = message.lower()
+        normalized = re.sub(r"[^\w\s]", " ", normalized)
 
-        user_content = message
-        if client_name:
-            user_content = f"[Cliente: {client_name}]\n{message}"
+        for item in FAQ:
+            for keyword in item["keywords"]:
+                if keyword in normalized:
+                    reply = item["response"]
+                    logger.info(f"FAQ match '{keyword}' para {client_name}: {reply[:60]}...")
+                    return reply
 
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=300,
-            system=SYSTEM_PROMPT,
-            messages=[
-                {"role": "user", "content": user_content}
-            ]
-        )
-
-        reply = response.content[0].text.strip()
-        logger.info(f"IA respondeu para {client_name}: {reply[:80]}...")
-        return reply
+        logger.info(f"Sem match FAQ para {client_name}: '{message[:60]}'")
+        return DEFAULT_RESPONSE
 
     except Exception as e:
-        logger.error(f"Erro na IA: {e}")
+        logger.error(f"Erro no ai_service: {e}")
         return _fallback_response()
 
 
 def _fallback_response() -> str:
     return (
-        "Ola! No momento estou com dificuldade tecnica para responder.\n\n"
+        "Olá! No momento estou com dificuldade técnica para responder.\n\n"
         f"Acesse seu painel aqui: {APP_LINK}\n\n"
         "Se precisar de ajuda, seu personal vai retornar em breve!"
     )
