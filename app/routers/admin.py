@@ -20,11 +20,12 @@ ONBOARDING_LINK = "https://sotel-client.vercel.app/onboarding"
 APP_LINK = "https://sotel-client.vercel.app"
 
 
+ADMIN_CLIENT_IDS = {0, 2}
+
 def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
-    if auth_client_id != 0:
+    if auth_client_id not in ADMIN_CLIENT_IDS:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Apenas admin pode acessar este endpoint")
     return auth_client_id
-
 
 class ActivateLeadRequest(BaseModel):
     phone: str
