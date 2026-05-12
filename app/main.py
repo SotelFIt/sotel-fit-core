@@ -70,7 +70,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(
@@ -82,6 +81,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Erro interno do servidor. Tente novamente."}
     )
+
 def scheduled_workout_reminders():
     try:
         from services.workout_reminder import send_workout_reminders
@@ -98,14 +98,19 @@ def scheduled_checkin_reminders():
     except Exception as e:
         logger.error(f"Erro em scheduled_checkin_reminders: {e}")
 
-
 scheduler = BackgroundScheduler()
-
 
 @app.on_event("startup")
 async def startup_event():
     logger.info("STARTUP OK")
-   scheduler.add_job(
+    scheduler.add_job(
+        scheduled_checkin_reminders,
+        CronTrigger(day_of_week="0-4", hour=8, minute=0),
+        id="checkin_reminders",
+        name="Checkin Reminders",
+        replace_existing=True
+    )
+    scheduler.add_job(
         scheduled_workout_reminders,
         CronTrigger(day_of_week="0-6", hour=7, minute=0),
         id="workout_reminders",
@@ -113,23 +118,13 @@ async def startup_event():
         replace_existing=True
     )
     scheduler.start()
-scheduler.add_job(
-        scheduled_workout_reminders,
-        CronTrigger(day_of_week="0-6", hour=7, minute=0),
-        id="workout_reminders",
-        name="Workout Reminders",
-        replace_existing=True
-    )
-    scheduler.start()
-    logger.info("Scheduler iniciado - Lembretes agendados para seg-sex 8h")
-
+    logger.info("Scheduler iniciado")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("SHUTDOWN OK")
     if scheduler.running:
         scheduler.shutdown()
-
 
 app.include_router(landbot.router)
 app.include_router(clients.router)
@@ -139,7 +134,6 @@ app.include_router(cron_router)
 app.include_router(twilio_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
-
 
 @app.get("/health")
 def health():
