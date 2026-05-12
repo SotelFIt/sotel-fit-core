@@ -18,6 +18,7 @@ from core.database import Base, engine
 from sqlalchemy import text
 from routers import landbot, clients, auth
 from routers.admin import router as admin_router
+from routers.ai_admin import router as ai_admin_router
 from routers.cron import router as cron_router
 from routers.twilio_webhook import router as twilio_router
 from routers.stripe_webhook import router as stripe_router
@@ -131,6 +132,7 @@ app.include_router(landbot.router)
 app.include_router(clients.router)
 app.include_router(auth.router)
 app.include_router(admin_router)
+app.include_router(ai_admin_router)
 app.include_router(cron_router)
 app.include_router(twilio_router)
 app.include_router(stripe_router)
