@@ -105,13 +105,14 @@ scheduler = BackgroundScheduler()
 @app.on_event("startup")
 async def startup_event():
     logger.info("STARTUP OK")
-    scheduler.add_job(
-        scheduled_checkin_reminders,
-        CronTrigger(day_of_week="0-4", hour=8, minute=0),
-        id="checkin_reminders",
-        name="Checkin Reminders",
+   scheduler.add_job(
+        scheduled_workout_reminders,
+        CronTrigger(day_of_week="0-6", hour=7, minute=0),
+        id="workout_reminders",
+        name="Workout Reminders",
         replace_existing=True
     )
+    scheduler.start()
 scheduler.add_job(
         scheduled_workout_reminders,
         CronTrigger(day_of_week="0-6", hour=7, minute=0),
