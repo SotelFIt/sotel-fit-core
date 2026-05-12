@@ -6,7 +6,9 @@ from pydantic import BaseModel
 from typing import Optional
 from twilio.rest import Client as TwilioClient
 import os
-from core.database import get_db
+audit_log(db, action="activate_lead", client_id=None, details=f"phone={payload.phone}")
+    return {"status": "success", "phone": payload.phone, "message": "Lead ativado"}
+from services.audit_service import audit_log
 from core.security import verify_dual_auth
 from schemas.subscription import ActivateSubscriptionRequest, RenewSubscriptionRequest, SubscriptionResponse
 from services.subscription_service import activate_subscription, renew_subscription, get_subscription, get_expiring_subscriptions, get_expired_subscriptions
@@ -100,6 +102,7 @@ def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: 
     db.commit()
     twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
     twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}")
+    audit_log(db, action="release_plan", client_id=None, details=f"phone={payload.phone}")
     return {"status": "success", "phone": payload.phone, "message": "Plano liberado"}
 
 @router.get("/leads")
@@ -147,6 +150,7 @@ def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Dep
         db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
         db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
         db.commit()
+        audit_log(db, action="save_plan", client_id=client_id, details="treino atualizado")
         return {"status": "ok", "message": "Plano salvo com sucesso"}
     except Exception as e:
         db.rollback()
@@ -158,6 +162,7 @@ def save_client_diet(client_id: int, payload: SaveDietRequest, db: Session = Dep
         db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
         db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
         db.commit()
+        audit_log(db, action="save_diet", client_id=client_id, details="dieta atualizada")
         return {"status": "ok", "message": "Dieta salva com sucesso"}
     except Exception as e:
         db.rollback()
@@ -173,6 +178,7 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
             db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
             db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.diet_content})
         db.commit()
+        audit_log(db, action="save_full_plan", client_id=client_id, details=f"treino={bool(payload.training_content)} dieta={bool(payload.diet_content)} release={payload.release_to_client}")
         return {"status": "ok", "message": "Plano completo salvo"}
     except Exception as e:
         db.rollback()
