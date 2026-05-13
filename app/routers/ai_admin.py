@@ -140,3 +140,96 @@ def checkin_summary(
         "total_checkins": total,
         "generated_at": datetime.utcnow().isoformat(),
     }
+
+
+@router.get("/clients/{client_id}/retention-message")
+def retention_message(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _: int = Depends(require_admin),
+):
+    row = db.execute(
+        text("SELECT id, name, objective, weight FROM clients WHERE id = :cid"),
+        {"cid": client_id}
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+
+    client_name = row[1]
+    objective = row[2] or "seu objetivo"
+    weight = row[3]
+
+    since = datetime.utcnow() - timedelta(days=28)
+    rows = db.execute(
+        text("""
+            SELECT treinou, seguiu_dieta, energia, peso, dificuldade, observacoes, created_at
+            FROM client_checkins
+            WHERE client_id = :cid AND created_at >= :since
+            ORDER BY created_at DESC
+        """),
+        {"cid": client_id, "since": since}
+    ).fetchall()
+
+    checkin_count = len(rows)
+    first_name = client_name.split()[0]
+
+    treinou_vals = [int(r[0]) for r in rows if r[0] and str(r[0]).isdigit()]
+    dieta_vals = [int(r[1]) for r in rows if r[1] and str(r[1]).isdigit()]
+    dificuldades = [r[4] for r in rows if r[4]]
+    pesos = [r[3] for r in rows if r[3]]
+
+    avg_treino = sum(treinou_vals) / len(treinou_vals) if treinou_vals else None
+    avg_dieta = sum(dieta_vals) / len(dieta_vals) if dieta_vals else None
+
+    # Gerar mensagem baseada no perfil
+    if checkin_count == 0:
+        message = (
+            f"Oi {first_name}! Tudo bem?\n\n"
+            f"Percebi que faz um tempo que nao recebo seu check-in por aqui. "
+            f"Como esta indo com {objective}?\n\n"
+            f"Me manda um oi pra eu saber como voce esta. "
+            f"Estou aqui pra te apoiar no que precisar!"
+        )
+    elif avg_treino is not None and avg_treino < 3:
+        message = (
+            f"Oi {first_name}! Passando pra dar um oi.\n\n"
+            f"Vi pelo seu check-in que o treino tem sido um desafio ultimamente. "
+            f"Isso e normal, todo mundo passa por fases assim.\n\n"
+            f"Me conta o que tem dificultado mais — "
+            f"posso ajustar o plano pra ficar mais facil de encaixar na sua rotina."
+        )
+    elif avg_dieta is not None and avg_dieta < 3:
+        dif = f" Sobre {str(dificuldades[0]).lower()}, vamos pensar em alternativas juntos." if dificuldades else ""
+        message = (
+            f"Oi {first_name}! Como voce esta?\n\n"
+            f"Notei que a alimentacao tem sido a parte mais desafiadora pra voce.{dif}\n\n"
+            f"A dieta nao precisa ser perfeita, precisa ser sustentavel. "
+            f"Me fala o que tem sido mais dificil que eu te ajudo a resolver!"
+        )
+    elif pesos and len(pesos) >= 2 and (pesos[0] - pesos[-1]) < -1:
+        delta = abs(pesos[0] - pesos[-1])
+        message = (
+            f"Oi {first_name}! So passando pra parabenizar!\n\n"
+            f"Voce ja perdeu {delta:.1f} kg desde que comecarmos a trabalhar juntos. "
+            f"Isso e resultado de consistencia e dedicacao sua.\n\n"
+            f"Continue assim! Qualquer duvida, me chama aqui."
+        )
+    else:
+        message = (
+            f"Oi {first_name}! Tudo bem?\n\n"
+            f"So passando pra checar como voce esta indo com {objective}. "
+            f"Seus check-ins mostram que voce esta no caminho certo.\n\n"
+            f"Continua assim! Se tiver alguma duvida ou quiser ajustar algo no plano, me fala."
+        )
+
+    return {
+        "client_id": client_id,
+        "client_name": client_name,
+        "message": message,
+        "context": {
+            "checkin_count_28d": checkin_count,
+            "avg_treino": round(avg_treino, 1) if avg_treino else None,
+            "avg_dieta": round(avg_dieta, 1) if avg_dieta else None,
+        },
+        "generated_at": datetime.utcnow().isoformat(),
+    }
