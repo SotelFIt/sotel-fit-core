@@ -184,7 +184,8 @@ app.include_router(cron_router)
 app.include_router(twilio_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
-
+from routers.ai_admin import router as ai_admin_router
+app.include_router(ai_admin_router)
 
 @app.get("/health")
 def health():
