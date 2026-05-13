@@ -13,3 +13,5 @@ twilio
 python-multipart
 stripe
 apscheduler==3.10.4
+slowapi==0.1.9
+anthropic

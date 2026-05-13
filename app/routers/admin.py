@@ -1,5 +1,5 @@
-﻿import logging
-from fastapi import APIRouter, HTTPException, Header, Depends, status
+import logging
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ from twilio.rest import Client as TwilioClient
 import os
 from core.database import get_db
 from core.security import verify_dual_auth
+from services.audit_service import audit_log
 from schemas.subscription import ActivateSubscriptionRequest, RenewSubscriptionRequest, SubscriptionResponse
 from services.subscription_service import activate_subscription, renew_subscription, get_subscription, get_expiring_subscriptions, get_expired_subscriptions
 from models.conversation_state import ConversationState
@@ -19,11 +20,12 @@ ONBOARDING_LINK = "https://sotel-client.vercel.app/onboarding"
 APP_LINK = "https://sotel-client.vercel.app"
 
 
+ADMIN_CLIENT_IDS = {0, 2}
+
 def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
-    if auth_client_id != 0:
+    if auth_client_id not in ADMIN_CLIENT_IDS:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Apenas admin pode acessar este endpoint")
     return auth_client_id
-
 
 class ActivateLeadRequest(BaseModel):
     phone: str
@@ -88,6 +90,7 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
     db.commit()
     twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
     twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}")
+    audit_log(db, action="activate_lead", client_id=None, details=f"phone={payload.phone}")
     return {"status": "success", "phone": payload.phone, "message": "Lead ativado"}
 
 @router.post("/twilio/release-plan")
@@ -100,6 +103,7 @@ def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: 
     db.commit()
     twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
     twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}")
+    audit_log(db, action="release_plan", client_id=None, details=f"phone={payload.phone}")
     return {"status": "success", "phone": payload.phone, "message": "Plano liberado"}
 
 @router.get("/leads")
@@ -121,7 +125,6 @@ def get_onboarding_by_phone(phone: str, db: Session = Depends(get_db), _: int = 
         return None
     return {"id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email, "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura, "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino, "horario_treino": o.horario_treino, "lesoes": o.lesoes, "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade, "meta_principal": o.meta_principal, "observacoes": o.observacoes, "created_at": o.created_at}
 
-@router.post("/clients/{client_id}/save-plan")
 @router.get("/clients/{client_id}/plan")
 def get_client_plan(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     result = db.execute(
@@ -142,11 +145,13 @@ def get_client_diet(client_id: int, db: Session = Depends(get_db), _: int = Depe
         return {"content": ""}
     return {"id": result[0], "client_id": result[1], "content": result[2], "status": result[3], "created_at": str(result[4])}
 
+@router.post("/clients/{client_id}/save-plan")
 def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
         db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
         db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
         db.commit()
+        audit_log(db, action="save_plan", client_id=client_id, details="treino atualizado")
         return {"status": "ok", "message": "Plano salvo com sucesso"}
     except Exception as e:
         db.rollback()
@@ -158,6 +163,7 @@ def save_client_diet(client_id: int, payload: SaveDietRequest, db: Session = Dep
         db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
         db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
         db.commit()
+        audit_log(db, action="save_diet", client_id=client_id, details="dieta atualizada")
         return {"status": "ok", "message": "Dieta salva com sucesso"}
     except Exception as e:
         db.rollback()
@@ -173,13 +179,14 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
             db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
             db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.diet_content})
         db.commit()
+        audit_log(db, action="save_full_plan", client_id=client_id, details=f"treino={bool(payload.training_content)} dieta={bool(payload.diet_content)} release={payload.release_to_client}")
         return {"status": "ok", "message": "Plano completo salvo"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/checkin")
-def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
+def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
         db.execute(text("INSERT INTO client_checkins (client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at) VALUES (:cid, :treinou, :seguiu_dieta, :peso, :energia, :dificuldade, :observacoes, NOW())"),
                    {"cid": payload.client_id, "treinou": payload.treinou, "seguiu_dieta": payload.seguiu_dieta, "peso": payload.peso, "energia": payload.energia, "dificuldade": payload.dificuldade, "observacoes": payload.observacoes})
@@ -199,13 +206,11 @@ def get_checkins(client_id: int, db: Session = Depends(get_db), _: int = Depends
 
 @router.post("/send-checkin-reminders")
 async def send_checkin_reminders_endpoint(_: int = Depends(require_admin)):
-    """Envia lembretes de check-in para clientes ativos."""
-    
     from services.checkin_reminder import send_checkin_reminders
     result = send_checkin_reminders()
     return result
 
 @router.get("/clients")
 def list_clients_admin(db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    rows = db.execute(text("SELECT id, name, phone, objective, status FROM clients ORDER BY created_at DESC")).fetchall()
+    rows = db.execute(text("SELECT id, name, phone, objective, status FROM clients WHERE status != 'inactive' ORDER BY created_at DESC LIMIT 500")).fetchall()
     return [{"id": r[0], "name": r[1], "phone": r[2], "objective": r[3], "status": r[4]} for r in rows]

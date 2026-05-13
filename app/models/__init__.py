@@ -10,9 +10,13 @@ from models.decision_log import DecisionLog
 from models.subscription import Subscription
 from models.conversation_state import ConversationState
 from models.lead_onboarding import LeadOnboarding
+from models.client_plan import ClientPlan
+from models.client_diet import ClientDiet
+from models.client_checkin import ClientCheckin
 
 __all__ = [
     'Base', 'Client', 'Onboarding', 'Plan', 'PlanVersion',
     'Diet', 'DietVersion', 'Checkin', 'DecisionLog', 'Subscription',
-    'ConversationState', 'LeadOnboarding'
+    'ConversationState', 'LeadOnboarding',
+    'ClientPlan', 'ClientDiet', 'ClientCheckin'
 ]

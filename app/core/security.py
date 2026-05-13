@@ -71,7 +71,12 @@ def verify_token(token: str, token_type: str = "access") -> int:
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-def verify_dual_auth(authorization: Optional[str] = Header(None), x_api_key: Optional[str] = Header(None)) -> int:
+def verify_dual_auth(
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None),
+    x_access_token: Optional[str] = Header(None),
+) -> int:
+    # Tenta Bearer token via Authorization header
     if authorization:
         try:
             scheme, _, credentials = authorization.partition(" ")
@@ -79,13 +84,22 @@ def verify_dual_auth(authorization: Optional[str] = Header(None), x_api_key: Opt
                 return verify_token(credentials, token_type="access")
         except HTTPException:
             pass
+
+    # Tenta token via x-access-token header (alternativa para proxies)
+    if x_access_token:
+        try:
+            return verify_token(x_access_token, token_type="access")
+        except HTTPException:
+            pass
+
+    # Tenta API key
     if x_api_key:
         if x_api_key == LANDBOT_SECRET_TOKEN:
             return 0
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
 
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
 def verify_jwt_only(authorization: Optional[str] = Header(None)) -> int:
     if not authorization:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")

@@ -4,6 +4,7 @@ from core.database import get_db
 from core.security import verify_dual_auth
 from services.subscription_service import update_all_subscriptions_status
 from services.checkin_reminder import send_checkin_reminders
+from services.workout_reminder import send_workout_reminders
 
 router = APIRouter(prefix="/cron", tags=["cron"])
 
@@ -15,10 +16,7 @@ def require_auth(auth_client_id: int = Depends(verify_dual_auth)):
 
 
 @router.post("/check-subscriptions")
-def check_subscriptions(
-    db: Session = Depends(get_db),
-    _: int = Depends(require_auth)
-):
+def check_subscriptions(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     result = update_all_subscriptions_status(db)
     return {
         "status": "ok",
@@ -30,4 +28,10 @@ def check_subscriptions(
 @router.post("/send-checkin-reminders")
 def trigger_checkin_reminders(_: int = Depends(require_auth)):
     result = send_checkin_reminders()
+    return {"status": "ok", **result}
+
+
+@router.post("/send-workout-reminders")
+def trigger_workout_reminders(_: int = Depends(require_auth)):
+    result = send_workout_reminders()
     return {"status": "ok", **result}

@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy.orm import Session
 from models.conversation_state import ConversationState
+from services.ai_service import get_ai_response
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,8 @@ def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
         )
 
     if step == "active_client":
-        return f"Seu acesso ja esta liberado. Acesse seu painel aqui:\n{APP_LINK}"
+        client_name = state.name
+        logger.info(f"IA respondendo para cliente ativo {phone}: {incoming_msg[:50]}")
+        return get_ai_response(message=incoming_msg, client_name=client_name)
 
     return "Nao entendi. Pode repetir?"
