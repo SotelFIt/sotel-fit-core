@@ -137,7 +137,12 @@ app.include_router(cron_router)
 app.include_router(twilio_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
-from routers.photos import router as photos_router
+try:
+    from routers.photos import router as photos_router
+    app.include_router(photos_router)
+    logger.info("Photos router carregado")
+except Exception as e:
+    logger.error(f"Photos router nao carregado: {e}")
 app.include_router(photos_router)
 app.include_router(stripe_checkout_router)
 
