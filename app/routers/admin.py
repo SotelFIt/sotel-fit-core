@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 from twilio.rest import Client as TwilioClient
 import os
+from datetime import date, timedelta
 from core.database import get_db
 from core.security import verify_dual_auth
 from services.audit_service import audit_log
@@ -52,29 +53,126 @@ class CheckinRequest(BaseModel):
     dificuldade: Optional[str] = None
     observacoes: Optional[str] = None
 
+class SubscriptionPayload(BaseModel):
+    plan_type: str = "monthly"
+    payment_method: str = "pix"
+    notes: Optional[str] = None
 
-@router.post("/clients/{client_id}/activate-subscription", response_model=SubscriptionResponse)
-def activate(client_id: int, payload: ActivateSubscriptionRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    return activate_subscription(db=db, client_id=client_id, plan_type=payload.plan_type, payment_method=payload.payment_method, notes=payload.notes)
 
-@router.post("/clients/{client_id}/renew-subscription", response_model=SubscriptionResponse)
-def renew(client_id: int, payload: RenewSubscriptionRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    return renew_subscription(db=db, client_id=client_id, plan_type=payload.plan_type, payment_method=payload.payment_method, notes=payload.notes)
+PLAN_DAYS = {"monthly": 30, "quarterly": 90, "semiannual": 180, "annual": 365}
 
-@router.get("/clients/{client_id}/subscription", response_model=SubscriptionResponse)
+
+def _upsert_subscription(db, client_id, plan_type, payment_method, notes, renew=False):
+    days = PLAN_DAYS.get(plan_type, 30)
+    today = date.today()
+    end_date = today + timedelta(days=days)
+
+    existing = db.execute(
+        text("SELECT id, end_date FROM subscriptions WHERE client_id = :cid LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+
+    if existing:
+        if renew and existing[1] and existing[1] >= today:
+            end_date = existing[1] + timedelta(days=days)
+        db.execute(text("""
+            UPDATE subscriptions SET
+                status = 'active', plan_type = :plan_type, payment_status = 'paid',
+                manual_payment_method = :method, start_date = :start, end_date = :end,
+                last_payment_date = :start, next_payment_date = :end,
+                notes = :notes, updated_at = NOW()
+            WHERE client_id = :cid
+        """), {"plan_type": plan_type, "method": payment_method,
+               "start": today, "end": end_date, "notes": notes, "cid": client_id})
+    else:
+        db.execute(text("""
+            INSERT INTO subscriptions (client_id, status, plan_type, payment_status,
+                manual_payment_method, start_date, end_date, last_payment_date,
+                next_payment_date, notes, created_at, updated_at)
+            VALUES (:cid, 'active', :plan_type, 'paid', :method, :start, :end,
+                :start, :end, :notes, NOW(), NOW())
+        """), {"cid": client_id, "plan_type": plan_type, "method": payment_method,
+               "start": today, "end": end_date, "notes": notes})
+
+    db.commit()
+
+    sub = db.execute(
+        text("""SELECT id, client_id, status, plan_type, payment_status, start_date,
+                end_date, last_payment_date, next_payment_date, manual_payment_method,
+                notes, created_at, updated_at
+                FROM subscriptions WHERE client_id = :cid LIMIT 1"""),
+        {"cid": client_id}
+    ).fetchone()
+
+    return {
+        "id": sub[0], "client_id": sub[1], "status": sub[2], "plan_type": sub[3],
+        "payment_status": sub[4], "start_date": str(sub[5]) if sub[5] else None,
+        "end_date": str(sub[6]) if sub[6] else None,
+        "last_payment_date": str(sub[7]) if sub[7] else None,
+        "next_payment_date": str(sub[8]) if sub[8] else None,
+        "manual_payment_method": sub[9], "notes": sub[10],
+        "created_at": str(sub[11]), "updated_at": str(sub[12])
+    }
+
+
+@router.post("/clients/{client_id}/activate-subscription")
+def activate(client_id: int, payload: SubscriptionPayload, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    try:
+        return _upsert_subscription(db, client_id, payload.plan_type, payload.payment_method, payload.notes, renew=False)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/clients/{client_id}/renew-subscription")
+def renew(client_id: int, payload: SubscriptionPayload, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    try:
+        return _upsert_subscription(db, client_id, payload.plan_type, payload.payment_method, payload.notes, renew=True)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/clients/{client_id}/subscription")
 def get_sub(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    sub = get_subscription(db, client_id)
+    sub = db.execute(
+        text("""SELECT id, client_id, status, plan_type, payment_status, start_date,
+                end_date, last_payment_date, next_payment_date, manual_payment_method,
+                notes, created_at, updated_at
+                FROM subscriptions WHERE client_id = :cid LIMIT 1"""),
+        {"cid": client_id}
+    ).fetchone()
     if not sub:
         raise HTTPException(status_code=404, detail="Assinatura nao encontrada")
-    return sub
+    return {
+        "id": sub[0], "client_id": sub[1], "status": sub[2], "plan_type": sub[3],
+        "payment_status": sub[4], "start_date": str(sub[5]) if sub[5] else None,
+        "end_date": str(sub[6]) if sub[6] else None,
+        "last_payment_date": str(sub[7]) if sub[7] else None,
+        "next_payment_date": str(sub[8]) if sub[8] else None,
+        "manual_payment_method": sub[9], "notes": sub[10],
+        "created_at": str(sub[11]), "updated_at": str(sub[12])
+    }
 
 @router.get("/subscriptions/expiring")
 def list_expiring(db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    return get_expiring_subscriptions(db)
+    today = date.today()
+    threshold = today + timedelta(days=7)
+    rows = db.execute(text("""
+        SELECT s.client_id, c.name, c.email, c.phone, s.status, s.plan_type, s.end_date
+        FROM subscriptions s JOIN clients c ON s.client_id = c.id
+        WHERE s.end_date >= :today AND s.end_date <= :threshold AND s.status IN ('active', 'expiring')
+    """), {"today": today, "threshold": threshold}).fetchall()
+    return [{"client_id": r[0], "client_name": r[1], "client_email": r[2], "client_phone": r[3],
+             "status": r[4], "plan_type": r[5], "end_date": str(r[6])} for r in rows]
 
 @router.get("/subscriptions/expired")
 def list_expired(db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    return get_expired_subscriptions(db)
+    rows = db.execute(text("""
+        SELECT s.client_id, c.name, c.email, c.phone, s.status, s.plan_type, s.end_date
+        FROM subscriptions s JOIN clients c ON s.client_id = c.id
+        WHERE s.status = 'expired'
+    """)).fetchall()
+    return [{"client_id": r[0], "client_name": r[1], "client_email": r[2], "client_phone": r[3],
+             "status": r[4], "plan_type": r[5], "end_date": str(r[6])} for r in rows]
 
 @router.post("/twilio/activate-lead")
 def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
@@ -178,7 +276,7 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
             db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
             db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.diet_content})
         db.commit()
-        audit_log(db, action="save_full_plan", client_id=client_id, details=f"treino={bool(payload.training_content)} dieta={bool(payload.diet_content)} release={payload.release_to_client}")
+        audit_log(db, action="save_full_plan", client_id=client_id, details=f"release={payload.release_to_client}")
         return {"status": "ok", "message": "Plano completo salvo"}
     except Exception as e:
         db.rollback()
@@ -235,22 +333,11 @@ def get_client_onboarding(client_id: int, db: Session = Depends(get_db), _: int 
     if not o:
         return None
     return {
-        "id": o.id,
-        "phone": o.phone,
-        "nome": o.nome,
-        "email": o.email,
-        "telefone": o.telefone,
-        "idade": o.idade,
-        "peso": o.peso,
-        "altura": o.altura,
-        "objetivo": o.objetivo,
-        "nivel_treino": o.nivel_treino,
-        "dias_treino": o.dias_treino,
-        "horario_treino": o.horario_treino,
-        "lesoes": o.lesoes,
-        "alimentacao_atual": o.alimentacao_atual,
-        "maior_dificuldade": o.maior_dificuldade,
-        "meta_principal": o.meta_principal,
-        "observacoes": o.observacoes,
+        "id": o.id, "phone": o.phone, "nome": o.nome, "email": o.email,
+        "telefone": o.telefone, "idade": o.idade, "peso": o.peso, "altura": o.altura,
+        "objetivo": o.objetivo, "nivel_treino": o.nivel_treino, "dias_treino": o.dias_treino,
+        "horario_treino": o.horario_treino, "lesoes": o.lesoes,
+        "alimentacao_atual": o.alimentacao_atual, "maior_dificuldade": o.maior_dificuldade,
+        "meta_principal": o.meta_principal, "observacoes": o.observacoes,
         "created_at": o.created_at,
     }
