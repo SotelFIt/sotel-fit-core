@@ -19,7 +19,6 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 ONBOARDING_LINK = "https://sotel-client.vercel.app/onboarding"
 APP_LINK = "https://sotel-client.vercel.app"
 
-
 ADMIN_CLIENT_IDS = {0, 2}
 
 def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
@@ -186,10 +185,12 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/checkin")
-def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
     try:
-        db.execute(text("INSERT INTO client_checkins (client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at) VALUES (:cid, :treinou, :seguiu_dieta, :peso, :energia, :dificuldade, :observacoes, NOW())"),
-                   {"cid": payload.client_id, "treinou": payload.treinou, "seguiu_dieta": payload.seguiu_dieta, "peso": payload.peso, "energia": payload.energia, "dificuldade": payload.dificuldade, "observacoes": payload.observacoes})
+        db.execute(
+            text("INSERT INTO client_checkins (client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at) VALUES (:cid, :treinou, :seguiu_dieta, :peso, :energia, :dificuldade, :observacoes, NOW())"),
+            {"cid": payload.client_id, "treinou": payload.treinou, "seguiu_dieta": payload.seguiu_dieta, "peso": payload.peso, "energia": payload.energia, "dificuldade": payload.dificuldade, "observacoes": payload.observacoes}
+        )
         db.commit()
         return {"status": "ok", "message": "Check-in salvo com sucesso"}
     except Exception as e:
@@ -214,6 +215,7 @@ async def send_checkin_reminders_endpoint(_: int = Depends(require_admin)):
 def list_clients_admin(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     rows = db.execute(text("SELECT id, name, phone, objective, status FROM clients WHERE status != 'inactive' ORDER BY created_at DESC LIMIT 500")).fetchall()
     return [{"id": r[0], "name": r[1], "phone": r[2], "objective": r[3], "status": r[4]} for r in rows]
+
 @router.get("/clients/{client_id}/onboarding")
 def get_client_onboarding(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     from models.lead_onboarding import LeadOnboarding
@@ -226,7 +228,7 @@ def get_client_onboarding(client_id: int, db: Session = Depends(get_db), _: int 
     phone = client[0] or ""
     phone_clean = phone.replace("whatsapp:", "")
     o = db.query(LeadOnboarding).filter(
-        (LeadOnboarding.phone == phone) | 
+        (LeadOnboarding.phone == phone) |
         (LeadOnboarding.phone == phone_clean) |
         (LeadOnboarding.phone == f"whatsapp:{phone_clean}")
     ).order_by(LeadOnboarding.created_at.desc()).first()
