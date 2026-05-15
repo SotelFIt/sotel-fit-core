@@ -9,10 +9,8 @@ router = APIRouter(prefix="/stripe", tags=["Stripe Checkout"])
 
 APP_URL = "https://sotel-client.vercel.app"
 
-
 class CheckoutRequest(BaseModel):
     phone: str
-
 
 @router.post("/create-checkout")
 def create_checkout(data: CheckoutRequest):
@@ -23,7 +21,10 @@ def create_checkout(data: CheckoutRequest):
     logger.info(f"STRIPE_PRICE_ID presente: {bool(price_id)}")
 
     if not stripe.api_key or not price_id:
-        raise HTTPException(status_code=500, detail=f"Stripe nao configurado: key={bool(stripe.api_key)} price={bool(price_id)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Stripe nao configurado: key={bool(stripe.api_key)} price={bool(price_id)}"
+        )
 
     try:
         session = stripe.checkout.Session.create(
@@ -34,6 +35,8 @@ def create_checkout(data: CheckoutRequest):
             success_url=f"{APP_URL}/onboarding?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{APP_URL}/planos?canceled=true",
             phone_number_collection={"enabled": True},
+            billing_address_collection="auto",
+            customer_creation="always",
         )
         logger.info(f"Checkout criado para {data.phone}: {session.id}")
         return {"checkout_url": session.url, "session_id": session.id}
