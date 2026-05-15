@@ -1,5 +1,5 @@
 """
-migrate.py — Migrations inline do Sotel Fit Core.
+migrate.py - Migrations inline do Sotel Fit Core.
 Executado uma vez na startup via main.py.
 Todas as alteracoes de schema ficam aqui, nao no main.py.
 """
@@ -32,7 +32,20 @@ def run_migrations(engine):
             "ALTER TABLE clients ALTER COLUMN updated_at SET DEFAULT NOW()",
             "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_checkin_reminder_sent TIMESTAMP DEFAULT NULL",
             "DROP INDEX IF EXISTS ix_clients_email",
-            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_workout_reminder_sent TIMESTAMP DEFAULT NULL",]
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_workout_reminder_sent TIMESTAMP DEFAULT NULL",
+            # Subscriptions
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS notes VARCHAR",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS manual_payment_method VARCHAR",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_type VARCHAR",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS payment_status VARCHAR DEFAULT 'pending'",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS start_date DATE",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS end_date DATE",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_payment_date DATE",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS next_payment_date DATE",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'lead'",
+            "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS client_id INTEGER",
+        ]
 
         for sql in alterations:
             try:
@@ -81,6 +94,21 @@ def run_migrations(engine):
                 client_id INTEGER,
                 details TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
+            )""",
+            """CREATE TABLE IF NOT EXISTS subscriptions (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER NOT NULL UNIQUE,
+                status VARCHAR NOT NULL DEFAULT 'lead',
+                plan_type VARCHAR,
+                payment_status VARCHAR NOT NULL DEFAULT 'pending',
+                start_date DATE,
+                end_date DATE,
+                last_payment_date DATE,
+                next_payment_date DATE,
+                manual_payment_method VARCHAR,
+                notes VARCHAR,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
             )""",
         ]
 
