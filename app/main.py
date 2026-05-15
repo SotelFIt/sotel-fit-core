@@ -137,6 +137,8 @@ app.include_router(cron_router)
 app.include_router(twilio_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
+from routers.photos import router as photos_router
+app.include_router(photos_router)
 app.include_router(stripe_checkout_router)
 
 @app.get("/health")
@@ -146,6 +148,7 @@ def health():
             conn.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
+
         logger.error(f"Health check falhou: {e}")
         return JSONResponse(
             status_code=503,
