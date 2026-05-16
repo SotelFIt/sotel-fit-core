@@ -102,11 +102,7 @@ async def upload_photo(
 
 
 @router.get("/client/{client_id}")
-def list_photos(
-    client_id: int,
-    db: Session = Depends(get_db),
-    auth: int = Depends(verify_jwt_only),
-):
+def list_photos(client_id: int, db: Session = Depends(get_db)):
     try:
         rows = db.execute(
             text("""
@@ -122,11 +118,7 @@ def list_photos(
 
 
 @router.get("/client/{client_id}/by-date")
-def list_photos_by_date(
-    client_id: int,
-    db: Session = Depends(get_db),
-    auth: int = Depends(verify_jwt_only),
-):
+def list_photos_by_date(client_id: int, db: Session = Depends(get_db)):
     try:
         rows = db.execute(
             text("""
@@ -149,11 +141,7 @@ def list_photos_by_date(
 
 
 @router.delete("/photo/{photo_id}")
-def delete_photo(
-    photo_id: int,
-    db: Session = Depends(get_db),
-    _: int = Depends(require_admin),
-):
+def delete_photo(photo_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     row = db.execute(
         text("SELECT public_id FROM client_photos WHERE id = :pid"),
         {"pid": photo_id}
