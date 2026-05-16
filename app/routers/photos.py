@@ -5,16 +5,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
 from core.database import get_db
-from core.security import verify_dual_auth
+from core.security import verify_jwt_only, verify_dual_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/photos", tags=["photos"])
 
 VALID_CATEGORIES = {"front", "back", "side_right", "side_left"}
-
-
-def require_auth(auth_client_id: int = Depends(verify_dual_auth)):
-    return auth_client_id
 
 
 def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
@@ -53,7 +49,7 @@ async def upload_photo(
     observation: Optional[str] = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    auth: int = Depends(require_auth),
+    auth: int = Depends(verify_jwt_only),
 ):
     if category not in VALID_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Categoria invalida. Use: {', '.join(VALID_CATEGORIES)}")
@@ -109,7 +105,7 @@ async def upload_photo(
 def list_photos(
     client_id: int,
     db: Session = Depends(get_db),
-    auth: int = Depends(require_auth),
+    auth: int = Depends(verify_jwt_only),
 ):
     try:
         rows = db.execute(
@@ -129,7 +125,7 @@ def list_photos(
 def list_photos_by_date(
     client_id: int,
     db: Session = Depends(get_db),
-    auth: int = Depends(require_auth),
+    auth: int = Depends(verify_jwt_only),
 ):
     try:
         rows = db.execute(
