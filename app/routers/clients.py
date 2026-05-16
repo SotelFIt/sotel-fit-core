@@ -179,3 +179,27 @@ def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: in
 @router.patch("/{client_id}")
 def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
     allowed = {"name", "email", "objective", "status"}
+@router.get("/{client_id}/checkins")
+def get_my_checkins(client_id: int, db: Session = Depends(get_db)):
+    rows = db.execute(
+        text("""
+            SELECT id, client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at
+            FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC LIMIT 30
+        """),
+        {"cid": client_id}
+    ).fetchall()
+    return [{"id": r[0], "client_id": r[1], "treinou": r[2], "seguiu_dieta": r[3],
+             "peso": r[4], "energia": r[5], "dificuldade": r[6], "observacoes": r[7],
+             "created_at": str(r[8])} for r in rows]
+@router.get("/{client_id}/checkins")
+def get_my_checkins(client_id: int, db: Session = Depends(get_db)):
+    rows = db.execute(
+        text("""
+            SELECT id, client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at
+            FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC LIMIT 30
+        """),
+        {"cid": client_id}
+    ).fetchall()
+    return [{"id": r[0], "client_id": r[1], "treinou": r[2], "seguiu_dieta": r[3],
+             "peso": r[4], "energia": r[5], "dificuldade": r[6], "observacoes": r[7],
+             "created_at": str(r[8])} for r in rows]
