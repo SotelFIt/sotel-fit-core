@@ -110,6 +110,17 @@ def run_migrations(engine):
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             )""",
+        """CREATE TABLE IF NOT EXISTS timeline_events (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER NOT NULL,
+                event_type VARCHAR NOT NULL,
+                title VARCHAR NOT NULL,
+                description TEXT,
+                metadata TEXT,
+                icon VARCHAR DEFAULT '⚡',
+                visibility VARCHAR DEFAULT 'private',
+                created_at TIMESTAMP DEFAULT NOW()
+            )""",
         ]
 
         for sql in tables:

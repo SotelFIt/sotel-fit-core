@@ -138,6 +138,12 @@ app.include_router(twilio_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
 try:
+    from routers.timeline import router as timeline_router
+    app.include_router(timeline_router)
+    logger.info("Timeline router carregado")
+except Exception as e:
+    logger.error(f"Timeline router nao carregado: {e}")
+try:
     from routers.photos import router as photos_router
     app.include_router(photos_router)
     logger.info("Photos router carregado")
