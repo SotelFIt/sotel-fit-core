@@ -290,6 +290,25 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
             {"cid": payload.client_id, "treinou": payload.treinou, "seguiu_dieta": payload.seguiu_dieta, "peso": payload.peso, "energia": payload.energia, "dificuldade": payload.dificuldade, "observacoes": payload.observacoes}
         )
         db.commit()
+
+        # Timeline event — isolado para nao afetar o checkin
+        try:
+            from routers.timeline import create_event
+            energia = int(payload.energia or 0)
+            treinou = int(payload.treinou or 0)
+            if energia >= 4 and treinou >= 4:
+                title, icon = "Check-in excelente!", "🔥"
+            elif treinou >= 3:
+                title, icon = "Check-in semanal concluido", "✅"
+            else:
+                title, icon = "Check-in registrado", "📋"
+            desc = f"Treino: {payload.treinou}/5 · Dieta: {payload.seguiu_dieta}/5 · Energia: {payload.energia}/5"
+            if payload.peso:
+                desc += f" · Peso: {payload.peso}kg"
+            create_event(db, payload.client_id, "checkin", title, desc, icon)
+        except Exception:
+            pass
+
         return {"status": "ok", "message": "Check-in salvo com sucesso"}
     except Exception as e:
         db.rollback()
