@@ -63,3 +63,16 @@ def get_timeline(client_id: int, limit: int = 20, db: Session = Depends(get_db))
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.post("/event/{client_id}")
+def manual_event(
+    client_id: int,
+    event_type: str,
+    title: str,
+    description: Optional[str] = None,
+    icon: str = "⚡",
+    db: Session = Depends(get_db),
+):
+    ok = create_event(db, client_id, event_type, title, description, icon)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Erro ao criar evento")
+    return {"status": "ok"}
