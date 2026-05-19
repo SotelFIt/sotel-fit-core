@@ -332,11 +332,29 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
                 insight_title = "Padrão de consistência identificado"
                 insight_desc = "O sistema detectou presença contínua. Evolução sustentável em andamento."
                 insight_icon = "🧠"
-            if insight_title:
+           if insight_title:
                 create_event(db, payload.client_id, "ai_insight", insight_title, insight_desc, insight_icon)
+            # Achievements
+            try:
+                if total in [4, 8, 12, 24]:
+                    months = total // 4
+                    label = "mês" if months == 1 else "meses"
+                    create_event(db, payload.client_id, "achievement", f"{months} {label} de consistência", f"{total} check-ins completados. Disciplina real em construção.", "📈")
+                recent = db.execute(text("SELECT treinou, seguiu_dieta, energia FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC LIMIT 3"), {"cid": payload.client_id}).fetchall()
+                if len(recent) >= 3:
+                    avgs = [sum([int(v or 0) for v in [r[0], r[1], r[2]]]) / 3 for r in recent]
+                    if all(a >= 4 for a in avgs):
+                        create_event(db, payload.client_id, "achievement", "Alta constância detectada", "3 semanas consecutivas acima da média. IA registrou evolução sustentável.", "🧠")
+                if total > 1:
+                    all_rows = db.execute(text("SELECT treinou, seguiu_dieta, energia FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC"), {"cid": payload.client_id}).fetchall()
+                    current_avg = avg
+                    prev_avgs = [sum([int(v or 0) for v in [r[0], r[1], r[2]]]) / 3 for r in all_rows[1:]]
+                    if prev_avgs and current_avg > max(prev_avgs) and current_avg >= 4:
+                        create_event(db, payload.client_id, "achievement", "Melhor semana registrada", "Desempenho acima de todas as semanas anteriores. Novo recorde pessoal.", "🏆")
+            except Exception:
+                pass
         except Exception:
             pass
-
         return {"status": "ok", "message": "Check-in salvo com sucesso"}
     except Exception as e:
         db.rollback()
