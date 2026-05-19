@@ -73,6 +73,27 @@ def manual_event(
     db: Session = Depends(get_db),
 ):
     ok = create_event(db, client_id, event_type, title, description, icon)
-    if not ok:
+   if not ok:
         raise HTTPException(status_code=500, detail="Erro ao criar evento")
-    return {"status": "ok"}
+    if event_type == "workout":
+        try:
+            count = db.execute(
+                text("SELECT COUNT(*) FROM timeline_events WHERE client_id = :cid AND event_type = 'workout'"),
+                {"cid": client_id}
+            ).scalar() or 0
+            milestone = None
+            if count == 5:
+                milestone = ("💪", "5 treinos concluídos", "O hábito está sendo construído. Cinco sessões registradas.")
+            elif count == 10:
+                milestone = ("⚡", "10 treinos concluídos", "Dois dígitos. Consistência real em andamento.")
+            elif count == 20:
+                milestone = ("🚀", "20 treinos concluídos", "Vinte sessões. Disciplina consolidada.")
+            elif count == 50:
+                milestone = ("🏆", "50 treinos concluídos", "Cinquenta treinos. Você está construindo algo real.")
+            if milestone:
+                icon, title, desc = milestone
+                create_event(db, client_id, "achievement", title, desc, icon)
+                db.commit()
+        except Exception:
+            pass
+    return {"status": "ok"} 
