@@ -306,6 +306,34 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
             if payload.peso:
                 desc += f" · Peso: {payload.peso}kg"
             create_event(db, payload.client_id, "checkin", title, desc, icon)
+            # AI Insight
+            total = db.execute(text("SELECT COUNT(*) FROM client_checkins WHERE client_id = :cid"), {"cid": payload.client_id}).scalar() or 0
+            insight_title = None
+            insight_desc = None
+            insight_icon = "⚡"
+            avg = ((int(payload.treinou or 0) + int(payload.seguiu_dieta or 0) + int(payload.energia or 0)) / 3)
+            if total == 1:
+                insight_title = "Primeira semana registrada"
+                insight_desc = "O sistema já está acompanhando sua evolução. Continue assim."
+                insight_icon = "🚀"
+            elif total % 4 == 0:
+                insight_title = "Um mês de consistência"
+                insight_desc = f"{total} check-ins concluídos. Consistência é o maior diferencial."
+                insight_icon = "📈"
+            elif avg >= 4.5:
+                insight_title = "Semana acima da média"
+                insight_desc = "Treino, dieta e energia no nível máximo. Ritmo de evolução acelerado."
+                insight_icon = "🔥"
+            elif avg <= 2:
+                insight_title = "Semana desafiadora detectada"
+                insight_desc = "Queda na aderência identificada. Seu personal será notificado para ajuste."
+                insight_icon = "💤"
+            elif total >= 3:
+                insight_title = "Padrão de consistência identificado"
+                insight_desc = "O sistema detectou presença contínua. Evolução sustentável em andamento."
+                insight_icon = "🧠"
+            if insight_title:
+                create_event(db, payload.client_id, "ai_insight", insight_title, insight_desc, insight_icon)
         except Exception:
             pass
 
