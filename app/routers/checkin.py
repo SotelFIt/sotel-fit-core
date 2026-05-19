@@ -30,16 +30,103 @@ def _add_timeline_event(db: Session, client_id: int, checkin):
         treino = getattr(checkin, 'training_adherence', None) or '-'
         dieta = getattr(checkin, 'diet_adherence', None) or '-'
         energia = getattr(checkin, 'energy', None) or '-'
-        desc = f"Treino: {treino} · Dieta: {dieta} · Energia: {energia}"
+        peso = getattr(checkin, 'weight', None)
+
+        desc_parts = [f"Treino: {treino} · Dieta: {dieta} · Energia: {energia}"]
+        if peso:
+            desc_parts.append(f"· Peso: {peso}kg")
+        desc = " ".join(desc_parts)
+
+        # Determina qualidade do check-in
+        scores = []
+        for val in [treino, dieta, energia]:
+            try:
+                scores.append(int(str(val).split('/')[0]))
+            except Exception:
+                pass
+
+        avg = sum(scores) / len(scores) if scores else 3
+        if avg >= 4.5:
+            icon = "🔥"
+            title = "Check-in excelente!"
+        elif avg >= 3.5:
+            icon = "💪"
+            title = "Check-in muito bom!"
+        elif avg >= 2.5:
+            icon = "✅"
+            title = "Check-in semanal concluido"
+        else:
+            icon = "📋"
+            title = "Check-in registrado"
+
         db.execute(
             text("""
                 INSERT INTO timeline_events (client_id, event_type, title, description, icon, created_at)
-                VALUES (:cid, 'checkin', 'Check-in semanal concluido', :desc, :icon, NOW())
+                VALUES (:cid, 'checkin', :title, :desc, :icon, NOW())
             """),
-            {"cid": client_id, "desc": desc, "icon": "✅"}
+            {"cid": client_id, "desc": desc, "icon": icon, "title": title}
         )
     except Exception as e:
         logger.error(f"Erro ao criar evento de timeline: {e}")
+
+
+def _add_ai_insight(db: Session, client_id: int, checkin):
+    try:
+        # Conta check-ins anteriores
+        result = db.execute(
+            text("SELECT COUNT(*) FROM timeline_events WHERE client_id = :cid AND event_type = 'checkin'"),
+            {"cid": client_id}
+        ).scalar()
+        total_checkins = result or 0
+
+        treino = getattr(checkin, 'training_adherence', None) or ''
+        dieta = getattr(checkin, 'diet_adherence', None) or ''
+        energia = getattr(checkin, 'energy', None) or ''
+        peso = getattr(checkin, 'weight', None)
+
+        scores = []
+        for val in [treino, dieta, energia]:
+            try:
+                scores.append(int(str(val).split('/')[0]))
+            except Exception:
+                pass
+        avg = sum(scores) / len(scores) if scores else 3
+
+        insight_title = None
+        insight_desc = None
+        insight_icon = "⚡"
+
+        if total_checkins == 1:
+            insight_title = "Primeira semana registrada"
+            insight_desc = "O sistema já está acompanhando sua evolução. Continue assim."
+            insight_icon = "🚀"
+        elif total_checkins % 4 == 0:
+            insight_title = "Um mês de consistência"
+            insight_desc = f"{total_checkins} check-ins concluídos. Consistência é o maior diferencial."
+            insight_icon = "📈"
+        elif avg >= 4.5:
+            insight_title = "Semana acima da média"
+            insight_desc = "Treino, dieta e energia no nível máximo. Ritmo de evolução acelerado."
+            insight_icon = "🔥"
+        elif avg <= 2:
+            insight_title = "Semana desafiadora detectada"
+            insight_desc = "Queda na aderência identificada. Seu personal será notificado para ajuste."
+            insight_icon = "💤"
+        elif total_checkins >= 3:
+            insight_title = "Padrão de consistência identificado"
+            insight_desc = "O sistema detectou presença contínua. Evolução sustentável em andamento."
+            insight_icon = "🧠"
+
+        if insight_title:
+            db.execute(
+                text("""
+                    INSERT INTO timeline_events (client_id, event_type, title, description, icon, created_at)
+                    VALUES (:cid, 'ai_insight', :title, :desc, :icon, NOW())
+                """),
+                {"cid": client_id, "desc": insight_desc, "icon": insight_icon, "title": insight_title}
+            )
+    except Exception as e:
+        logger.error(f"Erro ao criar ai_insight: {e}")
 
 
 @router.post("", response_model=CheckinResponse, status_code=status.HTTP_201_CREATED)
@@ -50,6 +137,7 @@ def create_new_checkin(checkin: CheckinCreate, db: Session = Depends(get_db), au
         check_subscription(checkin.client_id, auth_client_id, db)
         result = create_checkin(db, checkin)
         _add_timeline_event(db, checkin.client_id, result)
+        _add_ai_insight(db, checkin.client_id, result)
         db.commit()
         db.refresh(result)
         return result
