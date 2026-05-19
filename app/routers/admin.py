@@ -332,7 +332,7 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
                 insight_title = "Padrão de consistência identificado"
                 insight_desc = "O sistema detectou presença contínua. Evolução sustentável em andamento."
                 insight_icon = "🧠"
-           if insight_title:
+            if insight_title:
                 create_event(db, payload.client_id, "ai_insight", insight_title, insight_desc, insight_icon)
             # Achievements
             try:
