@@ -73,7 +73,7 @@ def manual_event(
     db: Session = Depends(get_db),
 ):
     ok = create_event(db, client_id, event_type, title, description, icon)
-   if not ok:
+    if not ok:
         raise HTTPException(status_code=500, detail="Erro ao criar evento")
     if event_type == "workout":
         try:
