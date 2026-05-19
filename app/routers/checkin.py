@@ -74,7 +74,7 @@ def _add_ai_insight(db: Session, client_id: int, checkin):
     try:
         # Conta check-ins anteriores
         result = db.execute(
-            text("SELECT COUNT(*) FROM timeline_events WHERE client_id = :cid AND event_type = 'checkin'"),
+            text("SELECT COUNT(*) FROM client_checkins WHERE client_id = :cid"),
             {"cid": client_id}
         ).scalar()
         total_checkins = result or 0
