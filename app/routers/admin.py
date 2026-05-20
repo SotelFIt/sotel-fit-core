@@ -311,7 +311,12 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
             insight_title = None
             insight_desc = None
             insight_icon = "⚡"
-            avg = ((int(payload.treinou or 0) + int(payload.seguiu_dieta or 0) + int(payload.energia or 0)) / 3)
+            def safe_int(v):
+                try:
+                    return int(str(v).split('/')[0].strip())
+                except Exception:
+                    return 0
+            avg = ((safe_int(payload.treinou) + safe_int(payload.seguiu_dieta) + safe_int(payload.energia)) / 3)
             if total == 1:
                 insight_title = "Primeira semana registrada"
                 insight_desc = "O sistema já está acompanhando sua evolução. Continue assim."
