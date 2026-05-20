@@ -131,4 +131,23 @@ def run_migrations(engine):
                 conn.rollback()
                 logger.error(f"Erro ao criar tabela: {e}")
 
+
+        # --- INDEX migrations ---
+        index_sqls = [
+            "CREATE INDEX IF NOT EXISTS idx_timeline_client_id ON timeline_events (client_id)",
+            "CREATE INDEX IF NOT EXISTS idx_timeline_event_type ON timeline_events (event_type)",
+            "CREATE INDEX IF NOT EXISTS idx_timeline_created_at ON timeline_events (created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_checkins_client_id ON client_checkins (client_id)",
+            "CREATE INDEX IF NOT EXISTS idx_checkins_created_at ON client_checkins (created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_plans_client_id ON client_plans (client_id)",
+            "CREATE INDEX IF NOT EXISTS idx_diets_client_id ON client_diets (client_id)",
+            "CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients (phone)",
+            "CREATE INDEX IF NOT EXISTS idx_clients_status ON clients (status)",
+        ]
+        for sql in index_sqls:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                conn.rollback()
     logger.info("Migrations concluidas.")
