@@ -56,6 +56,9 @@ async def upload_photo(
 
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Apenas imagens sao aceitas")
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Imagem muito grande. Maximo 10MB.")
 
     try:
         import cloudinary
@@ -66,7 +69,6 @@ async def upload_photo(
             api_secret=os.getenv("CLOUDINARY_API_SECRET"),
             secure=True
         )
-        contents = await file.read()
         result = cloudinary.uploader.upload(
             contents,
             folder=f"sotelfit/clients/{client_id}",
