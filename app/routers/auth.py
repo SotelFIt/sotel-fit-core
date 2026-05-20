@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from main import limiter
+
+limiter = Limiter(key_func=get_remote_address)
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from core.database import get_db
