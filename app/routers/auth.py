@@ -1,4 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from main import limiter
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from core.database import get_db
@@ -39,6 +42,7 @@ def get_current_user(db: Session = Depends(get_db), auth_client_id: int = Depend
 
 
 @router.post("/login", status_code=200)
+@limiter.limit("10/minute")
 def login(request: Request, payload: dict, db: Session = Depends(get_db)):
     email = payload.get("email")
     if not email:
