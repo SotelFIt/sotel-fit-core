@@ -97,3 +97,17 @@ def manual_event(
         except Exception:
             pass
     return {"status": "ok"} 
+
+
+@router.delete("/event/{event_id}")
+def delete_event(event_id: int, db: Session = Depends(get_db)):
+    try:
+        db.execute(
+            text("DELETE FROM timeline_events WHERE id = :eid"),
+            {"eid": event_id}
+        )
+        db.commit()
+        return {"status": "ok", "deleted": event_id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

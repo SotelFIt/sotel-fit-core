@@ -333,13 +333,24 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
                 insight_desc = "O sistema detectou presença contínua. Evolução sustentável em andamento."
                 insight_icon = "🧠"
             if insight_title:
-                create_event(db, payload.client_id, "ai_insight", insight_title, insight_desc, insight_icon)
+                already = db.execute(
+                    text("SELECT COUNT(*) FROM timeline_events WHERE client_id = :cid AND event_type = 'ai_insight' AND title = :title AND created_at > NOW() - INTERVAL '7 days'"),
+                    {"cid": payload.client_id, "title": insight_title}
+                ).scalar() or 0
+                if already == 0:
+                    create_event(db, payload.client_id, "ai_insight", insight_title, insight_desc, insight_icon)
             # Achievements
             try:
                 if total in [4, 8, 12, 24]:
                     months = total // 4
                     label = "mês" if months == 1 else "meses"
-                    create_event(db, payload.client_id, "achievement", f"{months} {label} de consistência", f"{total} check-ins completados. Disciplina real em construção.", "📈")
+                    ach_title = f"{months} {label} de consistência"
+                    already_ach = db.execute(
+                        text("SELECT COUNT(*) FROM timeline_events WHERE client_id = :cid AND event_type = 'achievement' AND title = :title"),
+                        {"cid": payload.client_id, "title": ach_title}
+                    ).scalar() or 0
+                    if already_ach == 0:
+                        create_event(db, payload.client_id, "achievement", ach_title, f"{total} check-ins completados. Disciplina real em construção.", "📈")
                 recent = db.execute(text("SELECT treinou, seguiu_dieta, energia FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC LIMIT 3"), {"cid": payload.client_id}).fetchall()
                 if len(recent) >= 3:
                     avgs = [sum([int(v or 0) for v in [r[0], r[1], r[2]]]) / 3 for r in recent]
