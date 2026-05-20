@@ -157,7 +157,19 @@ def health():
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        return {"status": "ok", "database": "connected"}
+            clients = conn.execute(text("SELECT COUNT(*) FROM clients WHERE status = 'active'")).scalar()
+            timeline = conn.execute(text("SELECT COUNT(*) FROM timeline_events")).scalar()
+            checkins = conn.execute(text("SELECT COUNT(*) FROM client_checkins")).scalar()
+        return {
+            "status": "ok",
+            "database": "connected",
+            "version": "1.0.0",
+            "stats": {
+                "active_clients": clients,
+                "timeline_events": timeline,
+                "checkins": checkins,
+            }
+        }
     except Exception as e:
 
         logger.error(f"Health check falhou: {e}")
