@@ -55,7 +55,7 @@ def create_token_pair(client_id: int) -> TokenResponse:
 
 def verify_token(token: str, token_type: str = "access") -> int:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_iat": False, "verify_sub": False})
         if payload.get("type") != token_type:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
         client_id = payload.get("sub")
