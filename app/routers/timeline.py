@@ -36,7 +36,7 @@ def create_event(db: Session, client_id: int, event_type: str, title: str,
 
 
 @router.get("/client/{client_id}")
-def get_timeline(client_id: int, limit: int = 20, db: Session = Depends(get_db)):
+def get_timeline(client_id: int, limit: int = 10, offset: int = 0, db: Session = Depends(get_db)):
     try:
         rows = db.execute(
             text("""
@@ -44,9 +44,9 @@ def get_timeline(client_id: int, limit: int = 20, db: Session = Depends(get_db))
                 FROM timeline_events
                 WHERE client_id = :cid
                 ORDER BY created_at DESC
-                LIMIT :limit
+                LIMIT :limit OFFSET :offset
             """),
-            {"cid": client_id, "limit": limit}
+            {"cid": client_id, "limit": limit, "offset": offset}
         ).fetchall()
         return [
             {
