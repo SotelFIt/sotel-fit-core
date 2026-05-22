@@ -132,3 +132,28 @@ async def audit_orphan_clients():
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.post("/cleanup-fake-data")
+async def cleanup_fake_data():
+    """Remove dados de teste em produção - USE COM CUIDADO"""
+    try:
+        with engine.connect() as conn:
+            deleted = {}
+            
+            # Delete fake leads
+            result = conn.execute(text("DELETE FROM lead_onboardings WHERE id IN (3, 2)"))
+            deleted["fake_leads"] = result.rowcount
+            
+            # Delete orphan fake clients
+            result = conn.execute(text("DELETE FROM clients WHERE id IN (2, 10, 14, 15)"))
+            deleted["fake_clients"] = result.rowcount
+            
+            conn.commit()
+            
+            return {
+                "status": "ok",
+                "message": "Limpeza concluída com sucesso",
+                "deleted": deleted,
+                "timestamp": str(__import__('datetime').datetime.utcnow())
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
