@@ -103,3 +103,32 @@ async def audit_data_integrity():
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/orphan-clients")
+async def audit_orphan_clients():
+    """Lista clientes sem subscription"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT c.id, c.name, c.status, c.created_at 
+                FROM clients c 
+                WHERE NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.client_id = c.id)
+                ORDER BY c.created_at DESC
+                LIMIT 20
+            """))
+            
+            clients = []
+            for row in result:
+                clients.append({
+                    "id": row[0],
+                    "name": row[1],
+                    "status": row[2],
+                    "created_at": str(row[3]) if row[3] else None
+                })
+            
+            return {
+                "status": "ok",
+                "total_orphan_clients": len(clients),
+                "clients": clients
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
