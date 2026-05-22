@@ -190,22 +190,19 @@ async def validate_client_detailed(client_id: int):
                     "created_at": str(row[3]) if row[3] else None
                 })
 
-            checkin_result = conn.execute(text("""
-                SELECT id, weight, adherence_training, adherence_diet, created_at
-                FROM client_checkins
-                WHERE client_id = :client_id
-                ORDER BY created_at DESC
-                LIMIT 10
-            """), {"client_id": client_id})
-            checkins = []
-            for row in checkin_result:
-                checkins.append({
-                    "id": row[0],
-                    "weight": row[1],
-                    "adherence_training": row[2],
-                    "adherence_diet": row[3],
-                    "created_at": str(row[4]) if row[4] else None
-                })
+           checkin_result = conn.execute(text("""
+    SELECT id, created_at
+    FROM client_checkins
+    WHERE client_id = :client_id
+    ORDER BY created_at DESC
+    LIMIT 10
+"""), {"client_id": client_id})
+checkins = []
+for row in checkin_result:
+    checkins.append({
+        "id": row[0],
+        "created_at": str(row[1]) if row[1] else None
+    })
 
             plan_result = conn.execute(text("""
                 SELECT id, plan_type, status, created_at
