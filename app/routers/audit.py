@@ -4,6 +4,7 @@ from core.database import engine
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
+
 @router.get("/cleanup-status")
 async def audit_cleanup_status():
     try:
@@ -124,9 +125,8 @@ async def cleanup_fake_data():
             conn.commit()
             return {
                 "status": "ok",
-                "message": "Limpeza concluída com sucesso",
-                "deleted": deleted,
-                "timestamp": str(__import__('datetime').datetime.utcnow())
+                "message": "Limpeza concluida com sucesso",
+                "deleted": deleted
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -136,7 +136,6 @@ async def cleanup_fake_data():
 async def validate_client_detailed(client_id: int):
     try:
         with engine.connect() as conn:
-            # 1. Dados do cliente
             client_result = conn.execute(text("""
                 SELECT id, name, phone, email, status, created_at, updated_at
                 FROM clients
@@ -145,7 +144,7 @@ async def validate_client_detailed(client_id: int):
             client_row = client_result.fetchone()
 
             if not client_row:
-                return {"status": "error", "message": f"Cliente {client_id} não encontrado"}
+                return {"status": "error", "message": f"Cliente {client_id} nao encontrado"}
 
             client_data = {
                 "id": client_row[0],
@@ -157,14 +156,12 @@ async def validate_client_detailed(client_id: int):
                 "updated_at": str(client_row[6]) if client_row[6] else None
             }
 
-            # 2. Onboarding relacionado
-           onboarding_result = conn.execute(text("""
-    SELECT id, phone, nome, email, objetivo, nivel_treino, created_at
-    FROM lead_onboardings
-    WHERE phone = :phone
-    LIMIT 5
-"""), {"phone": client_data["phone"]})
-            """), {"client_id": client_id})
+            onboarding_result = conn.execute(text("""
+                SELECT id, phone, nome, email, objetivo, nivel_treino, created_at
+                FROM lead_onboardings
+                WHERE phone = :phone
+                LIMIT 5
+            """), {"phone": client_data["phone"]})
             onboardings = []
             for row in onboarding_result:
                 onboardings.append({
@@ -177,7 +174,6 @@ async def validate_client_detailed(client_id: int):
                     "created_at": str(row[6]) if row[6] else None
                 })
 
-            # 3. Timeline
             timeline_result = conn.execute(text("""
                 SELECT id, event_type, description, created_at
                 FROM timeline_events
@@ -194,7 +190,6 @@ async def validate_client_detailed(client_id: int):
                     "created_at": str(row[3]) if row[3] else None
                 })
 
-            # 4. Check-ins
             checkin_result = conn.execute(text("""
                 SELECT id, weight, adherence_training, adherence_diet, created_at
                 FROM client_checkins
@@ -212,7 +207,6 @@ async def validate_client_detailed(client_id: int):
                     "created_at": str(row[4]) if row[4] else None
                 })
 
-            # 5. Planos
             plan_result = conn.execute(text("""
                 SELECT id, plan_type, status, created_at
                 FROM client_plans
@@ -228,7 +222,6 @@ async def validate_client_detailed(client_id: int):
                     "created_at": str(row[3]) if row[3] else None
                 })
 
-            # 6. Analise
             is_real = {
                 "has_onboarding": len(onboardings) > 0,
                 "has_timeline": len(timeline) > 0,
@@ -246,7 +239,7 @@ async def validate_client_detailed(client_id: int):
                 "client": client_data,
                 "audit": {
                     "onboardings": onboardings,
-                    "timeline_events": timeline
+                    "timeline_events": timeline,
                     "checkins": checkins,
                     "plans": plans
                 },
