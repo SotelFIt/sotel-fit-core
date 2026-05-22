@@ -157,3 +157,141 @@ async def cleanup_fake_data():
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/validate-client/{client_id}")
+async def validate_client_detailed(client_id: int):
+    """Auditoria completa de um cliente para validação"""
+    try:
+        with engine.connect() as conn:
+            # 1. Dados básicos do cliente
+            client_result = conn.execute(text("""
+                SELECT id, name, phone, email, status, created_at, updated_at
+                FROM clients
+                WHERE id = :client_id
+            """), {"client_id": client_id})
+            client_row = client_result.fetchone()
+            
+            if not client_row:
+                return {
+                    "status": "error",
+                    "message": f"Cliente {client_id} não encontrado"
+                }
+            
+            client_data = {
+                "id": client_row[0],
+                "name": client_row[1],
+                "phone": client_row[2],
+                "email": client_row[3],
+                "status": client_row[4],
+                "created_at": str(client_row[5]) if client_row[5] else None,
+                "updated_at": str(client_row[6]) if client_row[6] else None
+            }
+            
+            # 2. Onboarding relacionado
+            onboarding_result = conn.execute(text("""
+                SELECT id, lead_phone, lead_email, status, data, created_at
+                FROM lead_onboardings
+                WHERE client_id = :client_id
+                LIMIT 5
+            """), {"client_id": client_id})
+            onboardings = []
+            for row in onboarding_result:
+                onboardings.append({
+                    "id": row[0],
+                    "lead_phone": row[1],
+                    "lead_email": row[2],
+                    "status": row[3],
+                    "data": row[4],
+                    "created_at": str(row[5]) if row[5] else None
+                })
+            
+            # 3. Timeline relacionada
+            timeline_result = conn.execute(text("""
+                SELECT id, event_type, description, created_at
+                FROM timeline_events
+                WHERE client_id = :client_id
+                ORDER BY created_at DESC
+                LIMIT 10
+            """), {"client_id": client_id})
+            timeline = []
+            for row in timeline_result:
+                timeline.append({
+                    "id": row[0],
+                    "event_type": row[1],
+                    "description": row[2],
+                    "created_at": str(row[3]) if row[3] else None
+                })
+            
+            # 4. Check-ins relacionados
+            checkin_result = conn.execute(text("""
+                SELECT id, weight, adherence_training, adherence_diet, created_at
+                FROM client_checkins
+                WHERE client_id = :client_id
+                ORDER BY created_at DESC
+                LIMIT 10
+            """), {"client_id": client_id})
+            checkins = []
+            for row in checkin_result:
+                checkins.append({
+                    "id": row[0],
+                    "weight": row[1],
+                    "adherence_training": row[2],
+                    "adherence_diet": row[3],
+                    "created_at": str(row[4]) if row[4] else None
+                })
+            
+            # 5. Planos relacionados
+            plan_result = conn.execute(text("""
+                SELECT id, plan_type, status, created_at
+                FROM client_plans
+                WHERE client_id = :client_id
+                LIMIT 5
+            """), {"client_id": client_id})
+            plans = []
+            for row in plan_result:
+                plans.append({
+                    "id": row[0],
+                    "plan_type": row[1],
+                    "status": row[2],
+                    "created_at": str(row[3]) if row[3] else None
+                })
+            
+            # 6. Análise automática
+            is_real = {
+                "has_onboarding": len(onboardings) > 0,
+                "has_timeline": len(timeline) > 0,
+                "has_checkins": len(checkins) > 0,
+                "has_plans": len(plans) > 0,
+                "valid_email": client_data["email"] and "@" in client_data["email"],
+                "valid_phone": client_data["phone"] and len(client_data["phone"]) >= 10,
+                "created_recently": client_data["created_at"] is not None
+            }
+            
+            activity_score = sum([
+                1 if is_real["has_onboarding"] else 0,
+                1 if is_real["has_timeline"] else 0,
+                1 if is_real["has_checkins"] else 0,
+                1 if is_real["has_plans"] else 0,
+                1 if is_real["valid_email"] else 0,
+                1 if is_real["valid_phone"] else 0
+            ])
+            
+            classification = "REAL" if activity_score >= 4 else "TESTE" if activity_score <= 2 else "DUVIDOSO"
+            
+            return {
+                "status": "ok",
+                "client": client_data,
+                "audit": {
+                    "onboardings": onboardings,
+                    "timeline_events": timeline,
+                    "checkins": checkins,
+                    "plans": plans
+                },
+                "validation": {
+                    "criteria": is_real,
+                    "activity_score": f"{activity_score}/6",
+                    "classification": classification,
+                    "recommendation": "MANTER" if classification == "REAL" else ("DELETAR" if classification == "TESTE" else "INVESTIGAR MANUALMENTE")
+                }
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
