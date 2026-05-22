@@ -26,7 +26,7 @@ from routers.lead_onboarding import router as lead_onboarding_router
 from routers.stripe_checkout import router as stripe_checkout_router
 from routers.observability import router as observability_router
 from routers.audit import router as audit_router
-app.include_router(audit_router)
+
 from models import *  # noqa
 from migrate import run_migrations
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -154,6 +154,7 @@ except Exception as e:
     logger.error(f"Photos router nao carregado: {e}")
 app.include_router(photos_router)
 app.include_router(stripe_checkout_router)
+app.include_router(audit_router)
 app.include_router(observability_router)
 
 @app.get("/health")
