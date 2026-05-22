@@ -192,7 +192,7 @@ async def validate_client_detailed(client_id: int):
                     "created_at": str(row[1]) if row[1] else None
                 })
             plan_result = conn.execute(text("""
-                SELECT id, plan_type, status, created_at
+                SELECT id, status, created_at
                 FROM client_plans
                 WHERE client_id = :client_id
                 LIMIT 5
@@ -201,9 +201,8 @@ async def validate_client_detailed(client_id: int):
             for row in plan_result:
                 plans.append({
                     "id": row[0],
-                    "plan_type": row[1],
-                    "status": row[2],
-                    "created_at": str(row[3]) if row[3] else None
+                    "status": row[1],
+                    "created_at": str(row[2]) if row[2] else None
                 })
             is_real = {
                 "has_onboarding": len(onboardings) > 0,
