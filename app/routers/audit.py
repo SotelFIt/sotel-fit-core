@@ -188,21 +188,20 @@ async def validate_client_detailed(client_id: int):
             
             # 2. Onboarding relacionado
             onboarding_result = conn.execute(text("""
-                SELECT id, lead_phone, lead_email, status, data, created_at
-                FROM lead_onboardings
-                WHERE client_id = :client_id
+                SELECT id, phone, email, status, created_at
+		FROM lead_onboardings
+		WHERE client_id = :client_id
                 LIMIT 5
             """), {"client_id": client_id})
             onboardings = []
             for row in onboarding_result:
                 onboardings.append({
-                    "id": row[0],
-                    "lead_phone": row[1],
-                    "lead_email": row[2],
-                    "status": row[3],
-                    "data": row[4],
-                    "created_at": str(row[5]) if row[5] else None
-                })
+    "id": row[0],
+    "phone": row[1],
+    "email": row[2],
+    "status": row[3],
+    "created_at": str(row[4]) if row[4] else None
+})
             
             # 3. Timeline relacionada
             timeline_result = conn.execute(text("""
