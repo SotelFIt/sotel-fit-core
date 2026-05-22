@@ -67,19 +67,16 @@ async def audit_data_integrity():
                 WHERE NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.client_id = c.id)
             """)).scalar()
             integrity["clients_without_subscription"] = orphan_clients
-
             orphan_timeline = conn.execute(text("""
                 SELECT COUNT(*) FROM timeline_events t
                 WHERE NOT EXISTS (SELECT 1 FROM clients c WHERE c.id = t.client_id)
             """)).scalar()
             integrity["orphan_timeline_events"] = orphan_timeline
-
             orphan_checkins = conn.execute(text("""
                 SELECT COUNT(*) FROM checkins ch
                 WHERE NOT EXISTS (SELECT 1 FROM clients c WHERE c.id = ch.client_id)
             """)).scalar()
             integrity["orphan_checkins"] = orphan_checkins
-
             return {
                 "status": "ok",
                 "integrity": integrity,
@@ -123,11 +120,7 @@ async def cleanup_fake_data():
             result = conn.execute(text("DELETE FROM clients WHERE id IN (2, 10, 14, 15)"))
             deleted["fake_clients"] = result.rowcount
             conn.commit()
-            return {
-                "status": "ok",
-                "message": "Limpeza concluida com sucesso",
-                "deleted": deleted
-            }
+            return {"status": "ok", "message": "Limpeza concluida", "deleted": deleted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -142,10 +135,8 @@ async def validate_client_detailed(client_id: int):
                 WHERE id = :client_id
             """), {"client_id": client_id})
             client_row = client_result.fetchone()
-
             if not client_row:
                 return {"status": "error", "message": f"Cliente {client_id} nao encontrado"}
-
             client_data = {
                 "id": client_row[0],
                 "name": client_row[1],
@@ -155,7 +146,6 @@ async def validate_client_detailed(client_id: int):
                 "created_at": str(client_row[5]) if client_row[5] else None,
                 "updated_at": str(client_row[6]) if client_row[6] else None
             }
-
             onboarding_result = conn.execute(text("""
                 SELECT id, phone, nome, email, objetivo, nivel_treino, created_at
                 FROM lead_onboardings
@@ -173,7 +163,6 @@ async def validate_client_detailed(client_id: int):
                     "nivel_treino": row[5],
                     "created_at": str(row[6]) if row[6] else None
                 })
-
             timeline_result = conn.execute(text("""
                 SELECT id, event_type, description, created_at
                 FROM timeline_events
@@ -189,21 +178,19 @@ async def validate_client_detailed(client_id: int):
                     "description": row[2],
                     "created_at": str(row[3]) if row[3] else None
                 })
-
-           checkin_result = conn.execute(text("""
-    SELECT id, created_at
-    FROM client_checkins
-    WHERE client_id = :client_id
-    ORDER BY created_at DESC
-    LIMIT 10
-"""), {"client_id": client_id})
-checkins = []
-for row in checkin_result:
-    checkins.append({
-        "id": row[0],
-        "created_at": str(row[1]) if row[1] else None
-    })
-
+            checkin_result = conn.execute(text("""
+                SELECT id, created_at
+                FROM client_checkins
+                WHERE client_id = :client_id
+                ORDER BY created_at DESC
+                LIMIT 10
+            """), {"client_id": client_id})
+            checkins = []
+            for row in checkin_result:
+                checkins.append({
+                    "id": row[0],
+                    "created_at": str(row[1]) if row[1] else None
+                })
             plan_result = conn.execute(text("""
                 SELECT id, plan_type, status, created_at
                 FROM client_plans
@@ -218,7 +205,6 @@ for row in checkin_result:
                     "status": row[2],
                     "created_at": str(row[3]) if row[3] else None
                 })
-
             is_real = {
                 "has_onboarding": len(onboardings) > 0,
                 "has_timeline": len(timeline) > 0,
@@ -227,10 +213,8 @@ for row in checkin_result:
                 "valid_email": bool(client_data["email"] and "@" in client_data["email"]),
                 "valid_phone": bool(client_data["phone"] and len(client_data["phone"]) >= 10)
             }
-
             activity_score = sum(is_real.values())
             classification = "REAL" if activity_score >= 4 else "TESTE" if activity_score <= 2 else "DUVIDOSO"
-
             return {
                 "status": "ok",
                 "client": client_data,
