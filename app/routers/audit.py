@@ -191,7 +191,7 @@ async def validate_client_detailed(client_id: int):
                     "id": row[0],
                     "created_at": str(row[1]) if row[1] else None
                 })
-           plan_result = conn.execute(text("""
+            plan_result = conn.execute(text("""
                 SELECT id, status, created_at
                 FROM client_plans
                 WHERE client_id = :client_id
