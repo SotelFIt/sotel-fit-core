@@ -6,7 +6,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/stripe", tags=["Stripe Checkout"])
-
 APP_URL = "https://sotel-client.vercel.app"
 
 class CheckoutRequest(BaseModel):
@@ -36,7 +35,6 @@ def create_checkout(data: CheckoutRequest):
             cancel_url=f"{APP_URL}/planos?canceled=true",
             phone_number_collection={"enabled": True},
             billing_address_collection="auto",
-            customer_creation="always",
         )
         logger.info(f"Checkout criado para {data.phone}: {session.id}")
         return {"checkout_url": session.url, "session_id": session.id}
