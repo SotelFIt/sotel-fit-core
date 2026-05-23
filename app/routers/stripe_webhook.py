@@ -57,9 +57,26 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         metadata = session.get("metadata") or {}
         customer_details = session.get("customer_details") or {}
 
-        customer_phone = metadata.get("phone") or customer_details.get("phone")
-        customer_email = customer_details.get("email") or metadata.get("email")
-        customer_name = customer_details.get("name") or metadata.get("name") or "Cliente"
+        # checkout.session: phone em metadata ou customer_details
+        # invoice: phone em customer_phone diretamente
+        customer_phone = (
+            metadata.get("phone")
+            or customer_details.get("phone")
+            or session.get("customer_phone")
+        )
+        customer_email = (
+            customer_details.get("email")
+            or metadata.get("email")
+            or session.get("customer_email")
+        )
+        customer_name = (
+            customer_details.get("name")
+            or metadata.get("name")
+            or session.get("customer_name")
+            or "Cliente"
+        )
+
+        logger.info(f"Dados extraidos: phone={customer_phone} email={customer_email} name={customer_name}")
 
         if not customer_phone and not customer_email:
             logger.warning(f"Stripe webhook: phone e email nao encontrados. event_id={event_id}")
@@ -68,7 +85,6 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         phone_normalized = normalize_phone(customer_phone) if customer_phone else None
         phone_whatsapp = normalize_phone_for_whatsapp(customer_phone) if customer_phone else None
 
-        # Buscar cliente existente por phone ou email
         client_row = None
         if phone_normalized:
             client_row = db.execute(
@@ -110,7 +126,6 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             client_id = result.fetchone()[0]
             logger.info(f"Novo cliente criado via Stripe: id={client_id}")
 
-        # Ativar assinatura automaticamente
         try:
             existing_sub = db.execute(
                 text("SELECT id FROM subscriptions WHERE client_id = :cid LIMIT 1"),
@@ -150,12 +165,11 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                     {"cid": client_id}
                 )
             db.commit()
-            logger.info(f"Assinatura ativada automaticamente para cliente {client_id}")
+            logger.info(f"Assinatura ativada para cliente {client_id}")
         except Exception as e:
             logger.error(f"Erro ao ativar assinatura: {e}")
             db.rollback()
 
-        # Enviar WhatsApp
         if phone_whatsapp:
             message = (
                 f"Pagamento confirmado! Bem-vindo ao Sotel Fit Core.\n\n"
