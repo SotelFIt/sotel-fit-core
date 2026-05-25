@@ -14,6 +14,14 @@ router = APIRouter(prefix="/webhook", tags=["Stripe"])
 ONBOARDING_LINK = "https://sotel-client.vercel.app/onboarding"
 
 
+def safe_get(obj, key, default=None):
+    try:
+        val = obj[key]
+        return val if val is not None else default
+    except (KeyError, TypeError):
+        return default
+
+
 @router.post("/stripe")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.body()
@@ -54,30 +62,30 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             logger.warning(f"Nao foi possivel registrar stripe_event: {e}")
             db.rollback()
 
-        metadata = session.get("metadata") or {}
-        customer_details = session.get("customer_details") or {}
+        metadata = safe_get(session, "metadata") or {}
+        customer_details = safe_get(session, "customer_details") or {}
 
         customer_phone = (
-            metadata.get("phone")
-            or customer_details.get("phone")
-            or session.get("customer_phone")
+            safe_get(metadata, "phone")
+            or safe_get(customer_details, "phone")
+            or safe_get(session, "customer_phone")
         )
         customer_email = (
-            customer_details.get("email")
-            or metadata.get("email")
-            or session.get("customer_email")
+            safe_get(customer_details, "email")
+            or safe_get(metadata, "email")
+            or safe_get(session, "customer_email")
         )
         customer_name = (
-            customer_details.get("name")
-            or metadata.get("name")
-            or session.get("customer_name")
+            safe_get(customer_details, "name")
+            or safe_get(metadata, "name")
+            or safe_get(session, "customer_name")
             or "Cliente"
         )
 
         logger.info(f"Dados extraidos: phone={customer_phone} email={customer_email} name={customer_name}")
 
         if not customer_phone and not customer_email:
-            logger.warning(f"Stripe webhook: phone e email nao encontrados. event_id={event_id}")
+            logger.warning(f"phone e email nao encontrados. event_id={event_id}")
             return {"status": "ignored", "reason": "phone and email not found"}
 
         phone_normalized = normalize_phone(customer_phone) if customer_phone else None
@@ -110,7 +118,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 {"email": customer_email, "name": customer_name, "phone": phone_normalized, "cid": client_id}
             )
             db.commit()
-            logger.info(f"Cliente {client_id} atualizado para status active")
+            logger.info(f"Cliente {client_id} atualizado para active")
         else:
             result = db.execute(
                 text("""
@@ -134,15 +142,10 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 db.execute(
                     text("""
                         UPDATE subscriptions SET
-                            status = 'active',
-                            plan_type = 'monthly',
-                            payment_status = 'paid',
-                            manual_payment_method = 'stripe',
-                            start_date = NOW(),
-                            end_date = NOW() + INTERVAL '30 days',
-                            last_payment_date = NOW(),
-                            next_payment_date = NOW() + INTERVAL '30 days',
-                            updated_at = NOW()
+                            status = 'active', plan_type = 'monthly', payment_status = 'paid',
+                            manual_payment_method = 'stripe', start_date = NOW(),
+                            end_date = NOW() + INTERVAL '30 days', last_payment_date = NOW(),
+                            next_payment_date = NOW() + INTERVAL '30 days', updated_at = NOW()
                         WHERE client_id = :cid
                     """),
                     {"cid": client_id}
@@ -151,13 +154,11 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 db.execute(
                     text("""
                         INSERT INTO subscriptions (
-                            client_id, status, plan_type, payment_status,
-                            manual_payment_method, start_date, end_date,
-                            last_payment_date, next_payment_date, created_at, updated_at
+                            client_id, status, plan_type, payment_status, manual_payment_method,
+                            start_date, end_date, last_payment_date, next_payment_date, created_at, updated_at
                         ) VALUES (
-                            :cid, 'active', 'monthly', 'paid',
-                            'stripe', NOW(), NOW() + INTERVAL '30 days',
-                            NOW(), NOW() + INTERVAL '30 days', NOW(), NOW()
+                            :cid, 'active', 'monthly', 'paid', 'stripe', NOW(),
+                            NOW() + INTERVAL '30 days', NOW(), NOW() + INTERVAL '30 days', NOW(), NOW()
                         )
                     """),
                     {"cid": client_id}
