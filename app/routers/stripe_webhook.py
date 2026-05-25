@@ -28,8 +28,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     except Exception:
         raise HTTPException(status_code=400, detail="Assinatura invalida")
 
-    event_id = event.get("id")
-    event_type = event.get("type")
+    event_id = event["id"]
+    event_type = event["type"]
     logger.info(f"Stripe webhook recebido: {event_type} id={event_id}")
 
     if event_type in ("checkout.session.completed", "invoice.payment_succeeded"):
@@ -57,8 +57,6 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         metadata = session.get("metadata") or {}
         customer_details = session.get("customer_details") or {}
 
-        # checkout.session: phone em metadata ou customer_details
-        # invoice: phone em customer_phone diretamente
         customer_phone = (
             metadata.get("phone")
             or customer_details.get("phone")
