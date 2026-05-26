@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -26,6 +26,12 @@ def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
     if auth_client_id not in ADMIN_CLIENT_IDS:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Apenas admin pode acessar este endpoint")
     return auth_client_id
+
+def whatsapp_to(phone: str) -> str:
+    return f"whatsapp:{phone}" if not phone.startswith("whatsapp:") else phone
+
+def get_twilio_from() -> str:
+    return os.getenv("TWILIO_FROM_NUMBER") or os.getenv("TWILIO_WHATSAPP_FROM") or "whatsapp:+14155238886"
 
 class ActivateLeadRequest(BaseModel):
     phone: str
@@ -185,8 +191,16 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
         return {"status": "skipped", "phone": payload.phone, "message": "Link ja enviado anteriormente"}
     state.onboarding_link_sent = True
     db.commit()
-    twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
-    twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}")
+    try:
+        twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+        twilio_client.messages.create(
+            from_=get_twilio_from(),
+            to=whatsapp_to(payload.phone),
+            body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}"
+        )
+        logger.info(f"WhatsApp enviado para {payload.phone}")
+    except Exception as e:
+        logger.error(f"Erro ao enviar WhatsApp activate-lead: {e}")
     audit_log(db, action="activate_lead", client_id=None, details=f"phone={payload.phone}")
     return {"status": "success", "phone": payload.phone, "message": "Lead ativado"}
 
@@ -198,8 +212,16 @@ def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: 
     state.status = "active"
     state.step = "active"
     db.commit()
-    twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
-    twilio_client.messages.create(from_=os.getenv("TWILIO_WHATSAPP_FROM"), to=payload.phone, body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}")
+    try:
+        twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+        twilio_client.messages.create(
+            from_=get_twilio_from(),
+            to=whatsapp_to(payload.phone),
+            body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}"
+        )
+        logger.info(f"WhatsApp release-plan enviado para {payload.phone}")
+    except Exception as e:
+        logger.error(f"Erro ao enviar WhatsApp release-plan: {e}")
     audit_log(db, action="release_plan", client_id=None, details=f"phone={payload.phone}")
     return {"status": "success", "phone": payload.phone, "message": "Plano liberado"}
 
@@ -291,7 +313,6 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
         )
         db.commit()
 
-        # Timeline event — isolado para nao afetar o checkin
         try:
             from routers.timeline import create_event
             energia = int(payload.energia or 0)
@@ -306,37 +327,41 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
             if payload.peso:
                 desc += f" · Peso: {payload.peso}kg"
             create_event(db, payload.client_id, "checkin", title, desc, icon)
-            # AI Insight
+
             total = db.execute(text("SELECT COUNT(*) FROM client_checkins WHERE client_id = :cid"), {"cid": payload.client_id}).scalar() or 0
             insight_title = None
             insight_desc = None
             insight_icon = "⚡"
+
             def safe_int(v):
                 try:
                     return int(str(v).split('/')[0].strip())
                 except Exception:
                     return 0
+
             avg = ((safe_int(payload.treinou) + safe_int(payload.seguiu_dieta) + safe_int(payload.energia)) / 3)
+
             if total == 1:
                 insight_title = "Primeira semana registrada"
-                insight_desc = "O sistema já está acompanhando sua evolução. Continue assim."
+                insight_desc = "O sistema ja esta acompanhando sua evolucao. Continue assim."
                 insight_icon = "🚀"
             elif total % 4 == 0:
-                insight_title = "Um mês de consistência"
-                insight_desc = f"{total} check-ins concluídos. Consistência é o maior diferencial."
+                insight_title = "Um mes de consistencia"
+                insight_desc = f"{total} check-ins concluidos. Consistencia e o maior diferencial."
                 insight_icon = "📈"
             elif avg >= 4.5:
-                insight_title = "Semana acima da média"
-                insight_desc = "Treino, dieta e energia no nível máximo. Ritmo de evolução acelerado."
+                insight_title = "Semana acima da media"
+                insight_desc = "Treino, dieta e energia no nivel maximo. Ritmo de evolucao acelerado."
                 insight_icon = "🔥"
             elif avg <= 2:
                 insight_title = "Semana desafiadora detectada"
-                insight_desc = "Queda na aderência identificada. Seu personal será notificado para ajuste."
+                insight_desc = "Queda na aderencia identificada. Seu personal sera notificado para ajuste."
                 insight_icon = "💤"
             elif total >= 3:
-                insight_title = "Padrão de consistência identificado"
-                insight_desc = "O sistema detectou presença contínua. Evolução sustentável em andamento."
+                insight_title = "Padrao de consistencia identificado"
+                insight_desc = "O sistema detectou presenca continua. Evolucao sustentavel em andamento."
                 insight_icon = "🧠"
+
             if insight_title:
                 already = db.execute(
                     text("SELECT COUNT(*) FROM timeline_events WHERE client_id = :cid AND event_type = 'ai_insight' AND title = :title AND created_at > NOW() - INTERVAL '7 days'"),
@@ -344,23 +369,25 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
                 ).scalar() or 0
                 if already == 0:
                     create_event(db, payload.client_id, "ai_insight", insight_title, insight_desc, insight_icon)
-            # Achievements
+
             try:
                 if total in [4, 8, 12, 24]:
                     months = total // 4
-                    label = "mês" if months == 1 else "meses"
-                    ach_title = f"{months} {label} de consistência"
+                    label = "mes" if months == 1 else "meses"
+                    ach_title = f"{months} {label} de consistencia"
                     already_ach = db.execute(
                         text("SELECT COUNT(*) FROM timeline_events WHERE client_id = :cid AND event_type = 'achievement' AND title = :title"),
                         {"cid": payload.client_id, "title": ach_title}
                     ).scalar() or 0
                     if already_ach == 0:
-                        create_event(db, payload.client_id, "achievement", ach_title, f"{total} check-ins completados. Disciplina real em construção.", "📈")
+                        create_event(db, payload.client_id, "achievement", ach_title, f"{total} check-ins completados. Disciplina real em construcao.", "📈")
+
                 recent = db.execute(text("SELECT treinou, seguiu_dieta, energia FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC LIMIT 3"), {"cid": payload.client_id}).fetchall()
                 if len(recent) >= 3:
                     avgs = [sum([int(v or 0) for v in [r[0], r[1], r[2]]]) / 3 for r in recent]
                     if all(a >= 4 for a in avgs):
-                        create_event(db, payload.client_id, "achievement", "Alta constância detectada", "3 semanas consecutivas acima da média. IA registrou evolução sustentável.", "🧠")
+                        create_event(db, payload.client_id, "achievement", "Alta constancia detectada", "3 semanas consecutivas acima da media. IA registrou evolucao sustentavel.", "🧠")
+
                 if total > 1:
                     all_rows = db.execute(text("SELECT treinou, seguiu_dieta, energia FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC"), {"cid": payload.client_id}).fetchall()
                     current_avg = avg
@@ -371,6 +398,7 @@ def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
                 pass
         except Exception:
             pass
+
         return {"status": "ok", "message": "Check-in salvo com sucesso"}
     except Exception as e:
         db.rollback()
