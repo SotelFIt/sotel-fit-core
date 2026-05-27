@@ -196,7 +196,8 @@ def activate_lead(payload: ActivateLeadRequest, db: Session = Depends(get_db), _
         twilio_client.messages.create(
             from_=get_twilio_from(),
             to=whatsapp_to(payload.phone),
-            body=f"Seu acesso ao Sotel Fit Core foi liberado.\n\nAcesse aqui:\n{ONBOARDING_LINK}"
+            content_sid=os.getenv("TWILIO_TEMPLATE_PLANO"),
+            messaging_service_sid=None
         )
         logger.info(f"WhatsApp enviado para {payload.phone}")
     except Exception as e:
