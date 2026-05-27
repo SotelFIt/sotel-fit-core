@@ -6,6 +6,7 @@ from services.ai_service import get_ai_response
 logger = logging.getLogger(__name__)
 
 APP_LINK = "https://sotel-client.vercel.app"
+PLANS_LINK = "https://sotel-client.vercel.app/planos"
 
 def generate_checkout_link(phone: str) -> str:
     try:
@@ -63,18 +64,17 @@ def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
         state.goal = incoming_msg.strip()
         state.step = "ask_routine"
         db.commit()
-        return "Perfeito. Quantos dias por semana voce consegue treinar?"
+        return "Perfeito. Quantos dias por semana voce consegue trei	nar?"
 
     if step == "ask_routine":
         state.routine = incoming_msg.strip()
         state.step = "waiting_payment"
         db.commit()
-        checkout_url = generate_checkout_link(phone)
         return (
-            "Show. Pelo que voce me passou, o proximo passo e ativar seu acesso "
-            "ao metodo Sotel Personal Trainer.\n\n"
-            f"Clique no link abaixo para fazer o pagamento:\n\n{checkout_url}\n\n"
-            "Assim que o pagamento for confirmado, seu acesso ao app sera liberado."
+    "Show. Pelo que voce me passou, o proximo passo e ativar seu acesso "
+    "ao metodo Sotel Personal Trainer.\n\n"
+    "Escolha seu plano aqui:\n\nhttps://sotel-client.vercel.app/planos\n\n"
+    "Assim que o pagamento for confirmado, seu acesso ao app sera liberado."
         )
 
     if step == "waiting_payment":
