@@ -64,7 +64,7 @@ def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
         state.goal = incoming_msg.strip()
         state.step = "ask_routine"
         db.commit()
-        return "Perfeito. Quantos dias por semana voce consegue trei	nar?"
+        return "Perfeito. Quantos dias por semana voce consegue treinar?"
 
     if step == "ask_routine":
         state.routine = incoming_msg.strip()
