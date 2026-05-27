@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -470,6 +470,31 @@ async def send_retention_message(client_id: int, db: Session = Depends(get_db), 
         f"Notei que faz um tempo que voce nao aparece no Sotel Fit Core.\n\n"
         f"Seu treino e dieta estao te esperando. Qualquer duvida, estou aqui.\n\n"
         f"Acesse: https://sotel-client.vercel.app"
+    )
+    success = send_whatsapp_message(phone, message)
+    if not success:
+        raise HTTPException(status_code=500, detail="Falha ao enviar WhatsApp")
+    return {"status": "success", "phone": phone, "message": message}
+
+@router.post("/twilio/send-renewal/{client_id}")
+async def send_renewal_message(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    from services.twilio_service import send_whatsapp_message
+    client = db.execute(
+        text("SELECT id, name, phone FROM clients WHERE id = :cid"),
+        {"cid": client_id}
+    ).fetchone()
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+    _, name, phone = client
+    if not phone:
+        raise HTTPException(status_code=400, detail="Cliente sem telefone")
+    first_name = (name or "").split()[0] if name else "cliente"
+    message = (
+        f"Oi {first_name}! Tudo bem?\n\n"
+        f"Seu plano no Sotel Fit Core esta chegando ao fim.\n\n"
+        f"Para continuar sua evolucao sem interrupcao, renove agora:\n"
+        f"https://sotel-client.vercel.app\n\n"
+        f"Qualquer duvida, estou aqui."
     )
     success = send_whatsapp_message(phone, message)
     if not success:
