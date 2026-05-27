@@ -233,3 +233,159 @@ def retention_message(
         },
         "generated_at": datetime.utcnow().isoformat(),
     }
+# ADICIONAR AO FINAL DO ai_admin.py
+
+@router.get("/onboarding-analysis/{phone}")
+def get_onboarding_analysis(
+    phone: str,
+    db: Session = Depends(get_db),
+    _: int = Depends(require_admin),
+):
+    from models.lead_onboarding import LeadOnboarding
+    import json
+    import os
+    import anthropic as anthropic_sdk
+
+    phone_clean = phone.replace("whatsapp:", "")
+    o = db.query(LeadOnboarding).filter(
+        (LeadOnboarding.phone == phone) |
+        (LeadOnboarding.phone == phone_clean) |
+        (LeadOnboarding.phone == f"whatsapp:{phone_clean}")
+    ).order_by(LeadOnboarding.created_at.desc()).first()
+
+    if not o:
+        raise HTTPException(status_code=404, detail="Onboarding nao encontrado")
+
+    extra = {}
+    if o.observacoes:
+        try:
+            extra = json.loads(o.observacoes)
+        except Exception:
+            pass
+
+    context_str = f"""
+Nome: {o.nome or '-'}
+Idade: {o.idade or '-'}
+Sexo: {extra.get('sexo', '-')}
+Peso: {o.peso or '-'} kg
+Altura: {o.altura or '-'} cm
+Cidade: {extra.get('cidade', '-')}
+
+OBJETIVO:
+- Principal: {o.objetivo or '-'}
+- Meta: {o.meta_principal or '-'}
+
+EXPERIENCIA:
+- Nivel: {o.nivel_treino or '-'}
+- Treinou antes: {extra.get('treinou_antes', '-')}
+- Tempo parado: {extra.get('tempo_parado', '-')}
+
+ROTINA:
+- Dias disponiveis: {o.dias_treino or '-'}
+- Horario: {o.horario_treino or '-'}
+- Tempo por treino: {extra.get('tempo_por_treino', '-')}
+- Tipo de trabalho: {extra.get('tipo_trabalho', '-')}
+- Nivel de estresse: {extra.get('nivel_estresse', '-')}
+- Qualidade do sono: {extra.get('qualidade_sono', '-')}
+
+SAUDE:
+- Lesoes/restricoes: {o.lesoes or '-'}
+- Dores frequentes: {extra.get('dores', '-')}
+- Medicamentos: {extra.get('medicamentos', '-')}
+- Problemas hormonais: {extra.get('problemas_hormonais', '-')}
+- Problemas cardiacos: {extra.get('problemas_cardiacos', '-')}
+
+ALIMENTACAO:
+- Refeicoes por dia: {extra.get('refeicoes_dia', '-')}
+- Consome alcool: {extra.get('consome_alcool', '-')}
+- Hidratacao: {extra.get('bebe_agua', '-')}
+- Compulsao alimentar: {extra.get('tem_compulsao', '-')}
+- Maior dificuldade alimentar: {extra.get('dificuldade_alimentar', '-')}
+- Alimentacao atual: {o.alimentacao_atual or '-'}
+
+AMBIENTE:
+- Local de treino: {extra.get('ambiente_treino', '-')}
+- Equipamentos: {extra.get('tem_equipamentos', '-')}
+- Cardio disponivel: {extra.get('cardio_disponivel', '-')}
+
+COMPORTAMENTO:
+- Principal impedimento: {extra.get('impedimento_principal', '-')}
+- O que te faria desistir: {extra.get('motivo_desistencia', '-')}
+- Expectativa: {extra.get('expectativa', '-')}
+"""
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY nao configurada no Railway")
+
+    try:
+        client = anthropic_sdk.Anthropic(api_key=api_key)
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1500,
+            messages=[{
+                "role": "user",
+                "content": f"""Voce e um analista operacional especializado em personal training online.
+
+Analise os dados do onboarding deste cliente e gere um relatorio operacional para o treinador.
+
+DADOS DO CLIENTE:
+{context_str}
+
+Responda APENAS com JSON valido nesta estrutura exata (sem markdown, sem texto antes ou depois):
+{{
+  "resumo_operacional": "3-4 linhas resumindo o perfil completo para o treinador tomar decisao rapida",
+  "classificacao": {{
+    "perfil": "frase unica descrevendo o perfil comportamental",
+    "comprometimento": "alto|medio|baixo",
+    "risco_abandono": "alto|medio|baixo",
+    "aderencia_provavel": "alta|media|baixa",
+    "observacao": "explicacao breve da classificacao"
+  }},
+  "sugestao_treino": {{
+    "divisao": "ex: ABC 4x semana",
+    "frequencia": "ex: 4 dias por semana",
+    "intensidade": "iniciante|moderada|alta",
+    "foco": "ex: Hipertrofia com base aerobica",
+    "observacoes": "pontos criticos para montagem do treino"
+  }},
+  "sugestao_dieta": {{
+    "estrategia": "ex: Deficit moderado com proteina elevada",
+    "distribuicao": "ex: 4 refeicoes com foco proteico",
+    "foco": "ex: Proteina alta, carbo moderado, gordura boa",
+    "observacoes": "consideracoes baseadas nas dificuldades relatadas"
+  }},
+  "insights": [
+    "insight operacional 1",
+    "insight operacional 2",
+    "insight operacional 3",
+    "insight operacional 4",
+    "insight operacional 5"
+  ]
+}}"""
+            }]
+        )
+
+        text_response = message.content[0].text.strip()
+        if "```" in text_response:
+            parts = text_response.split("```")
+            text_response = parts[1] if len(parts) > 1 else text_response
+            if text_response.startswith("json"):
+                text_response = text_response[4:]
+
+        analysis = json.loads(text_response.strip())
+
+        return {
+            "phone": phone,
+            "client_name": o.nome,
+            "analysis": analysis,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Erro parse JSON da IA: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao processar resposta da IA")
+    except Exception as e:
+        logger.error(f"Erro na analise IA do onboarding: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
