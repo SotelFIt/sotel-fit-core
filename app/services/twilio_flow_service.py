@@ -1,28 +1,30 @@
 import logging
-import requests
 from sqlalchemy.orm import Session
 from models.conversation_state import ConversationState
 from services.ai_service import get_ai_response
 
 logger = logging.getLogger(__name__)
 
-BACKEND_URL = "https://sotel-fit-core-production-d98a.up.railway.app"
-API_KEY = "c7c4205bdb3ae251c03436d1647f7cd5"
 APP_LINK = "https://sotel-client.vercel.app"
 
 def generate_checkout_link(phone: str) -> str:
     try:
-        resp = requests.post(
-            f"{BACKEND_URL}/stripe/create-checkout",
-            json={"phone": phone},
-            headers={"x-api-key": API_KEY},
-            timeout=10
+        import stripe
+        import os
+        stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+        price_id = os.getenv("STRIPE_PRICE_ID")
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            success_url=f"{APP_LINK}/onboarding?phone={phone}",
+            cancel_url=APP_LINK,
+            metadata={"phone": phone}
         )
-        if resp.status_code == 200:
-            return resp.json().get("checkout_url", APP_LINK)
+        return session.url
     except Exception as e:
         logger.error(f"Erro ao gerar checkout para {phone}: {e}")
-    return APP_LINK
+        return APP_LINK
 
 def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
     if not phone:
