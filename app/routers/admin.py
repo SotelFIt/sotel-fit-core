@@ -451,3 +451,27 @@ def get_client_onboarding(client_id: int, db: Session = Depends(get_db), _: int 
         "meta_principal": o.meta_principal, "observacoes": o.observacoes,
         "created_at": o.created_at,
     }
+
+@router.post("/twilio/send-retention/{client_id}")
+async def send_retention_message(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    from services.twilio_service import send_whatsapp_message
+    client = db.execute(
+        text("SELECT id, name, phone FROM clients WHERE id = :cid"),
+        {"cid": client_id}
+    ).fetchone()
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+    _, name, phone = client
+    if not phone:
+        raise HTTPException(status_code=400, detail="Cliente sem telefone")
+    first_name = (name or "").split()[0] if name else "cliente"
+    message = (
+        f"Oi {first_name}! Tudo bem?\n\n"
+        f"Notei que faz um tempo que voce nao aparece no Sotel Fit Core.\n\n"
+        f"Seu treino e dieta estao te esperando. Qualquer duvida, estou aqui.\n\n"
+        f"Acesse: https://sotel-client.vercel.app"
+    )
+    success = send_whatsapp_message(phone, message)
+    if not success:
+        raise HTTPException(status_code=500, detail="Falha ao enviar WhatsApp")
+    return {"status": "success", "phone": phone, "message": message}
