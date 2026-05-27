@@ -1,13 +1,28 @@
 import logging
+import requests
 from sqlalchemy.orm import Session
 from models.conversation_state import ConversationState
 from services.ai_service import get_ai_response
 
 logger = logging.getLogger(__name__)
 
-PAYMENT_LINK = "https://buy.stripe.com/test_dRm4gzc9haB32Im4e7fbq00"
+BACKEND_URL = "https://sotel-fit-core-production-d98a.up.railway.app"
+API_KEY = "c7c4205bdb3ae251c03436d1647f7cd5"
 APP_LINK = "https://sotel-client.vercel.app"
 
+def generate_checkout_link(phone: str) -> str:
+    try:
+        resp = requests.post(
+            f"{BACKEND_URL}/stripe/create-checkout",
+            json={"phone": phone},
+            headers={"x-api-key": API_KEY},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return resp.json().get("checkout_url", APP_LINK)
+    except Exception as e:
+        logger.error(f"Erro ao gerar checkout para {phone}: {e}")
+    return APP_LINK
 
 def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
     if not phone:
@@ -52,10 +67,11 @@ def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
         state.routine = incoming_msg.strip()
         state.step = "waiting_payment"
         db.commit()
+        checkout_url = generate_checkout_link(phone)
         return (
             "Show. Pelo que voce me passou, o proximo passo e ativar seu acesso "
             "ao metodo Sotel Personal Trainer.\n\n"
-            f"Clique no link abaixo para fazer o pagamento:\n\n{PAYMENT_LINK}\n\n"
+            f"Clique no link abaixo para fazer o pagamento:\n\n{checkout_url}\n\n"
             "Assim que o pagamento for confirmado, seu acesso ao app sera liberado."
         )
 
