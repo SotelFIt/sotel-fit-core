@@ -389,3 +389,140 @@ Responda APENAS com JSON valido nesta estrutura exata (sem markdown, sem texto a
     except Exception as e:
         logger.error(f"Erro na analise IA do onboarding: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+# ADICIONAR AO FINAL DO ai_admin.py
+
+@router.post("/body-analysis/{client_id}")
+def get_body_analysis(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _: int = Depends(require_admin),
+):
+    import json
+    import os
+    import anthropic as anthropic_sdk
+    from models.lead_onboarding import LeadOnboarding
+
+    # Get client data
+    client_row = db.execute(
+        text("SELECT id, name, phone, weight, height FROM clients WHERE id = :cid"),
+        {"cid": client_id}
+    ).fetchone()
+    if not client_row:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+
+    client_name = client_row[1]
+    phone = client_row[2] or ""
+    weight = client_row[3]
+    height = client_row[4]
+
+    # Get latest photos
+    photos = db.execute(
+        text("""
+            SELECT category, image_url, weight, created_at
+            FROM client_photos
+            WHERE client_id = :cid
+            ORDER BY created_at DESC
+            LIMIT 8
+        """),
+        {"cid": client_id}
+    ).fetchall()
+
+    if not photos:
+        raise HTTPException(status_code=400, detail="Nenhuma foto encontrada para este cliente. O cliente precisa enviar fotos pelo app.")
+
+    # Get onboarding data
+    phone_clean = phone.replace("whatsapp:", "")
+    onboarding = db.query(LeadOnboarding).filter(
+        (LeadOnboarding.phone == phone) |
+        (LeadOnboarding.phone == phone_clean) |
+        (LeadOnboarding.phone == f"whatsapp:{phone_clean}")
+    ).order_by(LeadOnboarding.created_at.desc()).first()
+
+    age = onboarding.idade if onboarding else None
+    objetivo = onboarding.objetivo if onboarding else None
+
+    # Get most recent weight from photos or client data
+    photo_weight = photos[0][2] if photos[0][2] else weight
+
+    # Build context
+    context = f"""
+Cliente: {client_name}
+Idade: {age or 'não informada'}
+Peso atual: {photo_weight or 'não informado'} kg
+Altura: {height or 'não informada'} cm
+Objetivo: {objetivo or 'não informado'}
+Fotos disponíveis: {len(photos)} foto(s) — categorias: {', '.join(set(p[0] for p in photos))}
+"""
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY nao configurada")
+
+    try:
+        client_ai = anthropic_sdk.Anthropic(api_key=api_key)
+
+        # Build message content with images
+        content_parts = []
+
+        # Add text context first
+        content_parts.append({
+            "type": "text",
+            "text": f"""Você é um especialista em avaliação de composição corporal para personal trainers.
+
+Analise as fotos corporais deste cliente e gere uma estimativa operacional de composição corporal.
+
+DADOS DO CLIENTE:
+{context}
+
+Gere uma análise completa com:
+1. Estimativa de % de gordura corporal (com margem ex: 18-22%)
+2. Classificação corporal (ex: sobrepeso leve, peso normal, etc)
+3. Distribuição de gordura predominante (abdominal, periférica, etc)
+4. Massa muscular aparente (baixa/média/alta para o perfil)
+5. Pontos de atenção para o treino
+6. Pontos de atenção para a dieta
+7. Estimativa de meta realista (ex: chegar a X% em Y semanas)
+
+Seja direto e operacional. Use linguagem de personal trainer, não médica.
+Sempre declare que é uma estimativa visual operacional."""
+        })
+
+        # Add images (up to 4 most recent)
+        import urllib.request
+        for photo in photos[:4]:
+            image_url = photo[1]
+            try:
+                import base64
+                import urllib.request
+                with urllib.request.urlopen(image_url) as response:
+                    image_data = base64.b64encode(response.read()).decode('utf-8')
+                content_parts.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": image_data
+                    }
+                })
+            except Exception as img_err:
+                logger.warning(f"Erro ao carregar imagem {image_url}: {img_err}")
+
+        message = client_ai.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": content_parts}]
+        )
+
+        analysis_text = message.content[0].text.strip()
+
+        return {
+            "client_id": client_id,
+            "client_name": client_name,
+            "analysis": analysis_text,
+            "photos_analyzed": len([p for p in content_parts if p.get("type") == "image"]),
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro na analise corporal: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
