@@ -17,3 +17,5 @@ slowapi==0.1.9
 anthropic
 
 psutil>=5.9.0
+
+cloudinary

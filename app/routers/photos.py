@@ -8,6 +8,7 @@ from core.database import get_db
 from core.security import verify_jwt_only, verify_dual_auth
 
 logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/photos", tags=["photos"])
 
 VALID_CATEGORIES = {"front", "back", "side_right", "side_left"}
@@ -49,7 +50,7 @@ async def upload_photo(
     observation: Optional[str] = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    auth: int = Depends(verify_jwt_only),
+    auth: int = Depends(verify_dual_auth),
 ):
     if category not in VALID_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Categoria invalida. Use: {', '.join(VALID_CATEGORIES)}")
