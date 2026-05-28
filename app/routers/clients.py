@@ -5,7 +5,7 @@ from sqlalchemy import text
 from pydantic import BaseModel
 from typing import Optional
 from core.database import get_db
-from core.security import verify_dual_auth
+from core.security import verify_dual_auth, verify_jwt_only
 from services.client_service import get_or_create_client_from_phone, normalize_phone
 
 router = APIRouter(prefix="/clients", tags=["clients"])
