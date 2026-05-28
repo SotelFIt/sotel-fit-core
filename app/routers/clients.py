@@ -203,3 +203,101 @@ def get_my_checkins(client_id: int, db: Session = Depends(get_db)):
     return [{"id": r[0], "client_id": r[1], "treinou": r[2], "seguiu_dieta": r[3],
              "peso": r[4], "energia": r[5], "dificuldade": r[6], "observacoes": r[7],
              "created_at": str(r[8])} for r in rows]
+# ADICIONAR ao final de routers/clients.py (ou criar novo arquivo)
+# Endpoint: GET /clients/{client_id}/body-analysis
+
+@router.get("/{client_id}/body-analysis")
+def get_client_body_analysis(
+    client_id: int,
+    db: Session = Depends(get_db),
+    auth_client_id: int = Depends(verify_jwt_only),
+):
+    import os
+    import base64
+    import urllib.request
+    from sqlalchemy import text
+    import anthropic as anthropic_sdk
+
+    if auth_client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    # Get photos
+    photos = db.execute(
+        text("""
+            SELECT category, image_url FROM client_photos
+            WHERE client_id = :cid ORDER BY created_at DESC LIMIT 4
+        """),
+        {"cid": client_id}
+    ).fetchall()
+
+    if not photos:
+        raise HTTPException(status_code=404, detail="Nenhuma foto encontrada. Envie fotos para gerar a análise.")
+
+    # Get client data
+    client_row = db.execute(
+        text("SELECT name, weight, height FROM clients WHERE id = :cid"),
+        {"cid": client_id}
+    ).fetchone()
+
+    weight = client_row[1] if client_row else None
+    height = client_row[2] if client_row else None
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Configuração interna inválida")
+
+    try:
+        client_ai = anthropic_sdk.Anthropic(api_key=api_key)
+
+        content_parts = []
+        content_parts.append({
+            "type": "text",
+            "text": f"""Analise as fotos corporais e retorne APENAS um JSON válido com exatamente estas 7 chaves:
+
+{{
+  "gordura_estimada": "ex: 22-26%",
+  "classificacao": "frase curta e direta sobre composição corporal",
+  "nivel_atual": "classificação do nível físico atual",
+  "ponto_positivo": "principal ponto positivo do físico",
+  "ponto_atencao": "principal ponto de atenção",
+  "resposta_corporal": "como o corpo tende a responder ao treino/dieta",
+  "foco_atual": "foco principal recomendado agora"
+}}
+
+Peso: {weight or 'não informado'} kg | Altura: {height or 'não informado'} cm
+Linguagem: direta, humana, motivadora. Máximo 15 palavras por campo.
+Retorne APENAS o JSON, sem markdown, sem texto adicional."""
+        })
+
+        for photo in photos[:3]:
+            image_url = photo[1]
+            try:
+                with urllib.request.urlopen(image_url) as resp:
+                    image_data = base64.b64encode(resp.read()).decode('utf-8')
+                content_parts.append({
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/jpeg", "data": image_data}
+                })
+            except Exception:
+                pass
+
+        message = client_ai.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=500,
+            messages=[{"role": "user", "content": content_parts}]
+        )
+
+        import json
+        raw = message.content[0].text.strip()
+        raw = raw.replace('```json', '').replace('```', '').strip()
+        analysis = json.loads(raw)
+
+        return {
+            "client_id": client_id,
+            "analysis": analysis,
+            "disclaimer": "Estimativa inteligente baseada em análise corporal. Não substitui exames clínicos.",
+            "has_photos": len(photos)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
