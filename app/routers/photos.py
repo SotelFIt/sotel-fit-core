@@ -36,6 +36,7 @@ def debug_init(db: Session = Depends(get_db)):
             )
         """))
         db.commit()
+
         result = db.execute(text("SELECT COUNT(*) FROM client_photos")).fetchone()
         return {"status": "ok", "table": "client_photos", "rows": result[0]}
     except Exception as e:
@@ -50,7 +51,7 @@ async def upload_photo(
     observation: Optional[str] = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    auth: int = Depends(verify_dual_auth),
+    db2: Session = Depends(get_db),
 ):
     if category not in VALID_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Categoria invalida. Use: {', '.join(VALID_CATEGORIES)}")
