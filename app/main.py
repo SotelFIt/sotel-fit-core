@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import sys
 from dotenv import load_dotenv
 load_dotenv()
@@ -154,6 +154,12 @@ except Exception as e:
     logger.error(f"Photos router nao carregado: {e}")
 app.include_router(photos_router)
 app.include_router(stripe_checkout_router)
+try:
+    from routers.body_analysis import router as body_analysis_router
+    app.include_router(body_analysis_router)
+    logger.info("Body analysis router carregado")
+except Exception as e:
+    logger.error(f"Body analysis router nao carregado: {e}")
 app.include_router(audit_router)
 app.include_router(observability_router)
 
