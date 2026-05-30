@@ -56,8 +56,6 @@ def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
         return "Fala! Eu sou o assistente da Sotel Personal Trainer. Qual seu nome?"
 
     if step == "start":
-
-    if step == "start":
         state.step = "ask_name"
         db.commit()
         return "Fala! Eu sou o assistente da Sotel Personal Trainer. Qual seu nome?"
