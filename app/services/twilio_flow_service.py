@@ -43,6 +43,20 @@ def handle_twilio_flow(phone: str, incoming_msg: str, db: Session) -> str:
 
     step = state.step
 
+    # Gatilho flexivel — qualquer mensagem de interesse reinicia o fluxo
+    ENTRY_KEYWORDS = ["oi", "ola", "quero", "entrar", "comecar", "iniciar",
+                      "sotel", "fit", "core", "cadastro", "acesso", "plano",
+                      "contratar", "assinar", "treino", "personal", "hello", "hi"]
+    msg_lower = incoming_msg.lower().strip()
+    is_entry = any(kw in msg_lower for kw in ENTRY_KEYWORDS)
+
+    if is_entry and step not in ("ask_name", "ask_goal", "ask_routine", "active_client"):
+        state.step = "ask_name"
+        db.commit()
+        return "Fala! Eu sou o assistente da Sotel Personal Trainer. Qual seu nome?"
+
+    if step == "start":
+
     if step == "start":
         state.step = "ask_name"
         db.commit()
