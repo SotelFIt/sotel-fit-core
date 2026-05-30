@@ -128,18 +128,28 @@ def _save_assessment(db: Session, client_id: int, analysis: dict, raw_text: str,
         }
     )
 
-    # timeline event
+    # timeline event — apenas uma vez por dia
     try:
-        db.execute(
+        existing_today = db.execute(
             text("""
-                INSERT INTO timeline_events (client_id, event_type, title, description, icon, created_at)
-                VALUES (:cid, 'body_assessment', 'Nova avaliacao corporal registrada', :desc, '📊', NOW())
+                SELECT COUNT(*) FROM timeline_events
+                WHERE client_id = :cid
+                AND event_type = 'body_assessment'
+                AND DATE(created_at) = CURRENT_DATE
             """),
-            {
-                "cid": client_id,
-                "desc": resumo,
-            }
-        )
+            {"cid": client_id}
+        ).scalar() or 0
+        if existing_today == 0:
+            db.execute(
+                text("""
+                    INSERT INTO timeline_events (client_id, event_type, title, description, icon, created_at)
+                    VALUES (:cid, 'body_assessment', 'Nova avaliacao corporal registrada', :desc, '📊', NOW())
+                """),
+                {
+                    "cid": client_id,
+                    "desc": resumo,
+                }
+            )
     except Exception as e:
         logger.warning(f"Erro ao criar timeline event: {e}")
 
