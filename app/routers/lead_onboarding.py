@@ -120,7 +120,7 @@ def get_onboarding_status(client_id: int, db: Session = Depends(get_db)):
     if phone:
         phone_clean = phone.replace("whatsapp:", "").replace("+", "")
         record = db.execute(
-            text("""SELECT id FROM lead_onboarding
+            text("""SELECT id FROM lead_onboardings
                 WHERE phone = :p1 OR phone = :p2 OR phone = :p3 OR phone = :p4 LIMIT 1"""),
             {"p1": phone, "p2": phone.replace("whatsapp:", ""),
              "p3": f"+{phone_clean}", "p4": phone_clean}
