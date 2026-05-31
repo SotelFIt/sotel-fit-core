@@ -136,7 +136,7 @@ def get_onboarding_status(client_id: int, db: Session = Depends(get_db)):
     if not onboarding_completed and phone:
         for pv in [phone, phone.replace("whatsapp:", ""), f"whatsapp:{phone.replace('whatsapp:','')}"] :
             row = db.execute(
-                text("SELECT status FROM conversation_state WHERE phone = :p LIMIT 1"),
+                text("SELECT status FROM conversation_states WHERE phone = :p LIMIT 1"),
                 {"p": pv}
             ).fetchone()
             if row and row[0] in {"onboarding_completed", "active_client", "active"}:
