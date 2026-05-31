@@ -143,8 +143,22 @@ def get_onboarding_status(client_id: int, db: Session = Depends(get_db)):
                 onboarding_completed = True
                 break
 
+    conversation_active = False
+    if phone:
+        for pv in [phone, phone.replace("whatsapp:", ""), f"whatsapp:{phone.replace('whatsapp:','')}"] :
+            row = db.execute(
+                text("SELECT status FROM conversation_state WHERE phone = :p LIMIT 1"),
+                {"p": pv}
+            ).fetchone()
+            if row and row[0] in {"active", "active_client"}:
+                conversation_active = True
+                break
+
     if onboarding_completed:
-        next_step = "app" if client_status in {"active", "active_client"} else "waiting_plan"
+        if client_status in {"active", "active_client"} or conversation_active:
+            next_step = "app"
+        else:
+            next_step = "waiting_plan"
 
     return {
         "client_id": client_id,
