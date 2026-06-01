@@ -99,6 +99,27 @@ async def upload_photo(
              "public_id": public_id, "weight": weight, "observation": observation}
         )
         db.commit()
+
+        # Limpa fotos intermediarias — mantém primeira + mais recente
+        try:
+            all_cat = db.execute(
+                text("""SELECT id, public_id FROM client_photos
+                        WHERE client_id = :cid AND category = :cat
+                        ORDER BY created_at ASC"""),
+                {"cid": client_id, "cat": category}
+            ).fetchall()
+            if len(all_cat) > 2:
+                for photo in all_cat[1:-1]:
+                    try:
+                        if photo[1]:
+                            cloudinary.uploader.destroy(photo[1])
+                    except Exception as e:
+                        logger.warning(f"Erro Cloudinary cleanup: {e}")
+                    db.execute(text("DELETE FROM client_photos WHERE id = :pid"), {"pid": photo[0]})
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Erro cleanup fotos: {e}")
+
         return {"status": "ok", "image_url": image_url, "category": category, "client_id": client_id}
     except Exception as e:
         db.rollback()
