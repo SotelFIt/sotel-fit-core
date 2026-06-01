@@ -55,7 +55,16 @@ def _parse_gordura(s: str):
     return None, None
 
 
-def _get_latest(db: Session, client_id: int):
+def _days_info(created_at):
+    from datetime import datetime, timezone, timedelta
+    if created_at is None:
+        return 0, None
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    days_since = (datetime.now(timezone.utc) - created_at).days
+    days_until = max(0, 15 - days_since)
+    next_date = (created_at + timedelta(days=15)).strftime('%Y-%m-%d') if days_until > 0 else None
+    return days_until, next_date
     try:
         return db.execute(
             text("""
@@ -263,6 +272,8 @@ def get_body_analysis_client(
         "massa_magra_min": row[12],
         "massa_magra_max": row[13],
         "updated_at": str(row[14]),
+        "days_until_next": _days_info(row[14])[0],
+        "next_available_at": _days_info(row[14])[1],
         "disclaimer": "Estimativa inteligente. Nao substitui exames clinicos."
     }
 
@@ -278,6 +289,18 @@ def generate_body_analysis_admin(
         raise HTTPException(status_code=403, detail="Apenas admin")
 
     _ensure_table(db)
+    from datetime import datetime, timezone
+    latest = _get_latest(db, client_id)
+    if latest:
+        last_date = latest[14]
+        if last_date.tzinfo is None:
+            last_date = last_date.replace(tzinfo=timezone.utc)
+        days_since = (datetime.now(timezone.utc) - last_date).days
+        if days_since < 15:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Proxima avaliacao disponivel em {15 - days_since} dias."
+            )
     result = _generate_and_save(db, client_id)
 
     client_row = db.execute(
@@ -326,7 +349,9 @@ def get_body_analysis_admin(
         "gordura_max": row[11],
         "massa_magra_min": row[12],
         "massa_magra_max": row[13],
-        "updated_at": str(row[14]),
+       "updated_at": str(row[14]),
+        "days_until_next": _days_info(row[14])[0],
+        "next_available_at": _days_info(row[14])[1],
         "photos_analyzed": row[15],
     }
 
