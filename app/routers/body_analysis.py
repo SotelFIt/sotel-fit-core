@@ -65,6 +65,9 @@ def _days_info(created_at):
     days_until = max(0, 15 - days_since)
     next_date = (created_at + timedelta(days=15)).strftime('%Y-%m-%d') if days_until > 0 else None
     return days_until, next_date
+
+
+def _get_latest(db, client_id):
     try:
         return db.execute(
             text("""
