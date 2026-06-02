@@ -471,7 +471,7 @@ def resend_onboarding(payload: ActivateLeadRequest, db: Session = Depends(get_db
         twilio_client.messages.create(
             from_=get_twilio_from(),
             to=whatsapp_to(payload.phone),
-            content_sid=os.getenv("TWILIO_TEMPLATE_PLANO"),
+            content_sid=os.getenv("TWILIO_TEMPLATE_ONBOARDING"),
             messaging_service_sid=None
         )
         state.onboarding_link_sent = True
