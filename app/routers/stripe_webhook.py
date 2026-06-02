@@ -108,7 +108,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             db.execute(
                 text("""
                     UPDATE clients SET
-                        status = 'active',
+                        status = 'onboarding_pending',
                         email = COALESCE(email, :email),
                         name = COALESCE(NULLIF(name, ''), :name),
                         phone = COALESCE(phone, :phone),
@@ -123,7 +123,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             result = db.execute(
                 text("""
                     INSERT INTO clients (name, phone, email, status, created_at, updated_at)
-                    VALUES (:name, :phone, :email, 'active', NOW(), NOW())
+                    VALUES (:name, :phone, :email, 'onboarding_pending', NOW(), NOW())
                     RETURNING id
                 """),
                 {"name": customer_name, "phone": phone_normalized, "email": customer_email}
