@@ -456,7 +456,7 @@ def get_client_onboarding(client_id: int, db: Session = Depends(get_db), _: int 
 @router.post("/twilio/resend-onboarding")
 def resend_onboarding(payload: ActivateLeadRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     state = db.query(ConversationState).filter(ConversationState.phone == payload.phone).first()
-   if not state:
+        if not state:
             state = ConversationState(phone=payload.phone, step="active_client", status="onboarding_pending", onboarding_link_sent=False)
             db.add(state)
             db.commit()
