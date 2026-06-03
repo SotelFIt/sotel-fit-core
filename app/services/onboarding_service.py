@@ -39,7 +39,11 @@ def create_onboarding(db: Session, onboarding_data):
         # ✅ Apenas ADD (commit fica para o router)
         db.add(new_onboarding)
         db.flush()  # Força geração de ID sem commit
-        
+
+        # Atualiza status do cliente para waiting_plan
+        client.status = 'waiting_plan'
+        db.flush()
+
         return new_onboarding
         
     except IntegrityError as e:
