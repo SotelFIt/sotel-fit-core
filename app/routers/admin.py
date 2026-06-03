@@ -457,7 +457,10 @@ def get_client_onboarding(client_id: int, db: Session = Depends(get_db), _: int 
 def resend_onboarding(payload: ActivateLeadRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     state = db.query(ConversationState).filter(ConversationState.phone == payload.phone).first()
     if not state:
-        raise HTTPException(status_code=404, detail="Lead nao encontrado")
+        state = ConversationState(phone=payload.phone, step="active_client", status="onboarding_pending", onboarding_link_sent=False)
+        db.add(state)
+        db.commit()
+        db.refresh(state)
     # Reset do flag para permitir reenvio
     state.onboarding_link_sent = False
     state.step = "active_client"
@@ -468,7 +471,7 @@ def resend_onboarding(payload: ActivateLeadRequest, db: Session = Depends(get_db
         twilio_client.messages.create(
             from_=get_twilio_from(),
             to=whatsapp_to(payload.phone),
-            content_sid=os.getenv("TWILIO_TEMPLATE_PLANO"),
+            content_sid=os.getenv("TWILIO_TEMPLATE_ONBOARDING"),
             messaging_service_sid=None
         )
         state.onboarding_link_sent = True

@@ -76,3 +76,48 @@ def login(request: Request, payload: dict, db: Session = Depends(get_db)):
             "is_active": True,
         }
     }
+@router.post("/stripe-session", status_code=200)
+def auth_stripe_session(payload: dict, db: Session = Depends(get_db)):
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id obrigatorio")
+    import stripe
+    import os
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="session_id invalido")
+    customer_details = session.get("customer_details") or {}
+    email = customer_details.get("email") or session.get("customer_email")
+    phone = customer_details.get("phone")
+    row = None
+    if email:
+        row = db.execute(
+            text("SELECT id, name, email, phone, objective FROM clients WHERE email = :e LIMIT 1"),
+            {"e": email}
+        ).fetchone()
+    if not row and phone:
+        from core.phone import normalize_phone
+        phone_norm = normalize_phone(phone)
+        row = db.execute(
+            text("SELECT id, name, email, phone, objective FROM clients WHERE phone = :p LIMIT 1"),
+            {"p": phone_norm}
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+    tokens = create_token_pair(row[0])
+    return {
+        "access_token": tokens.access_token,
+        "refresh_token": tokens.refresh_token,
+        "token_type": tokens.token_type,
+        "expires_in": tokens.expires_in,
+        "onboarding_required": True,
+        "client": {
+            "id": row[0],
+            "name": row[1],
+            "email": row[2],
+            "phone": row[3],
+            "objective": row[4],
+        }
+    }
