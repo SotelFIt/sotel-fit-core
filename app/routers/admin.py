@@ -212,6 +212,10 @@ def release_plan(payload: ReleasePlanRequest, db: Session = Depends(get_db), _: 
         raise HTTPException(status_code=404, detail="Lead nao encontrado")
     state.status = "active"
     state.step = "active"
+    db.execute(
+        text("UPDATE clients SET status = 'active' WHERE phone = :p"),
+        {"p": payload.phone}
+    )
     db.commit()
     try:
         twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
