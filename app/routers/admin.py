@@ -13,6 +13,7 @@ from services.audit_service import audit_log
 from schemas.subscription import ActivateSubscriptionRequest, RenewSubscriptionRequest, SubscriptionResponse
 from services.subscription_service import activate_subscription, renew_subscription, get_subscription, get_expiring_subscriptions, get_expired_subscriptions
 from models.conversation_state import ConversationState
+from services.workout_ai import gerar_treino_base
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -560,3 +561,13 @@ async def send_renewal_message(client_id: int, db: Session = Depends(get_db), _:
     if not success:
         raise HTTPException(status_code=500, detail="Falha ao enviar WhatsApp")
     return {"status": "success", "phone": phone, "message": message}
+
+
+@router.post("/clients/{client_id}/generate-workout-draft")
+def generate_workout_draft_endpoint(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _: int = Depends(require_admin),
+):
+    draft = gerar_treino_base(db, client_id)
+    return {"workout_draft": draft}
