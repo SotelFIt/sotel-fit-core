@@ -281,6 +281,70 @@ def get_body_analysis_client(
     }
 
 
+# CLIENTE — gera análise
+@router.post("/client/{client_id}")
+def generate_body_analysis_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    auth_client_id: int = Depends(verify_jwt_only),
+):
+    if auth_client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    _ensure_table(db)
+    from datetime import datetime, timezone
+    latest = _get_latest(db, client_id)
+    if latest:
+        last_date = latest[14]
+        if last_date.tzinfo is None:
+            last_date = last_date.replace(tzinfo=timezone.utc)
+        days_since = (datetime.now(timezone.utc) - last_date).days
+        if days_since < 15:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Proxima avaliacao disponivel em {15 - days_since} dias."
+            )
+
+    result = _generate_and_save(db, client_id)
+    return {
+        "client_id": client_id,
+        "analysis": result["analysis"],
+        "photos_analyzed": result["photos_analyzed"],
+    }
+
+
+# CLIENTE — gera análise
+@router.post("/client/{client_id}")
+def generate_body_analysis_client(
+    client_id: int,
+    db: Session = Depends(get_db),
+    auth_client_id: int = Depends(verify_jwt_only),
+):
+    if auth_client_id != client_id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    _ensure_table(db)
+    from datetime import datetime, timezone
+    latest = _get_latest(db, client_id)
+    if latest:
+        last_date = latest[14]
+        if last_date.tzinfo is None:
+            last_date = last_date.replace(tzinfo=timezone.utc)
+        days_since = (datetime.now(timezone.utc) - last_date).days
+        if days_since < 15:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Proxima avaliacao disponivel em {15 - days_since} dias."
+            )
+
+    result = _generate_and_save(db, client_id)
+    return {
+        "client_id": client_id,
+        "analysis": result["analysis"],
+        "photos_analyzed": result["photos_analyzed"],
+    }
+
+
 # ADMIN — gera e salva
 @router.post("/admin/{client_id}")
 def generate_body_analysis_admin(
