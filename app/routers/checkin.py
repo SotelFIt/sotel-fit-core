@@ -181,6 +181,8 @@ def get_checkin_analysis(client_id: int, db: Session = Depends(get_db), auth_cli
 @router.post("/client/{client_id}/apply-decision")
 def apply_decision(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
     try:
+        if auth_client_id != 0:
+            raise HTTPException(status_code=403, detail="Apenas admin pode aplicar decisoes de plano")
         check_checkin_access(client_id, auth_client_id)
         result = apply_checkin_decision(db, client_id)
         db.commit()
