@@ -14,6 +14,7 @@ from schemas.subscription import ActivateSubscriptionRequest, RenewSubscriptionR
 from services.subscription_service import activate_subscription, renew_subscription, get_subscription, get_expiring_subscriptions, get_expired_subscriptions
 from models.conversation_state import ConversationState
 from services.workout_ai import gerar_treino_base
+from services.diet_ai import gerar_dieta_base
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -571,3 +572,13 @@ def generate_workout_draft_endpoint(
 ):
     draft = gerar_treino_base(db, client_id)
     return {"workout_draft": draft}
+
+
+@router.post("/clients/{client_id}/generate-diet-draft")
+def generate_diet_draft_endpoint(
+    client_id: int,
+    db: Session = Depends(get_db),
+    _: int = Depends(require_admin),
+):
+    draft = gerar_dieta_base(db, client_id)
+    return {"diet_draft": draft}
