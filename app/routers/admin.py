@@ -312,6 +312,70 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/clients/{client_id}/release-plan")
+def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    client = db.execute(
+        text("SELECT id, phone, status FROM clients WHERE id = :cid LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+
+    phone = client[1]
+
+    plan = db.execute(
+        text("SELECT id FROM client_plans WHERE client_id = :cid AND status = \'active\' LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+    if not plan:
+        return {"success": False, "error": "Cliente nao possui treino cadastrado"}
+
+    diet = db.execute(
+        text("SELECT id FROM client_diets WHERE client_id = :cid AND status = \'active\' LIMIT 1"),
+        {"cid": client_id}
+    ).fetchone()
+    if not diet:
+        return {"success": False, "error": "Cliente nao possui dieta cadastrada"}
+
+    if not phone or len(phone.strip()) < 8:
+        return {"success": False, "error": "Cliente nao possui telefone valido"}
+
+    db.execute(text("UPDATE clients SET status = \'active\' WHERE id = :cid"), {"cid": client_id})
+    db.execute(
+        text("UPDATE conversation_states SET status = \'active\', step = \'active\' WHERE phone = :p"),
+        {"p": phone}
+    )
+    db.commit()
+
+    whatsapp_sent = False
+    whatsapp_error = None
+    try:
+        twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+        twilio_client.messages.create(
+            from_=get_twilio_from(),
+            to=whatsapp_to(phone),
+            body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}"
+        )
+        whatsapp_sent = True
+        logger.info(f"WhatsApp release-plan (by_id) enviado para client_id={client_id}")
+    except Exception as e:
+        whatsapp_error = str(e)
+        logger.error(f"Erro WhatsApp release-plan (by_id) client_id={client_id}: {e}")
+
+    if whatsapp_sent:
+        audit_log(db, action="whatsapp_sent", client_id=client_id, details="release-plan: plano liberado")
+    else:
+        audit_log(db, action="whatsapp_failed", client_id=client_id, details=f"release-plan: {whatsapp_error}")
+
+    return {
+        "success": True,
+        "client_id": client_id,
+        "status": "active",
+        "whatsapp_sent": whatsapp_sent,
+        "whatsapp_error": whatsapp_error
+    }
+
+
 @router.post("/checkin")
 def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
     try:
