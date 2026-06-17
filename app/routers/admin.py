@@ -382,6 +382,22 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
     }
 
 
+@router.get("/whatsapp-events/{client_id}")
+def whatsapp_events_by_client(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    rows = db.execute(
+        text("SELECT id, client_id, message_sid, status, error_code, to_phone, context, created_at, updated_at FROM whatsapp_events WHERE client_id = :cid ORDER BY created_at DESC LIMIT 50"),
+        {"cid": client_id}
+    ).fetchall()
+    return [
+        {
+            "id": r[0], "client_id": r[1], "message_sid": r[2], "status": r[3],
+            "error_code": r[4], "to_phone": r[5], "context": r[6],
+            "created_at": str(r[7]), "updated_at": str(r[8])
+        }
+        for r in rows
+    ]
+
+
 @router.get("/operations-center")
 def operations_center(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     clients = db.execute(
