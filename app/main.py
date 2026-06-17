@@ -21,6 +21,7 @@ from routers.admin import router as admin_router
 from routers.ai_admin import router as ai_admin_router
 from routers.cron import router as cron_router
 from routers.twilio_webhook import router as twilio_router
+from routers.twilio_status import router as twilio_status_router
 from routers.stripe_webhook import router as stripe_router
 from routers.lead_onboarding import router as lead_onboarding_router
 from routers.stripe_checkout import router as stripe_checkout_router
@@ -138,6 +139,7 @@ app.include_router(admin_router)
 app.include_router(ai_admin_router)
 app.include_router(cron_router)
 app.include_router(twilio_router)
+app.include_router(twilio_status_router)
 app.include_router(stripe_router)
 app.include_router(lead_onboarding_router)
 try:
