@@ -376,6 +376,90 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
     }
 
 
+@router.get("/operations-center")
+def operations_center(db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    clients = db.execute(
+        text("SELECT id, name, phone, status FROM clients ORDER BY id")
+    ).fetchall()
+
+    plan_rows = db.execute(
+        text("SELECT DISTINCT client_id FROM client_plans WHERE status = \'active\'")
+    ).fetchall()
+    plan_ids = {r[0] for r in plan_rows}
+
+    diet_rows = db.execute(
+        text("SELECT DISTINCT client_id FROM client_diets WHERE status = \'active\'")
+    ).fetchall()
+    diet_ids = {r[0] for r in diet_rows}
+
+    wa_rows = db.execute(
+        text("""
+            SELECT DISTINCT ON (client_id) client_id, action
+            FROM admin_audit_log
+            WHERE action IN (\'whatsapp_sent\', \'whatsapp_failed\') AND client_id IS NOT NULL
+            ORDER BY client_id, created_at DESC
+        """)
+    ).fetchall()
+    wa_map = {r[0]: r[1] for r in wa_rows}
+
+    STATUS_TO_CARD = {"onboarding_pending": "onboarding", "waiting_plan": "waiting_plan", "active": "active"}
+
+    summary = {"onboarding": 0, "waiting_plan": 0, "active": 0, "problems": 0}
+    result = []
+
+    for c in clients:
+        cid, name, phone, status = c[0], c[1], c[2], c[3]
+        has_training = cid in plan_ids
+        has_diet = cid in diet_ids
+
+        wa_action = wa_map.get(cid)
+        if wa_action == "whatsapp_sent":
+            whatsapp_state = "sent"
+        elif wa_action == "whatsapp_failed":
+            whatsapp_state = "failed"
+        else:
+            whatsapp_state = "never"
+
+        problem = None
+        action = "OK"
+
+        if status == "waiting_plan":
+            if not has_training:
+                problem, action = "Treino nao criado", "Criar treino"
+            elif not has_diet:
+                problem, action = "Dieta nao criada", "Criar dieta"
+            else:
+                problem, action = "Plano pronto, cliente nao liberado", "Liberar cliente"
+        elif status == "active":
+            if not has_training:
+                problem, action = "Cliente ativo sem treino", "Corrigir treino"
+            elif not has_diet:
+                problem, action = "Cliente ativo sem dieta", "Corrigir dieta"
+            elif whatsapp_state == "failed":
+                problem, action = "WhatsApp falhou", "Reenviar WhatsApp"
+
+        card = STATUS_TO_CARD.get(status)
+        if card:
+            summary[card] += 1
+        if problem:
+            summary["problems"] += 1
+
+        result.append({
+            "client_id": cid,
+            "name": name,
+            "phone": phone,
+            "status": status,
+            "has_onboarding": True,
+            "has_training": has_training,
+            "has_diet": has_diet,
+            "whatsapp_state": whatsapp_state,
+            "problem": problem,
+            "action": action,
+        })
+
+    return {"summary": summary, "clients": result}
+
+
 @router.post("/checkin")
 def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
     try:
