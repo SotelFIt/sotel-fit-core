@@ -351,13 +351,19 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
     whatsapp_error = None
     try:
         twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
-        twilio_client.messages.create(
+        msg = twilio_client.messages.create(
             from_=get_twilio_from(),
             to=whatsapp_to(phone),
             body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}"
         )
         whatsapp_sent = True
-        logger.info(f"WhatsApp release-plan (by_id) enviado para client_id={client_id}")
+        db.execute(
+            text("""INSERT INTO whatsapp_events (client_id, message_sid, status, to_phone, context, created_at, updated_at)
+                    VALUES (:cid, :sid, :st, :to, \'release_plan\', NOW(), NOW())"""),
+            {"cid": client_id, "sid": msg.sid, "st": msg.status, "to": whatsapp_to(phone)}
+        )
+        db.commit()
+        logger.info(f"WhatsApp release-plan (by_id) enviado para client_id={client_id} sid={msg.sid} status={msg.status}")
     except Exception as e:
         whatsapp_error = str(e)
         logger.error(f"Erro WhatsApp release-plan (by_id) client_id={client_id}: {e}")
