@@ -379,7 +379,10 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
 @router.get("/operations-center")
 def operations_center(db: Session = Depends(get_db), _: int = Depends(require_admin)):
     clients = db.execute(
-        text("SELECT id, name, phone, status FROM clients ORDER BY id")
+        text("""SELECT id, name, phone, status FROM clients
+        WHERE status != \'inactive\'
+          AND (objective IS NULL OR objective != \'admin\')
+        ORDER BY id""")
     ).fetchall()
 
     plan_rows = db.execute(
