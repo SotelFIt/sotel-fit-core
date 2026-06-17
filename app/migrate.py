@@ -95,6 +95,17 @@ def run_migrations(engine):
                 details TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             )""",
+            """CREATE TABLE IF NOT EXISTS whatsapp_events (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER,
+                message_sid VARCHAR,
+                status VARCHAR,
+                error_code VARCHAR,
+                to_phone VARCHAR,
+                context VARCHAR,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )""",
             """CREATE TABLE IF NOT EXISTS subscriptions (
                 id SERIAL PRIMARY KEY,
                 client_id INTEGER NOT NULL UNIQUE,
@@ -143,6 +154,9 @@ def run_migrations(engine):
             "CREATE INDEX IF NOT EXISTS idx_diets_client_id ON client_diets (client_id)",
             "CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients (phone)",
             "CREATE INDEX IF NOT EXISTS idx_clients_status ON clients (status)",
+            "CREATE INDEX IF NOT EXISTS idx_wa_events_message_sid ON whatsapp_events (message_sid)",
+            "CREATE INDEX IF NOT EXISTS idx_wa_events_client_id ON whatsapp_events (client_id)",
+            "CREATE INDEX IF NOT EXISTS idx_wa_events_status ON whatsapp_events (status)",
         ]
         for sql in index_sqls:
             try:
