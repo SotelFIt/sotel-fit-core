@@ -40,6 +40,7 @@ def twilio_send_test(phone: str, vars: int = 0):
             "msg": getattr(e, "msg", None),
             "details": getattr(e, "details", None),
             "raw": str(e),
+            "sent_kwargs": {k: str(v) for k, v in kwargs.items()},
         }
 
 
