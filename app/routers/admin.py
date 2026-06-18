@@ -32,7 +32,12 @@ def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
     return auth_client_id
 
 def whatsapp_to(phone: str) -> str:
-    return f"whatsapp:{phone}" if not phone.startswith("whatsapp:") else phone
+    if phone.startswith("whatsapp:"):
+        return phone
+    p = phone.strip()
+    if not p.startswith("+"):
+        p = "+" + p
+    return f"whatsapp:{p}"
 
 def get_twilio_from() -> str:
     return os.getenv("TWILIO_FROM_NUMBER") or os.getenv("TWILIO_WHATSAPP_FROM") or "whatsapp:+14155238886"
