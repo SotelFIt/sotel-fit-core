@@ -13,6 +13,17 @@ PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 
 
+@router.get("/twilio-status-debug")
+def twilio_status_debug():
+    return {
+        "public_backend_url_present": bool(os.getenv("PUBLIC_BACKEND_URL")),
+        "public_backend_url_len": len(os.getenv("PUBLIC_BACKEND_URL", "")),
+        "twilio_auth_token_present": bool(os.getenv("TWILIO_AUTH_TOKEN")),
+        "module_level_public_url_len": len(PUBLIC_BACKEND_URL),
+        "module_level_token_present": bool(TWILIO_AUTH_TOKEN),
+    }
+
+
 @router.post("/twilio-status")
 async def twilio_status_callback(request: Request):
     form = await request.form()
