@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 from twilio.rest import Client as TwilioClient
 import os
+import json
 from datetime import date, timedelta
 from core.database import get_db
 from core.security import verify_dual_auth
@@ -315,13 +316,14 @@ def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = D
 @router.post("/clients/{client_id}/release-plan")
 def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     client = db.execute(
-        text("SELECT id, phone, status FROM clients WHERE id = :cid LIMIT 1"),
+        text("SELECT id, phone, status, name FROM clients WHERE id = :cid LIMIT 1"),
         {"cid": client_id}
     ).fetchone()
     if not client:
         raise HTTPException(status_code=404, detail="Cliente nao encontrado")
 
     phone = client[1]
+    client_name = client[3] or "Cliente"
 
     plan = db.execute(
         text("SELECT id FROM client_plans WHERE client_id = :cid AND status = \'active\' LIMIT 1"),
@@ -355,6 +357,7 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
             from_=get_twilio_from(),
             to=whatsapp_to(phone),
             content_sid=os.getenv("TWILIO_TEMPLATE_PLANO"),
+            content_variables=json.dumps({"1": client_name, "2": APP_LINK}),
             status_callback=os.getenv("PUBLIC_BACKEND_URL", "").rstrip("/") + "/webhook/twilio-status"
         )
         whatsapp_sent = True
