@@ -24,8 +24,10 @@ def twilio_send_test(phone: str, vars: int = 0):
             "to": "whatsapp:+" + phone,
             "content_sid": os.getenv("TWILIO_TEMPLATE_PLANO"),
         }
-        if vars == 1:
+        if vars >= 1:
             kwargs["content_variables"] = _json.dumps({"1": "Fernando", "2": "https://sotel-client.vercel.app"})
+        if vars == 2:
+            kwargs["status_callback"] = os.getenv("PUBLIC_BACKEND_URL", "").rstrip("/") + "/webhook/twilio-status"
         m = c.messages.create(**kwargs)
         return {"ok": True, "sid": m.sid, "status": m.status, "vars_sent": vars}
     except Exception as e:
