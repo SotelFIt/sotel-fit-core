@@ -354,7 +354,8 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
         msg = twilio_client.messages.create(
             from_=get_twilio_from(),
             to=whatsapp_to(phone),
-            body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}"
+            body=f"Seu plano ja esta disponivel.\n\nAcesse aqui:\n{APP_LINK}",
+            status_callback=os.getenv("PUBLIC_BACKEND_URL", "").rstrip("/") + "/webhook/twilio-status"
         )
         whatsapp_sent = True
         db.execute(
