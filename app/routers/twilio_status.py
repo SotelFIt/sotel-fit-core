@@ -13,6 +13,24 @@ PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 
 
+@router.get("/twilio-fetch-debug/{sid}")
+def twilio_fetch_debug(sid: str):
+    from twilio.rest import Client as TwilioClient
+    try:
+        c = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+        m = c.messages(sid).fetch()
+        return {
+            "sid": m.sid,
+            "status": m.status,
+            "error_code": m.error_code,
+            "error_message": m.error_message,
+            "to": m.to,
+            "from": m.from_,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/twilio-status-debug")
 def twilio_status_debug():
     return {
