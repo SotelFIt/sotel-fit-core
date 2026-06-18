@@ -37,6 +37,8 @@ def twilio_status_debug():
         "public_backend_url_present": bool(os.getenv("PUBLIC_BACKEND_URL")),
         "public_backend_url_len": len(os.getenv("PUBLIC_BACKEND_URL", "")),
         "twilio_auth_token_present": bool(os.getenv("TWILIO_AUTH_TOKEN")),
+        "template_plano_present": bool(os.getenv("TWILIO_TEMPLATE_PLANO")),
+        "template_plano_len": len(os.getenv("TWILIO_TEMPLATE_PLANO", "")),
         "module_level_public_url_len": len(PUBLIC_BACKEND_URL),
         "module_level_token_present": bool(TWILIO_AUTH_TOKEN),
     }
