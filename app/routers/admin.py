@@ -369,8 +369,11 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
         db.commit()
         logger.info(f"WhatsApp release-plan (by_id) enviado para client_id={client_id} sid={msg.sid} status={msg.status}")
     except Exception as e:
-        whatsapp_error = str(e)
-        logger.error(f"Erro WhatsApp release-plan (by_id) client_id={client_id}: {e}")
+        _code = getattr(e, "code", None)
+        _msg = getattr(e, "msg", None)
+        _details = getattr(e, "details", None)
+        whatsapp_error = f"code={_code} msg={_msg} details={_details} raw={str(e)}"
+        logger.error(f"Erro WhatsApp release-plan (by_id) client_id={client_id}: {whatsapp_error}")
 
     if whatsapp_sent:
         audit_log(db, action="whatsapp_sent", client_id=client_id, details="release-plan: plano liberado")
