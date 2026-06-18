@@ -19,9 +19,10 @@ def twilio_send_test(phone: str, vars: int = 0):
     import json as _json
     try:
         c = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+        from routers.admin import get_twilio_from, whatsapp_to, APP_LINK
         kwargs = {
-            "from_": "whatsapp:+15755678676",
-            "to": "whatsapp:+" + phone,
+            "from_": get_twilio_from(),
+            "to": whatsapp_to(phone),
             "content_sid": os.getenv("TWILIO_TEMPLATE_PLANO"),
         }
         if vars >= 1:
