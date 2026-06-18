@@ -13,6 +13,31 @@ PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 
 
+@router.get("/twilio-send-test/{phone}")
+def twilio_send_test(phone: str, vars: int = 0):
+    from twilio.rest import Client as TwilioClient
+    import json as _json
+    try:
+        c = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+        kwargs = {
+            "from_": "whatsapp:+15755678676",
+            "to": "whatsapp:+" + phone,
+            "content_sid": os.getenv("TWILIO_TEMPLATE_PLANO"),
+        }
+        if vars == 1:
+            kwargs["content_variables"] = _json.dumps({"1": "Fernando", "2": "https://sotel-client.vercel.app"})
+        m = c.messages.create(**kwargs)
+        return {"ok": True, "sid": m.sid, "status": m.status, "vars_sent": vars}
+    except Exception as e:
+        return {
+            "ok": False, "vars_sent": vars,
+            "code": getattr(e, "code", None),
+            "msg": getattr(e, "msg", None),
+            "details": getattr(e, "details", None),
+            "raw": str(e),
+        }
+
+
 @router.get("/twilio-fetch-debug/{sid}")
 def twilio_fetch_debug(sid: str):
     from twilio.rest import Client as TwilioClient
