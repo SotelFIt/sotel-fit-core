@@ -363,7 +363,7 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
             to=whatsapp_to(phone),
             content_sid=os.getenv("TWILIO_TEMPLATE_PLANO"),
             content_variables=json.dumps({"1": client_name, "2": APP_LINK}),
-            status_callback=os.getenv("PUBLIC_BACKEND_URL", "").rstrip("/") + "/webhook/twilio-status"
+            status_callback=os.getenv("PUBLIC_BACKEND_URL", "").strip().rstrip("/") + "/webhook/twilio-status"
         )
         whatsapp_sent = True
         db.execute(
