@@ -221,10 +221,21 @@ Retorne APENAS o JSON, sem markdown, sem texto adicional."""
     for photo in photos[:3]:
         try:
             with urllib.request.urlopen(photo[1]) as resp:
-                image_data = base64.b64encode(resp.read()).decode('utf-8')
+                raw_bytes = resp.read()
+            if raw_bytes[:8].startswith(b'\x89PNG'):
+                media_type = "image/png"
+            elif raw_bytes[:3] == b'\xff\xd8\xff':
+                media_type = "image/jpeg"
+            elif raw_bytes[:4] == b'RIFF' and raw_bytes[8:12] == b'WEBP':
+                media_type = "image/webp"
+            elif raw_bytes[:6] in (b'GIF87a', b'GIF89a'):
+                media_type = "image/gif"
+            else:
+                media_type = "image/jpeg"
+            image_data = base64.b64encode(raw_bytes).decode('utf-8')
             content_parts.append({
                 "type": "image",
-                "source": {"type": "base64", "media_type": "image/jpeg", "data": image_data}
+                "source": {"type": "base64", "media_type": media_type, "data": image_data}
             })
         except Exception as e:
             logger.warning(f"Erro ao carregar imagem: {e}")
