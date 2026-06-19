@@ -44,6 +44,30 @@ def twilio_send_test(phone: str, vars: int = 0):
         }
 
 
+@router.get("/body-audit")
+def body_audit():
+    from core.database import SessionLocal
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        rows = db.execute(text("""
+            SELECT c.id, c.name,
+                   (SELECT COUNT(*) FROM client_photos p WHERE p.client_id = c.id) AS fotos,
+                   (SELECT COUNT(*) FROM client_body_assessments a WHERE a.client_id = c.id) AS analises,
+                   (SELECT MAX(created_at) FROM client_photos p WHERE p.client_id = c.id) AS ultima_foto
+            FROM clients c
+            ORDER BY c.id
+        """)).fetchall()
+        return [
+            {"id": r[0], "name": r[1], "fotos": r[2], "analises": r[3], "ultima_foto": str(r[4])}
+            for r in rows
+        ]
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
 @router.get("/twilio-fetch-debug/{sid}")
 def twilio_fetch_debug(sid: str):
     from twilio.rest import Client as TwilioClient
