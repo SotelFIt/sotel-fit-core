@@ -1,6 +1,6 @@
 import logging
 import os
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
@@ -43,6 +43,43 @@ def debug_init(db: Session = Depends(get_db)):
         return {"error": str(e)}
 
 
+def _maybe_generate_assessment(client_id: int):
+    # Roda em BackgroundTask: dispara analise se conjunto completo e sem analise recente.
+    from core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        cats = set()
+        rows = db.execute(
+            text("SELECT DISTINCT category FROM client_photos WHERE client_id = :cid"),
+            {"cid": client_id}
+        ).fetchall()
+        for r in rows:
+            cats.add(r[0])
+        has_front = "front" in cats
+        has_back = "back" in cats
+        has_side = ("side_left" in cats) or ("side_right" in cats)
+        if not (has_front and has_back and has_side):
+            logger.info(f"gatilho avaliacao: conjunto incompleto client_id={client_id} cats={cats}")
+            return
+        from routers.body_analysis import _get_latest, _generate_and_save
+        latest = _get_latest(db, client_id)
+        if latest:
+            from datetime import datetime, timezone
+            last = latest[14]
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            if (datetime.now(timezone.utc) - last).days < 15:
+                logger.info(f"gatilho avaliacao: analise recente (cooldown) client_id={client_id}")
+                return
+        logger.info(f"gatilho avaliacao: disparando geracao client_id={client_id}")
+        _generate_and_save(db, client_id)
+        logger.info(f"gatilho avaliacao: analise gerada client_id={client_id}")
+    except Exception as e:
+        logger.warning(f"gatilho avaliacao falhou client_id={client_id}: {e}")
+    finally:
+        db.close()
+
+
 @router.post("/upload/{client_id}")
 async def upload_photo(
     client_id: int,
@@ -52,6 +89,7 @@ async def upload_photo(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     db2: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
 ):
     if category not in VALID_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Categoria invalida. Use: {', '.join(VALID_CATEGORIES)}")
@@ -120,6 +158,8 @@ async def upload_photo(
         except Exception as e:
             logger.warning(f"Erro cleanup fotos: {e}")
 
+        if background_tasks is not None:
+            background_tasks.add_task(_maybe_generate_assessment, client_id)
         return {"status": "ok", "image_url": image_url, "category": category, "client_id": client_id}
     except Exception as e:
         db.rollback()
