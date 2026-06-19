@@ -44,6 +44,27 @@ def twilio_send_test(phone: str, vars: int = 0):
         }
 
 
+@router.get("/category-audit")
+def category_audit():
+    from core.database import SessionLocal
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        distinct = db.execute(text("SELECT DISTINCT category FROM client_photos ORDER BY category")).fetchall()
+        per_client = db.execute(text("""
+            SELECT client_id, string_agg(DISTINCT category, ',' ORDER BY category) AS cats, COUNT(*) AS total
+            FROM client_photos GROUP BY client_id ORDER BY client_id
+        """)).fetchall()
+        return {
+            "categorias_distintas_no_sistema": [r[0] for r in distinct],
+            "por_cliente": [{"client_id": r[0], "categorias": r[1], "total_fotos": r[2]} for r in per_client],
+        }
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
 @router.get("/body-audit")
 def body_audit():
     from core.database import SessionLocal
