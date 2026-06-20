@@ -5,6 +5,8 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from services.metodo_sotel import decidir
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +58,7 @@ def _buscar_onboarding(db: Session, client_id: int):
     }
 
 
-def _montar_prompt(dados: dict) -> str:
+def _montar_prompt(dados: dict, diretriz_sotel: str = "") -> str:
     return f"""Voce e um personal trainer especializado em consultoria online no Brasil.
 
 Dados do cliente:
@@ -69,7 +71,10 @@ Dados do cliente:
 - Maior dificuldade: {dados.get('maior_dificuldade') or 'nao informado'}
 - Peso: {dados.get('peso') or 'nao informado'} kg | Altura: {dados.get('altura') or 'nao informado'} cm
 
-Gere um rascunho de treino semanal estruturado para este cliente.
+DIRETRIZ ESTRATEGICA DO METODO SOTEL (seguir obrigatoriamente):
+{diretriz_sotel}
+
+Gere um rascunho de treino semanal estruturado para este cliente, RESPEITANDO a diretriz estrategica acima.
 
 FORMATO OBRIGATORIO:
 - Dividir por dias (Treino A, Treino B, etc.), respeitando os dias disponiveis
@@ -97,7 +102,8 @@ def gerar_treino_base(db: Session, client_id: int) -> str:
 
     client_ai = anthropic_sdk.Anthropic(api_key=api_key)
 
-    prompt = _montar_prompt(dados)
+    decisao = decidir(dados)
+    prompt = _montar_prompt(dados, decisao["diretriz"])
 
     try:
         message = client_ai.messages.create(

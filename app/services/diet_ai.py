@@ -6,6 +6,8 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from services.metodo_sotel import decidir
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,7 +70,7 @@ def _extrair_preferencias(observacoes) -> dict:
     return {}
 
 
-def _montar_prompt(dados: dict, prefs: dict) -> str:
+def _montar_prompt(dados: dict, prefs: dict, diretriz_sotel: str = "") -> str:
     return f"""Voce e um assistente de prescricao alimentar para consultoria fitness, gerando apenas um rascunho para revisao profissional.
 
 Dados do cliente:
@@ -84,7 +86,10 @@ RESTRICOES OBRIGATORIAS (NUNCA INCLUIR):
 - Alergias: {prefs.get('alergias') or 'nenhuma informada'}
 - Restricoes: {prefs.get('restricoes') or 'nenhuma informada'}
 
-Gere um rascunho de plano alimentar diario estruturado.
+DIRETRIZ ESTRATEGICA DO METODO SOTEL (seguir obrigatoriamente):
+{diretriz_sotel}
+
+Gere um rascunho de plano alimentar diario estruturado, RESPEITANDO a diretriz estrategica acima.
 
 FORMATO OBRIGATORIO:
 - Organizar por refeicoes (Cafe da manha, Lanche, Almoco, Lanche da tarde, Jantar, Ceia)
@@ -113,7 +118,8 @@ def gerar_dieta_base(db: Session, client_id: int) -> str:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY nao configurada")
 
     client_ai = anthropic_sdk.Anthropic(api_key=api_key)
-    prompt = _montar_prompt(dados, prefs)
+    decisao = decidir(dados)
+    prompt = _montar_prompt(dados, prefs, decisao["diretriz"])
 
     try:
         message = client_ai.messages.create(
