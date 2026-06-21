@@ -45,6 +45,8 @@ def run_migrations(engine):
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'lead'",
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS client_id INTEGER",
+            "ALTER TABLE client_plans ADD COLUMN IF NOT EXISTS published_content TEXT",
+            "ALTER TABLE client_diets ADD COLUMN IF NOT EXISTS published_content TEXT",
         ]
 
         for sql in alterations:
