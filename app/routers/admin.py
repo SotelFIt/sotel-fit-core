@@ -16,6 +16,7 @@ from services.subscription_service import activate_subscription, renew_subscript
 from models.conversation_state import ConversationState
 from services.workout_ai import gerar_treino_base
 from services.diet_ai import gerar_dieta_base
+from services.client_safe import make_client_safe, EMPTY_FALLBACK
 from services.ai_coach_service import gerar_insights
 
 logger = logging.getLogger(__name__)
@@ -331,28 +332,47 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
     client_name = client[3] or "Cliente"
 
     plan = db.execute(
-        text("SELECT id FROM client_plans WHERE client_id = :cid AND status = \'active\' LIMIT 1"),
+        text("SELECT id, content FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
         {"cid": client_id}
     ).fetchone()
-    if not plan:
-        return {"success": False, "error": "Cliente nao possui treino cadastrado"}
+    if not plan or not (plan[1] or "").strip():
+        return {"success": False, "error": "Cliente nao possui treino cadastrado ou treino esta vazio"}
 
     diet = db.execute(
-        text("SELECT id FROM client_diets WHERE client_id = :cid AND status = \'active\' LIMIT 1"),
+        text("SELECT id, content FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
         {"cid": client_id}
     ).fetchone()
-    if not diet:
-        return {"success": False, "error": "Cliente nao possui dieta cadastrada"}
+    if not diet or not (diet[1] or "").strip():
+        return {"success": False, "error": "Cliente nao possui dieta cadastrada ou dieta esta vazia"}
 
     if not phone or len(phone.strip()) < 8:
         return {"success": False, "error": "Cliente nao possui telefone valido"}
 
-    db.execute(text("UPDATE clients SET status = \'active\' WHERE id = :cid"), {"cid": client_id})
-    db.execute(
-        text("UPDATE conversation_states SET status = \'active\', step = \'active\' WHERE phone = :p"),
-        {"p": phone}
-    )
-    db.commit()
+    try:
+        plan_safe = make_client_safe(plan[1])
+        diet_safe = make_client_safe(diet[1])
+    except Exception as e:
+        logger.error(f"Falha ao sanitizar conteudo client_id={client_id}: {e}")
+        raise HTTPException(status_code=500, detail="Falha ao sanitizar conteudo. Plano NAO foi liberado.")
+
+    if plan_safe == EMPTY_FALLBACK or diet_safe == EMPTY_FALLBACK:
+        return {"success": False, "error": "Treino ou dieta nao possuem conteudo valido para publicacao."}
+
+    try:
+        db.execute(text("UPDATE client_plans SET published_content = :pc WHERE id = :pid"),
+                   {"pc": plan_safe, "pid": plan[0]})
+        db.execute(text("UPDATE client_diets SET published_content = :dc WHERE id = :did"),
+                   {"dc": diet_safe, "did": diet[0]})
+        db.execute(text("UPDATE clients SET status = 'active' WHERE id = :cid"), {"cid": client_id})
+        db.execute(
+            text("UPDATE conversation_states SET status = 'active', step = 'active' WHERE phone = :p"),
+            {"p": phone}
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Falha ao publicar plano client_id={client_id}: {e}")
+        raise HTTPException(status_code=500, detail="Falha ao publicar plano. Tente novamente.")
 
     whatsapp_sent = False
     whatsapp_error = None
@@ -368,17 +388,27 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
         whatsapp_sent = True
         db.execute(
             text("""INSERT INTO whatsapp_events (client_id, message_sid, status, to_phone, context, created_at, updated_at)
-                    VALUES (:cid, :sid, :st, :to, \'release_plan\', NOW(), NOW())"""),
+                    VALUES (:cid, :sid, :st, :to, 'release_plan', NOW(), NOW())"""),
             {"cid": client_id, "sid": msg.sid, "st": msg.status, "to": whatsapp_to(phone)}
         )
         db.commit()
-        logger.info(f"WhatsApp release-plan (by_id) enviado para client_id={client_id} sid={msg.sid} status={msg.status}")
+        logger.info(f"WhatsApp release-plan enviado client_id={client_id} sid={msg.sid} status={msg.status}")
     except Exception as e:
         _code = getattr(e, "code", None)
         _msg = getattr(e, "msg", None)
         _details = getattr(e, "details", None)
         whatsapp_error = f"code={_code} msg={_msg} details={_details} raw={str(e)}"
-        logger.error(f"Erro WhatsApp release-plan (by_id) client_id={client_id}: {whatsapp_error}")
+        logger.error(f"Erro WhatsApp release-plan client_id={client_id}: {whatsapp_error}")
+        try:
+            db.execute(
+                text("""INSERT INTO whatsapp_events (client_id, message_sid, status, error_code, to_phone, context, created_at, updated_at)
+                        VALUES (:cid, NULL, 'failed', :ec, :to, 'release_plan', NOW(), NOW())"""),
+                {"cid": client_id, "ec": str(_code) if _code else "unknown", "to": whatsapp_to(phone)}
+            )
+            db.commit()
+        except Exception as inner:
+            db.rollback()
+            logger.error(f"Falha ao gravar whatsapp_event failed: {inner}")
 
     if whatsapp_sent:
         audit_log(db, action="whatsapp_sent", client_id=client_id, details="release-plan: plano liberado")

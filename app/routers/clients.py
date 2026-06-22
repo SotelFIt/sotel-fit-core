@@ -71,7 +71,7 @@ def get_client_data(phone: str, db: Session = Depends(get_db)):
     plan = None
     try:
         plan = db.execute(
-            text("SELECT id, content, created_at FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+            text("SELECT id, published_content, created_at FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
             {"cid": client_id}
         ).fetchone()
     except Exception:
@@ -80,7 +80,7 @@ def get_client_data(phone: str, db: Session = Depends(get_db)):
     diet = None
     try:
         diet = db.execute(
-            text("SELECT id, content, created_at FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+            text("SELECT id, published_content, created_at FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
             {"cid": client_id}
         ).fetchone()
     except Exception:
@@ -89,8 +89,8 @@ def get_client_data(phone: str, db: Session = Depends(get_db)):
     return {
         "client": client_info,
         "onboarding": {"nome": ob[0], "objetivo": ob[1], "nivel_treino": ob[2], "dias_treino": ob[3], "meta_principal": ob[4]} if ob else None,
-        "plan": {"id": plan[0], "content": plan[1], "created_at": str(plan[2])} if plan else None,
-        "diet": {"id": diet[0], "content": diet[1], "created_at": str(diet[2])} if diet else None,
+        "plan": {"id": plan[0], "content": plan[1] or "Plano em preparação. Aguarde a liberação do seu personal.", "created_at": str(plan[2])} if plan else None,
+        "diet": {"id": diet[0], "content": diet[1] or "Plano em preparação. Aguarde a liberação do seu personal.", "created_at": str(diet[2])} if diet else None,
     }
 
 
@@ -150,19 +150,23 @@ def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
 @router.get("/{client_id}/plan")
 def get_my_plan(client_id: int, db: Session = Depends(get_db)):
     result = db.execute(
-        text("SELECT content FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+        text("SELECT published_content FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
         {"cid": client_id}
     ).fetchone()
-    return {"content": result[0] if result else ""}
+    if not result or not result[0]:
+        return {"content": "Plano em preparação. Aguarde a liberação do seu personal."}
+    return {"content": result[0]}
 
 
 @router.get("/{client_id}/diet")
 def get_my_diet(client_id: int, db: Session = Depends(get_db)):
     result = db.execute(
-        text("SELECT content FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+        text("SELECT published_content FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
         {"cid": client_id}
     ).fetchone()
-    return {"content": result[0] if result else ""}
+    if not result or not result[0]:
+        return {"content": "Plano em preparação. Aguarde a liberação do seu personal."}
+    return {"content": result[0]}
 
 @router.get("/{client_id}")
 def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
