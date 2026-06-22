@@ -182,6 +182,22 @@ def _generate_and_save(db: Session, client_id: int) -> dict:
         {"cid": client_id}
     ).fetchall()
 
+    # [C1] Guarda de conjunto completo - avaliacao exige front + back + lateral.
+    # Mesma convencao do gatilho automatico _maybe_generate_assessment.
+    _cats_rows = db.execute(
+        text("SELECT DISTINCT category FROM client_photos WHERE client_id = :cid"),
+        {"cid": client_id}
+    ).fetchall()
+    _cats = {r[0] for r in _cats_rows}
+    _has_front = "front" in _cats
+    _has_back = "back" in _cats
+    _has_side = ("side_left" in _cats) or ("side_right" in _cats)
+    if not (_has_front and _has_back and _has_side):
+        raise HTTPException(
+            status_code=400,
+            detail="Avaliacao requer 3 fotos: frente, costas e lateral. Conjunto incompleto."
+        )
+
     if not photos:
         raise HTTPException(status_code=400, detail="Nenhuma foto encontrada. O cliente precisa enviar fotos pelo app.")
 
