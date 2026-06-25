@@ -1,12 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from core.database import engine
+from routers.admin import require_admin
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
 
 @router.get("/cleanup-status")
-async def audit_cleanup_status():
+async def audit_cleanup_status(_: int = Depends(require_admin)):
     try:
         with engine.connect() as conn:
             stats = {}
@@ -28,7 +29,7 @@ async def audit_cleanup_status():
 
 
 @router.get("/leads-detail")
-async def audit_leads_detail():
+async def audit_leads_detail(_: int = Depends(require_admin)):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
@@ -58,7 +59,7 @@ async def audit_leads_detail():
 
 
 @router.get("/data-integrity")
-async def audit_data_integrity():
+async def audit_data_integrity(_: int = Depends(require_admin)):
     try:
         with engine.connect() as conn:
             integrity = {}
@@ -87,7 +88,7 @@ async def audit_data_integrity():
 
 
 @router.get("/orphan-clients")
-async def audit_orphan_clients():
+async def audit_orphan_clients(_: int = Depends(require_admin)):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
@@ -111,22 +112,12 @@ async def audit_orphan_clients():
 
 
 @router.post("/cleanup-fake-data")
-async def cleanup_fake_data():
-    try:
-        with engine.connect() as conn:
-            deleted = {}
-            result = conn.execute(text("DELETE FROM lead_onboardings WHERE id IN (3, 2)"))
-            deleted["fake_leads"] = result.rowcount
-            result = conn.execute(text("DELETE FROM clients WHERE id IN (2, 10, 14, 15)"))
-            deleted["fake_clients"] = result.rowcount
-            conn.commit()
-            return {"status": "ok", "message": "Limpeza concluida", "deleted": deleted}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def cleanup_fake_data(_: int = Depends(require_admin)):
+    raise HTTPException(status_code=403, detail="Disabled in production")
 
 
 @router.get("/validate-client/{client_id}")
-async def validate_client_detailed(client_id: int):
+async def validate_client_detailed(client_id: int, _: int = Depends(require_admin)):
     try:
         with engine.connect() as conn:
             client_result = conn.execute(text("""
