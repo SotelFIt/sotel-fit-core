@@ -71,6 +71,7 @@ async def log_requests(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://sotel-admin.vercel.app", "https://sotel-client.vercel.app", "https://frontend-iota-rose-78.vercel.app"],
+    allow_origin_regex=r"https://sotel-admin-git-.*-sotelfits-projects\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
