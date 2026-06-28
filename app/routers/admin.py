@@ -43,6 +43,54 @@ def whatsapp_to(phone: str) -> str:
 def get_twilio_from() -> str:
     return os.getenv("TWILIO_FROM_NUMBER") or os.getenv("TWILIO_WHATSAPP_FROM") or "whatsapp:+14155238886"
 
+
+def _send_freeform_tracked(db: Session, client_id: int, phone: str, body: str, context: str):
+    """Envia WhatsApp free-form COM rastreio: status_callback + whatsapp_events + SID.
+
+    NAO garante entrega (mensagem free-form fora da janela de 24h falha de forma
+    assincrona), mas elimina a falha silenciosa: o operador recebe 'delivery: pending'
+    e o webhook /webhook/twilio-status atualiza o status (delivered/read/failed).
+    """
+    to = whatsapp_to(phone)
+    callback = os.getenv("PUBLIC_BACKEND_URL", "").strip().rstrip("/") + "/webhook/twilio-status"
+    try:
+        twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+        msg = twilio_client.messages.create(
+            body=body,
+            from_=get_twilio_from(),
+            to=to,
+            status_callback=callback,
+        )
+        db.execute(
+            text("""INSERT INTO whatsapp_events (client_id, message_sid, status, to_phone, context, created_at, updated_at)
+                    VALUES (:cid, :sid, :st, :to, :ctx, NOW(), NOW())"""),
+            {"cid": client_id, "sid": msg.sid, "st": msg.status, "to": to, "ctx": context}
+        )
+        db.commit()
+        audit_log(db, action="whatsapp_sent", client_id=client_id, details=f"{context}: sid={msg.sid} status={msg.status}")
+        return {
+            "accepted": True,
+            "sid": msg.sid,
+            "status": msg.status,
+            "delivery": "pending",
+            "to": to,
+            "context": context,
+        }
+    except Exception as e:
+        code = getattr(e, "code", None)
+        try:
+            db.execute(
+                text("""INSERT INTO whatsapp_events (client_id, message_sid, status, error_code, to_phone, context, created_at, updated_at)
+                        VALUES (:cid, NULL, 'failed', :ec, :to, :ctx, NOW(), NOW())"""),
+                {"cid": client_id, "ec": str(code) if code else "unknown", "to": to, "ctx": context}
+            )
+            db.commit()
+        except Exception as inner:
+            db.rollback()
+            logger.error(f"Falha ao gravar whatsapp_event failed ({context}): {inner}")
+        audit_log(db, action="whatsapp_failed", client_id=client_id, details=f"{context}: code={code}")
+        raise HTTPException(status_code=502, detail={"accepted": False, "error_code": code, "error": str(e)})
+
 class ActivateLeadRequest(BaseModel):
     phone: str
 
@@ -708,7 +756,6 @@ def resend_onboarding(payload: ActivateLeadRequest, db: Session = Depends(get_db
 
 @router.post("/twilio/resend-access/{client_id}")
 def resend_access(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    from services.twilio_service import send_whatsapp_message
     client = db.execute(
         text("SELECT id, name, phone FROM clients WHERE id = :cid"),
         {"cid": client_id}
@@ -724,15 +771,10 @@ def resend_access(client_id: int, db: Session = Depends(get_db), _: int = Depend
         f"Acesse aqui:\n{APP_LINK}\n\n"
         f"Use o e-mail cadastrado para entrar."
     )
-    success = send_whatsapp_message(phone, message)
-    if not success:
-        raise HTTPException(status_code=500, detail="Falha ao enviar WhatsApp")
-    audit_log(db, action="resend_access", client_id=client_id, details=f"phone={phone}")
-    return {"status": "success", "phone": phone, "message": "Acesso reenviado"}
+    return _send_freeform_tracked(db, client_id, phone, message, "resend_access")
 
 @router.post("/twilio/send-retention/{client_id}")
 async def send_retention_message(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    from services.twilio_service import send_whatsapp_message
     client = db.execute(
         text("SELECT id, name, phone FROM clients WHERE id = :cid"),
         {"cid": client_id}
@@ -749,14 +791,10 @@ async def send_retention_message(client_id: int, db: Session = Depends(get_db), 
         f"Seu treino e dieta estao te esperando. Qualquer duvida, estou aqui.\n\n"
         f"Acesse: https://sotel-client.vercel.app"
     )
-    success = send_whatsapp_message(phone, message)
-    if not success:
-        raise HTTPException(status_code=500, detail="Falha ao enviar WhatsApp")
-    return {"status": "success", "phone": phone, "message": message}
+    return _send_freeform_tracked(db, client_id, phone, message, "retention")
 
 @router.post("/twilio/send-renewal/{client_id}")
 async def send_renewal_message(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
-    from services.twilio_service import send_whatsapp_message
     client = db.execute(
         text("SELECT id, name, phone FROM clients WHERE id = :cid"),
         {"cid": client_id}
@@ -774,10 +812,7 @@ async def send_renewal_message(client_id: int, db: Session = Depends(get_db), _:
         f"https://sotel-client.vercel.app\n\n"
         f"Qualquer duvida, estou aqui."
     )
-    success = send_whatsapp_message(phone, message)
-    if not success:
-        raise HTTPException(status_code=500, detail="Falha ao enviar WhatsApp")
-    return {"status": "success", "phone": phone, "message": message}
+    return _send_freeform_tracked(db, client_id, phone, message, "renewal")
 
 
 @router.post("/clients/{client_id}/generate-workout-draft")
