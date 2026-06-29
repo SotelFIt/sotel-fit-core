@@ -44,21 +44,21 @@ def get_twilio_from() -> str:
     return os.getenv("TWILIO_FROM_NUMBER") or os.getenv("TWILIO_WHATSAPP_FROM") or "whatsapp:+14155238886"
 
 
-def _send_freeform_tracked(db: Session, client_id: int, phone: str, body: str, context: str):
-    """Envia WhatsApp free-form COM rastreio: status_callback + whatsapp_events + SID.
+def _send_template_tracked(db: Session, client_id: int, phone: str, name: str, content_sid: str, context: str):
+    """Envia WhatsApp via template aprovado COM rastreio: status_callback + whatsapp_events + SID.
 
-    NAO garante entrega (mensagem free-form fora da janela de 24h falha de forma
-    assincrona), mas elimina a falha silenciosa: o operador recebe 'delivery: pending'
-    e o webhook /webhook/twilio-status atualiza o status (delivered/read/failed).
+    Templates aprovados entregam fora da janela de 24h. Mantem todo o rastreamento do PR #4
+    (SID, callback, whatsapp_events, audit_log, accepted, delivery, context).
     """
     to = whatsapp_to(phone)
     callback = os.getenv("PUBLIC_BACKEND_URL", "").strip().rstrip("/") + "/webhook/twilio-status"
     try:
         twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
         msg = twilio_client.messages.create(
-            body=body,
             from_=get_twilio_from(),
             to=to,
+            content_sid=content_sid,
+            content_variables=json.dumps({"1": name or "aluno", "2": APP_LINK}),
             status_callback=callback,
         )
         db.execute(
@@ -765,13 +765,7 @@ def resend_access(client_id: int, db: Session = Depends(get_db), _: int = Depend
     _, name, phone = client
     if not phone:
         raise HTTPException(status_code=400, detail="Cliente sem telefone")
-    first_name = (name or "").split()[0] if name else "cliente"
-    message = (
-        f"Oi {first_name}! Seu acesso ao Sotel Fit Core esta disponivel.\n\n"
-        f"Acesse aqui:\n{APP_LINK}\n\n"
-        f"Use o e-mail cadastrado para entrar."
-    )
-    return _send_freeform_tracked(db, client_id, phone, message, "resend_access")
+    return _send_template_tracked(db, client_id, phone, name, os.getenv("TWILIO_TEMPLATE_ACCESS"), "resend_access")
 
 @router.post("/twilio/send-retention/{client_id}")
 async def send_retention_message(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
@@ -784,14 +778,7 @@ async def send_retention_message(client_id: int, db: Session = Depends(get_db), 
     _, name, phone = client
     if not phone:
         raise HTTPException(status_code=400, detail="Cliente sem telefone")
-    first_name = (name or "").split()[0] if name else "cliente"
-    message = (
-        f"Oi {first_name}! Tudo bem?\n\n"
-        f"Notei que faz um tempo que voce nao aparece no Sotel Fit Core.\n\n"
-        f"Seu treino e dieta estao te esperando. Qualquer duvida, estou aqui.\n\n"
-        f"Acesse: https://sotel-client.vercel.app"
-    )
-    return _send_freeform_tracked(db, client_id, phone, message, "retention")
+    return _send_template_tracked(db, client_id, phone, name, os.getenv("TWILIO_TEMPLATE_RETENTION"), "retention")
 
 @router.post("/twilio/send-renewal/{client_id}")
 async def send_renewal_message(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
@@ -804,15 +791,7 @@ async def send_renewal_message(client_id: int, db: Session = Depends(get_db), _:
     _, name, phone = client
     if not phone:
         raise HTTPException(status_code=400, detail="Cliente sem telefone")
-    first_name = (name or "").split()[0] if name else "cliente"
-    message = (
-        f"Oi {first_name}! Tudo bem?\n\n"
-        f"Seu plano no Sotel Fit Core esta chegando ao fim.\n\n"
-        f"Para continuar sua evolucao sem interrupcao, renove agora:\n"
-        f"https://sotel-client.vercel.app\n\n"
-        f"Qualquer duvida, estou aqui."
-    )
-    return _send_freeform_tracked(db, client_id, phone, message, "renewal")
+    return _send_template_tracked(db, client_id, phone, name, os.getenv("TWILIO_TEMPLATE_RENEWAL"), "renewal")
 
 
 @router.post("/clients/{client_id}/generate-workout-draft")
