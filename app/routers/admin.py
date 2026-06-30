@@ -575,22 +575,29 @@ def operations_center(db: Session = Depends(get_db), _: int = Depends(require_ad
             "action": action,
         })
 
-    try:
-        expiring_7d = len(get_expiring_subscriptions(db))
-        expired = len(get_expired_subscriptions(db))
-        summary["pipeline"] = {
-            "lead": lead,
-            "onboarding": summary["onboarding"],
-            "waiting_plan": summary["waiting_plan"],
-            "active": summary["active"],
-            "expiring_7d": expiring_7d,
-            "expired": expired,
-            "problems": summary["problems"],
-            "pipeline_open": lead + summary["onboarding"] + summary["waiting_plan"],
-            "as_of": datetime.utcnow().isoformat(),
-        }
-    except Exception as e:
-        summary["pipeline_error"] = f"{type(e).__name__}: {e}"  # TEMP DIAGNOSTIC
+    # Contagens de assinatura via SQL raw (evita ORM: o modelo Client mapeia
+    # colunas que nao existem no schema de producao, ex. current_plan_id).
+    today = date.today()
+    expiring_7d = db.execute(
+        text("""SELECT COUNT(*) FROM subscriptions
+                WHERE end_date >= :today AND end_date <= :threshold
+                  AND status IN ('active', 'expiring')"""),
+        {"today": today, "threshold": today + timedelta(days=7)}
+    ).scalar() or 0
+    expired = db.execute(
+        text("SELECT COUNT(*) FROM subscriptions WHERE status = 'expired'")
+    ).scalar() or 0
+    summary["pipeline"] = {
+        "lead": lead,
+        "onboarding": summary["onboarding"],
+        "waiting_plan": summary["waiting_plan"],
+        "active": summary["active"],
+        "expiring_7d": int(expiring_7d),
+        "expired": int(expired),
+        "problems": summary["problems"],
+        "pipeline_open": lead + summary["onboarding"] + summary["waiting_plan"],
+        "as_of": datetime.utcnow().isoformat(),
+    }
     return {"summary": summary, "clients": result}
 
 
