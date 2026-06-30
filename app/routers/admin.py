@@ -756,6 +756,19 @@ def resend_onboarding(payload: ActivateLeadRequest, db: Session = Depends(get_db
 
 @router.post("/twilio/resend-access/{client_id}")
 def resend_access(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    # TEMP DIAGNOSTIC (21654) - REMOVER depois. Nao dispara WhatsApp; so reporta env vars.
+    def _diag(varname):
+        v = os.getenv(varname)
+        if not v:
+            return {"exists": False}
+        return {"exists": True, "length": len(v), "prefix": v[:6]}
+    logger.info(f"DIAG TWILIO_TEMPLATE_ACCESS={_diag('TWILIO_TEMPLATE_ACCESS')} RETENTION={_diag('TWILIO_TEMPLATE_RETENTION')} RENEWAL={_diag('TWILIO_TEMPLATE_RENEWAL')}")
+    return {
+        "_diagnostic": True,
+        "TWILIO_TEMPLATE_ACCESS": _diag("TWILIO_TEMPLATE_ACCESS"),
+        "TWILIO_TEMPLATE_RETENTION": _diag("TWILIO_TEMPLATE_RETENTION"),
+        "TWILIO_TEMPLATE_RENEWAL": _diag("TWILIO_TEMPLATE_RENEWAL"),
+    }
     client = db.execute(
         text("SELECT id, name, phone FROM clients WHERE id = :cid"),
         {"cid": client_id}
