@@ -7,7 +7,7 @@ from typing import Optional
 from twilio.rest import Client as TwilioClient
 import os
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from core.database import get_db
 from core.security import verify_dual_auth
 from services.audit_service import audit_log
@@ -520,6 +520,7 @@ def operations_center(db: Session = Depends(get_db), _: int = Depends(require_ad
     STATUS_TO_CARD = {"onboarding_pending": "onboarding", "waiting_plan": "waiting_plan", "active": "active"}
 
     summary = {"onboarding": 0, "waiting_plan": 0, "active": 0, "problems": 0}
+    lead = 0
     result = []
 
     for c in clients:
@@ -556,6 +557,8 @@ def operations_center(db: Session = Depends(get_db), _: int = Depends(require_ad
         card = STATUS_TO_CARD.get(status)
         if card:
             summary[card] += 1
+        elif status == "lead":
+            lead += 1
         if problem:
             summary["problems"] += 1
 
@@ -572,6 +575,19 @@ def operations_center(db: Session = Depends(get_db), _: int = Depends(require_ad
             "action": action,
         })
 
+    expiring_7d = len(get_expiring_subscriptions(db))
+    expired = len(get_expired_subscriptions(db))
+    summary["pipeline"] = {
+        "lead": lead,
+        "onboarding": summary["onboarding"],
+        "waiting_plan": summary["waiting_plan"],
+        "active": summary["active"],
+        "expiring_7d": expiring_7d,
+        "expired": expired,
+        "problems": summary["problems"],
+        "pipeline_open": lead + summary["onboarding"] + summary["waiting_plan"],
+        "as_of": datetime.utcnow().isoformat(),
+    }
     return {"summary": summary, "clients": result}
 
 
