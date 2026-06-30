@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Float
+from sqlalchemy import Column, DateTime, Integer, String, Float
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -16,14 +16,8 @@ class Client(Base):
     weight = Column(Float, nullable=True)
     height = Column(Float, nullable=True)
     goal = Column(String, nullable=True)
-    current_plan_id = Column(Integer, ForeignKey("plans.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    current_plan = relationship(
-        "Plan",
-        foreign_keys=[current_plan_id],
-        post_update=True,
-    )
     plans = relationship(
         "Plan",
         back_populates="client",
