@@ -575,19 +575,22 @@ def operations_center(db: Session = Depends(get_db), _: int = Depends(require_ad
             "action": action,
         })
 
-    expiring_7d = len(get_expiring_subscriptions(db))
-    expired = len(get_expired_subscriptions(db))
-    summary["pipeline"] = {
-        "lead": lead,
-        "onboarding": summary["onboarding"],
-        "waiting_plan": summary["waiting_plan"],
-        "active": summary["active"],
-        "expiring_7d": expiring_7d,
-        "expired": expired,
-        "problems": summary["problems"],
-        "pipeline_open": lead + summary["onboarding"] + summary["waiting_plan"],
-        "as_of": datetime.utcnow().isoformat(),
-    }
+    try:
+        expiring_7d = len(get_expiring_subscriptions(db))
+        expired = len(get_expired_subscriptions(db))
+        summary["pipeline"] = {
+            "lead": lead,
+            "onboarding": summary["onboarding"],
+            "waiting_plan": summary["waiting_plan"],
+            "active": summary["active"],
+            "expiring_7d": expiring_7d,
+            "expired": expired,
+            "problems": summary["problems"],
+            "pipeline_open": lead + summary["onboarding"] + summary["waiting_plan"],
+            "as_of": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        summary["pipeline_error"] = f"{type(e).__name__}: {e}"  # TEMP DIAGNOSTIC
     return {"summary": summary, "clients": result}
 
 
