@@ -117,15 +117,19 @@ def webhook_landbot(
     """
 
     # Criar cliente ou retornar existente (idempotência)
-    client = create_client_idempotent(
-        db=db,
-        landbot_user_id=payload.landbot_user_id,
-        name=payload.name,
-        phone=payload.phone,
-        email=payload.email,
-        objective=payload.objective,
-        difficulty=payload.difficulty
-    )
+    try:
+        client = create_client_idempotent(
+            db=db,
+            landbot_user_id=payload.landbot_user_id,
+            name=payload.name,
+            phone=payload.phone,
+            email=payload.email,
+            objective=payload.objective,
+            difficulty=payload.difficulty
+        )
+    except ValueError as e:
+        # e-mail já cadastrado (com outro landbot_user_id) -> 409 claro, não 500 genérico
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
     # Gerar JWT para o cliente
     token_pair = create_token_pair(client.id)

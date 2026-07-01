@@ -11,6 +11,8 @@ class Client(Base):
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True, index=True)
     objective = Column(String, nullable=True)
+    difficulty = Column(String, nullable=True)
+    landbot_user_id = Column(String, nullable=True, index=True, unique=True)
     status = Column(String, nullable=True, default="lead")
     age = Column(Integer, nullable=True)
     weight = Column(Float, nullable=True)
