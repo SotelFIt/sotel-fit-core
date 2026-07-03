@@ -160,6 +160,21 @@ def get_onboarding_status(client_id: int, db: Session = Depends(get_db)):
         else:
             next_step = "waiting_plan"
 
+    # CRITICAL FIX: plano publicado ativo tem PRIORIDADE sobre clients.status.
+    # Se existe treino ativo com conteudo publicado, o cliente ja tem acesso ao app,
+    # independentemente do campo status (que pode estar defasado/onboarding_pending).
+    has_published_plan = db.execute(
+        text(
+            "SELECT 1 FROM client_plans "
+            "WHERE client_id = :cid AND status = 'active' "
+            "AND COALESCE(published_content, '') <> '' LIMIT 1"
+        ),
+        {"cid": client_id},
+    ).fetchone() is not None
+    if has_published_plan:
+        onboarding_completed = True
+        next_step = "app"
+
     return {
         "client_id": client_id,
         "onboarding_completed": onboarding_completed,
