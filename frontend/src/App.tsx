@@ -135,36 +135,111 @@ function OBInput({
   );
 }
 
-function OBTextarea({
-  label, name, value, onChange, placeholder = "", hint = "",
-}: { label: string; name: string; value: string; onChange: (v: string) => void; placeholder?: string; hint?: string }) {
+const OB_LABEL: React.CSSProperties = { display: "block", fontSize: "12px", fontWeight: "600", color: OB_MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" };
+
+const PHASES: { label: string; steps: number[] }[] = [
+  { label: "Você", steps: [1, 2] },
+  { label: "Seu treino", steps: [3, 4] },
+  { label: "Sua saúde", steps: [5, 6] },
+  { label: "Detalhes finais", steps: [7, 8] },
+];
+
+// Stepper numérico (idade/peso/altura) — valor continua string; vazio = "—" (não preenche payload).
+function OBStepper({ label, value, onChange, min, max, step = 1, def, suffix = "" }: {
+  label: string; value: string; onChange: (v: string) => void;
+  min: number; max: number; step?: number; def: number; suffix?: string;
+}) {
+  const cur = value === "" || isNaN(Number(value)) ? def : Number(value);
+  const clamp = (n: number) => Math.max(min, Math.min(max, n));
   return (
     <div style={{ marginBottom: "16px" }}>
-      <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: OB_MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
-        {label}
-      </label>
-      {hint && <p style={{ fontSize: "12px", color: "#4b5563", marginBottom: "8px", marginTop: "-4px" }}>{hint}</p>}
-      <textarea
-        name={name} value={value} placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
-        style={{
-          width: "100%", padding: "12px 14px", height: "90px",
-          background: OB_CARD, border: `1px solid ${OB_BORDER}`,
-          borderRadius: "10px", fontSize: "14px", color: "white",
-          boxSizing: "border-box", resize: "none", outline: "none", lineHeight: "1.5",
-        }}
-      />
+      <label style={OB_LABEL}>{label}</label>
+      <div style={{ display: "flex", alignItems: "center", background: OB_CARD, border: `1px solid ${OB_BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
+        <button type="button" onClick={() => onChange(String(clamp(cur - step)))} style={{ padding: "12px 16px", background: "transparent", border: "none", color: OB_ACCENT, fontSize: "20px", fontWeight: "700", cursor: "pointer", lineHeight: 1 }}>−</button>
+        <div style={{ flex: 1, textAlign: "center", color: value === "" ? OB_MUTED : "white", fontSize: "16px", fontWeight: "600" }}>
+          {value === "" ? "—" : `${value}${suffix ? " " + suffix : ""}`}
+        </div>
+        <button type="button" onClick={() => onChange(String(clamp(cur + step)))} style={{ padding: "12px 16px", background: "transparent", border: "none", color: OB_ACCENT, fontSize: "20px", fontWeight: "700", cursor: "pointer", lineHeight: 1 }}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// Chips que preenchem uma string; texto livre só quando "Outro". O valor final é a mesma chave de sempre.
+function ChipInput({ label, presets, value, onChange, cols = 2, placeholder = "Escreva…", hint = "" }: {
+  label: string; presets: string[]; value: string; onChange: (v: string) => void;
+  cols?: number; placeholder?: string; hint?: string;
+}) {
+  const isPreset = presets.includes(value);
+  const [showOther, setShowOther] = useState(value !== "" && !isPreset);
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <label style={OB_LABEL}>{label}</label>
+      {hint && <p style={{ fontSize: "12px", color: "#4b5563", margin: "-4px 0 10px" }}>{hint}</p>}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: "8px" }}>
+        {presets.map(p => (
+          <OptionBtn key={p} label={p} selected={!showOther && value === p} onClick={() => { setShowOther(false); onChange(p); }} />
+        ))}
+        <OptionBtn label="Outro ✎" selected={showOther} onClick={() => { setShowOther(true); onChange(""); }} />
+      </div>
+      {showOther && (
+        <textarea value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
+          style={{ width: "100%", marginTop: "8px", padding: "12px 14px", height: "70px", background: OB_CARD, border: `1px solid ${OB_BORDER}`, borderRadius: "10px", fontSize: "14px", color: "white", boxSizing: "border-box", resize: "none", outline: "none", lineHeight: "1.5" }} />
+      )}
+    </div>
+  );
+}
+
+// Saúde: gate Não/Sim → regiões (multi) → detalhe. Valor 100% derivado da própria string (sem estado perdido).
+// Formato: "Regiao, Regiao — detalhe livre". Vazio = "Não" (payload mantém "Nenhuma"/"" como no V1).
+function HealthGate({ label, regions, value, onChange, detailMode }: {
+  label: string; regions: string[]; value: string; onChange: (v: string) => void;
+  detailMode: "always" | "other";
+}) {
+  const [yes, setYes] = useState(value.trim() !== "");
+  const parts = value ? value.split(" — ") : [];
+  const regionPart = parts[0] || "";
+  const detailPart = parts.slice(1).join(" — ");
+  const selected = regionPart ? regionPart.split(", ").filter(Boolean) : [];
+  const compose = (regs: string[], detail: string) => [regs.join(", "), detail.trim()].filter(Boolean).join(" — ");
+  const toggle = (r: string) => {
+    const sel = new Set(selected);
+    sel.has(r) ? sel.delete(r) : sel.add(r);
+    onChange(compose(regions.filter(x => sel.has(x)), detailPart));
+  };
+  const showDetail = detailMode === "always" ? yes : selected.includes("Outro");
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <label style={OB_LABEL}>{label}</label>
+      <div style={{ display: "flex", gap: "8px", marginBottom: showDetail || (yes && regions.length) ? "10px" : 0 }}>
+        <OptionBtn label="Não" selected={!yes} onClick={() => { setYes(false); onChange(""); }} />
+        <OptionBtn label="Sim" selected={yes} onClick={() => setYes(true)} />
+      </div>
+      {yes && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+          {regions.map(r => (
+            <OptionBtn key={r} label={r} selected={selected.includes(r)} onClick={() => toggle(r)} />
+          ))}
+        </div>
+      )}
+      {showDetail && (
+        <textarea value={detailPart} placeholder={detailMode === "always" ? "Detalhe (opcional): lado, tipo de lesão…" : "Descreva…"}
+          onChange={e => onChange(compose(selected, e.target.value))}
+          style={{ width: "100%", marginTop: "8px", padding: "12px 14px", height: "64px", background: OB_CARD, border: `1px solid ${OB_BORDER}`, borderRadius: "10px", fontSize: "14px", color: "white", boxSizing: "border-box", resize: "none", outline: "none", lineHeight: "1.5" }} />
+      )}
     </div>
   );
 }
 
 function ProgressBar({ step, total }: { step: number; total: number }) {
   const pct = Math.round((step / total) * 100);
+  const phaseIdx = Math.max(0, PHASES.findIndex(p => p.steps.includes(step)));
+  const phase = PHASES[phaseIdx];
   return (
     <div style={{ marginBottom: "28px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
         <span style={{ fontSize: "11px", color: OB_MUTED, fontWeight: "600", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          Etapa {step} de {total}
+          {phase.label} · Fase {phaseIdx + 1} de {PHASES.length}
         </span>
         <span style={{ fontSize: "11px", color: OB_ACCENT, fontWeight: "700" }}>{pct}%</span>
       </div>
@@ -223,10 +298,11 @@ type FormState = {
 };
 
 function Onboarding() {
-  const TOTAL = 9;
+  const TOTAL = 8;
   const [screen, setScreen] = useState<"welcome" | "steps" | "done">("welcome");
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [installed, setInstalled] = useState(false);
   const [form, setForm] = useState<FormState>({
     nome: "", email: "", telefone: "", idade: "", sexo: "",
     altura: "", peso: "", cidade: "",
@@ -315,7 +391,7 @@ function Onboarding() {
         Vamos conhecer você antes de montar seu plano personalizado.
       </p>
       <p style={{ color: "#374151", fontSize: "13px", lineHeight: "1.6", marginBottom: "36px" }}>
-        São 9 etapas rápidas. Quanto mais preciso você for, melhor será o seu resultado.
+        São 8 etapas rápidas. Quanto mais preciso você for, melhor será o seu resultado.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "32px" }}>
         {["Treino personalizado para seu objetivo", "Dieta adaptada à sua rotina", "Acompanhamento inteligente"].map((item, i) => (
@@ -331,66 +407,99 @@ function Onboarding() {
         Começar meu cadastro →
       </button>
       <p style={{ textAlign: "center", color: "#374151", fontSize: "12px", marginTop: "16px" }}>
-        Leva cerca de 3 minutos
+        Leva cerca de 2 minutos
       </p>
     </div>
   );
 
-  // DONE
-  if (screen === "done") return wrap(
-    <div style={{ paddingTop: "48px", textAlign: "center" }}>
-      <div style={{ width: "72px", height: "72px", background: `${OB_ACCENT}18`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", border: `2px solid ${OB_ACCENT}` }}>
-        <span style={{ fontSize: "32px" }}>✅</span>
-      </div>
-      <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "12px" }}>Cadastro enviado!</h2>
-      <p style={{ color: OB_MUTED, fontSize: "15px", lineHeight: "1.6", marginBottom: "32px" }}>
-        Seu perfil foi registrado com sucesso.<br />
-        O time Sotel vai montar seu plano personalizado e você será avisado pelo WhatsApp.
-      </p>
-      <div style={{ background: OB_CARD, border: `1px solid ${OB_BORDER}`, borderRadius: "12px", padding: "20px", textAlign: "left" }}>
-        <p style={{ fontSize: "12px", color: OB_MUTED, fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "12px" }}>Próximos passos</p>
-        {["Analisaremos seu perfil completo", "Montamos treino e dieta personalizados", "Você recebe acesso ao app pelo WhatsApp"].map((s, i) => (
-          <div key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "10px" }}>
-            <span style={{ minWidth: "20px", height: "20px", background: OB_ACCENT, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#000", fontWeight: "700" }}>{i + 1}</span>
-            <span style={{ fontSize: "13px", color: "#d1d5db", lineHeight: "1.4" }}>{s}</span>
+  // DONE — tela de espera inteligente (PWA "adicionar à tela inicial")
+  if (screen === "done") {
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    const showIOS = isIOS || (!isIOS && !isAndroid);
+    const showAndroid = isAndroid || (!isIOS && !isAndroid);
+    const tut = (title: string, steps: string[]) => (
+      <div style={{ marginTop: "18px" }}>
+        <p style={{ color: OB_ACCENT, fontSize: "13px", fontWeight: "700", marginBottom: "10px" }}>{title}</p>
+        {steps.map((s, i) => (
+          <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "8px" }}>
+            <span style={{ minWidth: "20px", height: "20px", background: `${OB_ACCENT}22`, color: OB_ACCENT, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700" }}>{i + 1}</span>
+            <span style={{ fontSize: "13px", color: "#d1d5db", lineHeight: "1.5" }}>{s}</span>
           </div>
         ))}
       </div>
-    </div>
-  );
+    );
+    return wrap(
+      <div style={{ paddingTop: "40px" }}>
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ width: "72px", height: "72px", background: `${OB_ACCENT}18`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", border: `2px solid ${OB_ACCENT}` }}>
+            <span style={{ fontSize: "32px" }}>✅</span>
+          </div>
+          <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "10px", lineHeight: "1.3" }}>Cadastro enviado com sucesso! 🎉</h2>
+          <p style={{ color: OB_MUTED, fontSize: "15px", lineHeight: "1.6" }}>
+            Agora estamos preparando seu treino personalizado.
+          </p>
+        </div>
+        <div style={{ background: OB_CARD, border: `1px solid ${OB_BORDER}`, borderRadius: "12px", padding: "20px", textAlign: "left" }}>
+          <p style={{ fontSize: "12px", color: OB_ACCENT, fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>Enquanto isso — deixe o acesso a 1 toque</p>
+          <p style={{ fontSize: "14px", color: "#d1d5db", lineHeight: "1.6" }}>
+            Adicione o Sotel Fit Core à tela inicial do seu celular para acessar seu treino com apenas um toque quando ele estiver disponível.
+          </p>
+          {showIOS && tut("📱 iPhone (Safari)", ["Toque em Compartilhar.", "Escolha Adicionar à Tela de Início.", "Toque em Adicionar."])}
+          {showAndroid && tut("🤖 Android (Chrome)", ["Toque no menu ⋮.", "Escolha Adicionar à tela inicial ou Instalar aplicativo, dependendo do aparelho.", "Confirme em Adicionar."])}
+        </div>
+        <button
+          type="button"
+          disabled={installed}
+          onClick={() => { try { localStorage.setItem("app_installed", "true"); } catch { /* localStorage indisponível: apenas feedback visual */ } setInstalled(true); }}
+          style={{
+            width: "100%", marginTop: "16px", padding: "14px",
+            background: installed ? `${OB_ACCENT}18` : "transparent",
+            border: `1.5px solid ${OB_ACCENT}`, borderRadius: "12px",
+            color: OB_ACCENT, fontSize: "15px", fontWeight: "700",
+            cursor: installed ? "default" : "pointer",
+          }}>
+          {installed ? "✅ Adicionado!" : "✅ Já adicionei"}
+        </button>
+        <p style={{ textAlign: "center", color: OB_MUTED, fontSize: "12px", marginTop: "20px", lineHeight: "1.5" }}>
+          Quando seu treino estiver pronto, ele aparecerá automaticamente aqui.
+        </p>
+      </div>
+    );
+  }
 
-  // ─── ETAPA 1 — Identidade ───
+  // ─── ETAPA 1 — Identidade (só contato) ───
   if (step === 1) return wrap(
     <>
-      <StepHeader title="Quem é você?" subtitle="Dados básicos para personalizar seu plano." />
+      <StepHeader title="Quem é você?" subtitle="Só o essencial para criar seu acesso." />
       <OBInput label="Nome completo" name="nome" value={form.nome} onChange={v => set("nome", v)} placeholder="Seu nome" required />
       <OBInput label="Email" name="email" value={form.email} onChange={v => set("email", v)} type="email" placeholder="seu@email.com" />
       <OBInput label="WhatsApp" name="telefone" value={form.telefone} onChange={v => set("telefone", v)} placeholder="+55 17 99999-9999" />
+      <OBInput label="Cidade" name="cidade" value={form.cidade} onChange={v => set("cidade", v)} placeholder="Ex: São Paulo" />
+      <NavBtns onBack={back} onNext={next} canNext={!!form.nome} isFirst />
+    </>
+  );
+
+  // ─── ETAPA 2 — Objetivo (+ perfil físico) ───
+  if (step === 2) return wrap(
+    <>
+      <StepHeader title="Seu objetivo" subtitle="Um pouco sobre você e onde quer chegar." />
+      <OBStepper label="Idade" value={form.idade} onChange={v => set("idade", v)} min={12} max={90} def={28} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-        <OBInput label="Idade" name="idade" value={form.idade} onChange={v => set("idade", v)} type="number" placeholder="Ex: 28" />
-        <OBInput label="Cidade" name="cidade" value={form.cidade} onChange={v => set("cidade", v)} placeholder="Ex: São Paulo" />
+        <OBStepper label="Peso" value={form.peso} onChange={v => set("peso", v)} min={35} max={200} def={75} suffix="kg" />
+        <OBStepper label="Altura" value={form.altura} onChange={v => set("altura", v)} min={130} max={220} def={170} suffix="cm" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-        <OBInput label="Peso (kg)" name="peso" value={form.peso} onChange={v => set("peso", v)} type="number" placeholder="Ex: 75" />
-        <OBInput label="Altura (cm)" name="altura" value={form.altura} onChange={v => set("altura", v)} type="number" placeholder="Ex: 175" />
-      </div>
-      <div style={{ marginBottom: "16px" }}>
-        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: OB_MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>Sexo</label>
+      <div style={{ marginBottom: "20px" }}>
+        <label style={OB_LABEL}>Sexo</label>
         <div style={{ display: "flex", gap: "8px" }}>
           {[["Masculino", "♂"], ["Feminino", "♀"], ["Prefiro não informar", "–"]].map(([label, icon]) => (
             <OptionBtn key={label} label={label} icon={icon} selected={form.sexo === label} onClick={() => set("sexo", label)} />
           ))}
         </div>
       </div>
-      <NavBtns onBack={back} onNext={next} canNext={!!form.nome} isFirst />
-    </>
-  );
-
-  // ─── ETAPA 2 — Objetivo ───
-  if (step === 2) return wrap(
-    <>
-      <StepHeader title="Qual é seu objetivo?" subtitle="Isso define a estrutura do seu treino e dieta." />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "20px" }}>
+      <label style={OB_LABEL}>Objetivo principal</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px" }}>
         {[
           ["Emagrecimento", "🔥"], ["Hipertrofia", "💪"],
           ["Definição", "⚡"], ["Performance", "🏃"],
@@ -399,13 +508,13 @@ function Onboarding() {
           <OptionBtn key={label} label={label} icon={icon} selected={form.objetivo === label} onClick={() => set("objetivo", label)} />
         ))}
       </div>
-      <OBTextarea
+      <ChipInput
         label="Qual sua maior meta hoje?"
-        name="meta_principal"
+        presets={["Perder 5–10kg", "Perder +10kg", "Ganhar massa muscular", "Reduzir % de gordura", "Mais saúde e energia"]}
         value={form.meta_principal}
         onChange={v => set("meta_principal", v)}
-        placeholder="Ex: Perder 10kg até o fim do ano, ganhar massa, melhorar condicionamento..."
-        hint="Seja específico. Isso alimenta sua IA de acompanhamento."
+        placeholder="Ex: Perder 10kg até o fim do ano..."
+        hint="Seja específico. Isso alimenta seu acompanhamento."
       />
       <NavBtns onBack={back} onNext={next} canNext={!!form.objetivo} />
     </>
@@ -523,19 +632,19 @@ function Onboarding() {
   if (step === 5) return wrap(
     <>
       <StepHeader title="Saúde e limitações" subtitle="Fundamental para um treino seguro e eficaz." />
-      <OBTextarea
-        label="Lesões ou restrições físicas"
-        name="lesoes"
+      <HealthGate
+        label="Tem lesão ou restrição física?"
+        regions={["Joelho", "Ombro", "Coluna", "Quadril", "Punho", "Tornozelo"]}
         value={form.lesoes}
         onChange={v => set("lesoes", v)}
-        placeholder="Ex: Dor no joelho, hérnia de disco, tendinite... ou 'Nenhuma'"
+        detailMode="always"
       />
-      <OBTextarea
-        label="Dores frequentes"
-        name="dores"
+      <HealthGate
+        label="Tem dores frequentes?"
+        regions={["Lombar", "Cervical", "Ombro", "Joelho", "Quadril", "Outro"]}
         value={form.dores}
         onChange={v => set("dores", v)}
-        placeholder="Ex: Lombar, cervical, ombro... ou 'Nenhuma'"
+        detailMode="other"
       />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
         <div>
@@ -613,7 +722,13 @@ function Onboarding() {
           ))}
         </div>
       </div>
-      <OBTextarea label="Descreva sua alimentação atual" name="alimentacao_atual" value={form.alimentacao_atual} onChange={v => set("alimentacao_atual", v)} placeholder="Ex: Café da manhã com pão, almoço no restaurante, jantar leve..." />
+      <ChipInput
+        label="Sua alimentação atual"
+        presets={["Como de tudo", "Tento comer saudável", "Como fora / restaurante", "Pulo refeições", "Muito industrializado"]}
+        value={form.alimentacao_atual}
+        onChange={v => set("alimentacao_atual", v)}
+        placeholder="Ex: café com pão, almoço no restaurante, jantar leve..."
+      />
       <NavBtns onBack={back} onNext={next} canNext />
     </>
   );
@@ -650,53 +765,32 @@ function Onboarding() {
     </>
   );
 
-  // ─── ETAPA 8 — Foto ───
+  // ─── ETAPA 8 — Comportamento (era 9; Etapa Foto removida) ───
   if (step === 8) return wrap(
     <>
-      <StepHeader title="Foto inicial" subtitle="Opcional. Ajuda a personalizar e comparar sua evolução." />
-      <div style={{ background: OB_CARD, border: `1.5px dashed ${OB_BORDER}`, borderRadius: "12px", padding: "32px 24px", textAlign: "center", marginBottom: "20px" }}>
-        <span style={{ fontSize: "36px", display: "block", marginBottom: "12px" }}>📸</span>
-        <p style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "8px" }}>Upload de foto disponível em breve</p>
-        <p style={{ color: "#4b5563", fontSize: "12px", lineHeight: "1.5" }}>
-          Você poderá adicionar fotos de frente, lado e costas<br />no app após receber seu plano.
-        </p>
-      </div>
-      <div style={{ background: `${OB_ACCENT}10`, border: `1px solid ${OB_ACCENT}30`, borderRadius: "10px", padding: "14px 16px" }}>
-        <p style={{ color: OB_ACCENT, fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}>Por que fotos ajudam?</p>
-        <p style={{ color: "#9ca3af", fontSize: "12px", lineHeight: "1.5" }}>
-          As fotos permitem comparar seu progresso real entre avaliações e alimentam a análise de composição corporal.
-        </p>
-      </div>
-      <NavBtns onBack={back} onNext={next} canNext />
-    </>
-  );
-
-  // ─── ETAPA 9 — Comportamento ───
-  if (step === 9) return wrap(
-    <>
-      <StepHeader title="Últimas perguntas" subtitle="Essas respostas alimentam nosso sistema de retenção e acompanhamento." />
+      <StepHeader title="Últimos detalhes" subtitle="Essas respostas alimentam seu acompanhamento." />
       <div style={{ marginBottom: "16px" }}>
-        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: OB_MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>O que mais te impede de evoluir?</label>
+        <label style={OB_LABEL}>O que mais te impede de evoluir?</label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
           {["Falta de tempo", "Falta de motivação", "Alimentação difícil", "Lesão ou dor", "Trabalho pesado", "Vida social"].map(op => (
             <OptionBtn key={op} label={op} selected={form.impedimento_principal === op} onClick={() => set("impedimento_principal", op)} />
           ))}
         </div>
       </div>
-      <OBTextarea
+      <ChipInput
         label="O que te faria desistir?"
-        name="motivo_desistencia"
+        presets={["Falta de tempo", "Sem resultado rápido", "Preço", "Perder motivação", "Lesão", "Rotina puxada"]}
         value={form.motivo_desistencia}
         onChange={v => set("motivo_desistencia", v)}
-        placeholder="Seja honesto. Isso nos ajuda a evitar que isso aconteça."
-        hint="Sua resposta é confidencial e usada só para personalizar seu acompanhamento."
+        placeholder="Seja honesto. Isso nos ajuda a evitar que aconteça."
+        hint="Confidencial — usada só para personalizar seu acompanhamento."
       />
-      <OBTextarea
+      <ChipInput
         label="O que você espera da Sotel Fit Core?"
-        name="expectativa"
+        presets={["Emagrecer", "Ganhar massa", "Ter saúde", "Mais disposição", "Criar constância", "Acompanhamento de perto"]}
         value={form.expectativa}
         onChange={v => set("expectativa", v)}
-        placeholder="Ex: Emagrecer 10kg, ganhar massa, ter saúde, energia no dia a dia..."
+        placeholder="Ex: emagrecer 10kg, ganhar massa, energia no dia a dia..."
       />
       <NavBtns
         onBack={back}
