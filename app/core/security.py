@@ -53,6 +53,18 @@ def create_token_pair(client_id: int) -> TokenResponse:
     refresh = create_refresh_token(client_id)
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=ACCESS_TOKEN_EXPIRE_HOURS * 3600)
 
+def create_magic_token(client_id: int) -> str:
+    """Token de acesso identificado por cliente (Camada 2). type='magic', assinado, com expiracao."""
+    now = datetime.utcnow()
+    expire = now + timedelta(days=int(os.getenv("MAGIC_LINK_EXPIRE_DAYS", "7")))
+    payload = {"sub": client_id, "iat": int(now.timestamp()), "exp": int(expire.timestamp()), "type": "magic"}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_magic_token(token: str) -> int:
+    """Valida assinatura + type=='magic' + expiracao. Reusa verify_token (que exige o type),
+    logo um token 'magic' NUNCA passa como Bearer de dados (verify_dual_auth usa type='access')."""
+    return verify_token(token, token_type="magic")
+
 def verify_token(token: str, token_type: str = "access") -> int:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_iat": False, "verify_sub": False})

@@ -424,13 +424,19 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
 
     whatsapp_sent = False
     whatsapp_error = None
+    # Camada 2: link identificado por cliente quando USE_MAGIC_LINK=true (fallback: APP_LINK).
+    if os.getenv("USE_MAGIC_LINK", "false").strip().lower() == "true":
+        from core.security import create_magic_token
+        client_link = f"{APP_LINK}/acesso#t={create_magic_token(client_id)}"
+    else:
+        client_link = APP_LINK
     try:
         twilio_client = TwilioClient(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
         msg = twilio_client.messages.create(
             from_=get_twilio_from(),
             to=whatsapp_to(phone),
             content_sid=os.getenv("TWILIO_TEMPLATE_PLANO"),
-            content_variables=json.dumps({"1": client_name, "2": APP_LINK}),
+            content_variables=json.dumps({"1": client_name, "2": client_link}),
             status_callback=os.getenv("PUBLIC_BACKEND_URL", "").strip().rstrip("/") + "/webhook/twilio-status"
         )
         whatsapp_sent = True
