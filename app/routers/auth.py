@@ -84,15 +84,8 @@ def login(request: Request, payload: dict, db: Session = Depends(get_db)):
 CLIENT_APP_URL = os.getenv("CLIENT_APP_URL", "https://sotel-client.vercel.app")
 
 
-@router.post("/magic-link/{client_id}", status_code=200)
-def create_magic_link(client_id: int, auth_client_id: int = Depends(verify_dual_auth)):
-    # Apenas admin (verify_dual_auth retorna 0 para admin).
-    if auth_client_id != 0:
-        raise HTTPException(status_code=403, detail="Apenas admin")
-    token = create_magic_token(client_id)
-    return {"url": f"{CLIENT_APP_URL}/acesso#t={token}", "token": token}
-
-
+# IMPORTANTE: a rota LITERAL /magic-link/exchange precisa vir ANTES da rota
+# parametrizada /magic-link/{client_id}, senao "exchange" casa como client_id.
 @router.post("/magic-link/exchange", status_code=200)
 @limiter.limit("20/minute")
 def exchange_magic_link(request: Request, payload: dict, db: Session = Depends(get_db)):
@@ -117,6 +110,15 @@ def exchange_magic_link(request: Request, payload: dict, db: Session = Depends(g
         "expires_in": tokens.expires_in,
         "client": {"id": row[0], "name": row[1], "email": row[2], "objective": row[3], "is_active": True},
     }
+
+
+@router.post("/magic-link/{client_id}", status_code=200)
+def create_magic_link(client_id: int, auth_client_id: int = Depends(verify_dual_auth)):
+    # Apenas admin (verify_dual_auth retorna 0 para admin).
+    if auth_client_id != 0:
+        raise HTTPException(status_code=403, detail="Apenas admin")
+    token = create_magic_token(client_id)
+    return {"url": f"{CLIENT_APP_URL}/acesso#t={token}", "token": token}
 
 
 @router.post("/stripe-session", status_code=200)
