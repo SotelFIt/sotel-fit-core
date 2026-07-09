@@ -5,7 +5,7 @@ from sqlalchemy import text
 from pydantic import BaseModel
 from typing import Optional
 from core.database import get_db
-from core.security import verify_dual_auth, verify_jwt_only
+from core.security import verify_dual_auth, verify_jwt_only, require_client_access, require_admin
 from services.client_service import get_or_create_client_from_phone, normalize_phone
 
 router = APIRouter(prefix="/clients", tags=["clients"])
@@ -23,7 +23,7 @@ class CreateClientRequest(BaseModel):
 
 
 @router.get("/by-phone/{phone}")
-def get_client_by_phone(phone: str, db: Session = Depends(get_db)):
+def get_client_by_phone(phone: str, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     normalized = normalize_phone(phone)
     row = db.execute(
         text("SELECT id, name, email, phone, objective, status, created_at FROM clients WHERE phone = :p LIMIT 1"),
@@ -42,7 +42,7 @@ def get_client_by_phone(phone: str, db: Session = Depends(get_db)):
 
 
 @router.get("/by-phone/{phone}/data")
-def get_client_data(phone: str, db: Session = Depends(get_db)):
+def get_client_data(phone: str, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     normalized = normalize_phone(phone)
     client = db.execute(
         text("SELECT id, name, email, phone, objective, status FROM clients WHERE phone = :p LIMIT 1"),
@@ -148,7 +148,7 @@ def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
 
 
 @router.get("/{client_id}/plan")
-def get_my_plan(client_id: int, db: Session = Depends(get_db)):
+def get_my_plan(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
     result = db.execute(
         text("SELECT published_content FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
         {"cid": client_id}
@@ -159,7 +159,7 @@ def get_my_plan(client_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{client_id}/diet")
-def get_my_diet(client_id: int, db: Session = Depends(get_db)):
+def get_my_diet(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
     result = db.execute(
         text("SELECT published_content FROM client_diets WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
         {"cid": client_id}
@@ -169,7 +169,7 @@ def get_my_diet(client_id: int, db: Session = Depends(get_db)):
     return {"content": result[0]}
 
 @router.get("/{client_id}")
-def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
+def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(require_client_access)):
     row = db.execute(
         text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid LIMIT 1"),
         {"cid": client_id}
@@ -181,22 +181,10 @@ def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: in
 
 
 @router.patch("/{client_id}")
-def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
+def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), auth_client_id: int = Depends(require_client_access)):
     allowed = {"name", "email", "objective", "status"}
 @router.get("/{client_id}/checkins")
-def get_my_checkins(client_id: int, db: Session = Depends(get_db)):
-    rows = db.execute(
-        text("""
-            SELECT id, client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at
-            FROM client_checkins WHERE client_id = :cid ORDER BY created_at DESC LIMIT 30
-        """),
-        {"cid": client_id}
-    ).fetchall()
-    return [{"id": r[0], "client_id": r[1], "treinou": r[2], "seguiu_dieta": r[3],
-             "peso": r[4], "energia": r[5], "dificuldade": r[6], "observacoes": r[7],
-             "created_at": str(r[8])} for r in rows]
-@router.get("/{client_id}/checkins")
-def get_my_checkins(client_id: int, db: Session = Depends(get_db)):
+def get_my_checkins(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
     rows = db.execute(
         text("""
             SELECT id, client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at
