@@ -608,7 +608,11 @@ def operations_center(db: Session = Depends(get_db), _: int = Depends(require_ad
 
 
 @router.post("/checkin")
-def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db)):
+def save_checkin(payload: CheckinRequest, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
+    # Posse: o próprio cliente (JWT sub==client_id) ou admin/Landbot (API key -> 0).
+    # Fecha o write-IDOR (antes qualquer um injetava check-in para qualquer client_id).
+    if auth_client_id != 0 and auth_client_id != payload.client_id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
     try:
         db.execute(
             text("INSERT INTO client_checkins (client_id, treinou, seguiu_dieta, peso, energia, dificuldade, observacoes, created_at) VALUES (:cid, :treinou, :seguiu_dieta, :peso, :energia, :dificuldade, :observacoes, NOW())"),

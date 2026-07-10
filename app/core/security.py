@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import jwt
-from fastapi import HTTPException, status, Header
+from fastapi import HTTPException, status, Header, Depends
 from pydantic import BaseModel
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -112,6 +112,25 @@ def verify_dual_auth(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
+
+
+def require_client_access(client_id: int, auth_client_id: int = Depends(verify_dual_auth)) -> int:
+    """Autorização de POSSE para rotas /.../{client_id}: só o próprio cliente (JWT com
+    sub==client_id) ou admin/Landbot (API key -> 0). Fecha IDOR sem duplicar lógica nem
+    tocar o contrato (só acrescenta 401 sem auth / 403 para outro cliente)."""
+    if auth_client_id != 0 and auth_client_id != client_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado")
+    return auth_client_id
+
+
+def require_admin(auth_client_id: int = Depends(verify_dual_auth)) -> int:
+    """Somente admin/Landbot (API key -> 0). Para rotas sem client_id de posse (ex.:
+    delete por event_id, lookup por telefone, debug)."""
+    if auth_client_id != 0:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Apenas admin")
+    return auth_client_id
+
+
 def verify_jwt_only(authorization: Optional[str] = Header(None)) -> int:
     if not authorization:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")

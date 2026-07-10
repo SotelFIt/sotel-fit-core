@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
 from core.database import get_db
-from core.security import verify_jwt_only, verify_dual_auth
+from core.security import verify_jwt_only, verify_dual_auth, require_client_access, require_admin as require_admin_only
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def require_admin(auth_client_id: int = Depends(verify_dual_auth)):
 
 
 @router.get("/debug/init")
-def debug_init(db: Session = Depends(get_db)):
+def debug_init(db: Session = Depends(get_db), _: int = Depends(require_admin_only)):
     try:
         db.execute(text("""
             CREATE TABLE IF NOT EXISTS client_photos (
@@ -90,6 +90,7 @@ async def upload_photo(
     db: Session = Depends(get_db),
     db2: Session = Depends(get_db),
     background_tasks: BackgroundTasks = None,
+    _: int = Depends(require_client_access),
 ):
     if category not in VALID_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Categoria invalida. Use: {', '.join(VALID_CATEGORIES)}")
@@ -167,7 +168,7 @@ async def upload_photo(
 
 
 @router.get("/client/{client_id}")
-def list_photos(client_id: int, db: Session = Depends(get_db)):
+def list_photos(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
     try:
         rows = db.execute(
             text("""
@@ -183,7 +184,7 @@ def list_photos(client_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/client/{client_id}/by-date")
-def list_photos_by_date(client_id: int, db: Session = Depends(get_db)):
+def list_photos_by_date(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
     try:
         rows = db.execute(
             text("""

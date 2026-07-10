@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
 from core.database import get_db
+from core.security import require_client_access, require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/timeline", tags=["timeline"])
@@ -36,7 +37,7 @@ def create_event(db: Session, client_id: int, event_type: str, title: str,
 
 
 @router.get("/client/{client_id}")
-def get_timeline(client_id: int, limit: int = 10, offset: int = 0, db: Session = Depends(get_db)):
+def get_timeline(client_id: int, limit: int = 10, offset: int = 0, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
     try:
         rows = db.execute(
             text("""
@@ -71,6 +72,7 @@ def manual_event(
     description: Optional[str] = None,
     icon: str = "⚡",
     db: Session = Depends(get_db),
+    _: int = Depends(require_client_access),
 ):
     ok = create_event(db, client_id, event_type, title, description, icon)
     if not ok:
@@ -100,7 +102,7 @@ def manual_event(
 
 
 @router.delete("/event/{event_id}")
-def delete_event(event_id: int, db: Session = Depends(get_db)):
+def delete_event(event_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
         db.execute(
             text("DELETE FROM timeline_events WHERE id = :eid"),
