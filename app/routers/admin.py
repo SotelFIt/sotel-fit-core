@@ -10,6 +10,7 @@ import json
 from datetime import date, datetime, timedelta
 from core.database import get_db
 from core.security import verify_dual_auth
+from core.twilio_env import retention_template_sid
 from services.audit_service import audit_log
 from schemas.subscription import ActivateSubscriptionRequest, RenewSubscriptionRequest, SubscriptionResponse
 from services.subscription_service import activate_subscription, renew_subscription, get_subscription, get_expiring_subscriptions, get_expired_subscriptions
@@ -814,7 +815,31 @@ async def send_retention_message(client_id: int, db: Session = Depends(get_db), 
     _, name, phone = client
     if not phone:
         raise HTTPException(status_code=400, detail="Cliente sem telefone")
-    return _send_template_tracked(db, client_id, phone, name, os.getenv("TWILIO_TEMPLATE_RETENTION"), "retention")
+    # Aceita o nome oficial (EN) e faz fallback ao antigo (PT) durante a transição.
+    content_sid = retention_template_sid()
+    if not content_sid:
+        # Nenhum dos dois nomes configurado: NÃO chamar o Twilio.
+        # Registra a falha (sem expor segredo) e retorna erro controlado.
+        try:
+            db.execute(
+                text("""INSERT INTO whatsapp_events (client_id, message_sid, status, error_code, to_phone, context, created_at, updated_at)
+                        VALUES (:cid, NULL, 'failed', 'missing_template_env', :to, :ctx, NOW(), NOW())"""),
+                {"cid": client_id, "to": whatsapp_to(phone), "ctx": "retention"}
+            )
+            db.commit()
+        except Exception as inner:
+            db.rollback()
+            logger.error(f"Falha ao gravar whatsapp_event failed (retention/missing_template_env): {inner}")
+        audit_log(db, action="whatsapp_failed", client_id=client_id, details="retention: env do template ausente (TWILIO_TEMPLATE_RETENTION/RETENCAO)")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "accepted": False,
+                "error": "Template de retencao nao configurado",
+                "hint": "defina TWILIO_TEMPLATE_RETENTION (fallback de transicao: TWILIO_TEMPLATE_RETENCAO)",
+            },
+        )
+    return _send_template_tracked(db, client_id, phone, name, content_sid, "retention")
 
 @router.post("/twilio/send-renewal/{client_id}")
 async def send_renewal_message(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
