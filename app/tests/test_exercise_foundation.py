@@ -1,8 +1,18 @@
 """
-LIB-002 - testes da fundacao da Biblioteca de Exercicios V1.
-Cobre: criacao do model, defaults, unicidade do slug, imutabilidade do slug,
-enum de nivel, schemas de dominio e migration 002 (upgrade + downgrade)
-em ambiente descartavel.
+LIB-002 - testes da fundacao da Biblioteca de Exercicios V1 (revisao pos-Codex).
+
+Autoridade de schema (decisao do Proprietario 2026-07-17): a tabela nasce via
+Base.metadata.create_all(); migrate.py guarda apenas o trigger PG de slug.
+
+GARANTIAS E ONDE SAO PROVADAS:
+- SQLite real (esta suite): defaults de listas, listas nao compartilhadas,
+  CHECK de level no banco, unicidade do slug, imutabilidade ORM, timestamps.
+- Compilacao/inspecao (esta suite): DDL PostgreSQL do model (defaults '[]',
+  CHECK constraint), presenca e guarda de dialeto do trigger no migrate.py,
+  tabelas de plano intactas, nenhum endpoint criado.
+- PostgreSQL real (SOMENTE com TEST_POSTGRES_URL definida): rejeicao de
+  bulk update do slug pelo trigger. Sem essa env var o teste e SKIPPED -
+  SQLite NAO valida trigger plpgsql e esta suite nao finge que valida.
 """
 import os
 import sys
@@ -11,19 +21,26 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.exc import IntegrityError, StatementError
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.schema import CreateTable
 
 from core.database import Base
 from models.exercise import Exercise
-from schemas.exercise import ExerciseBase, ExerciseMedia
+from schemas.exercise import ExerciseBase, ExerciseMedia, ExerciseResponse
+
+APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
-def _session():
-    engine = create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False})
-    Base.metadata.create_all(engine, tables=[Exercise.__table__])
-    return sessionmaker(bind=engine)()
+def _engine():
+    eng = create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False})
+    Base.metadata.create_all(eng, tables=[Exercise.__table__])
+    return eng
+
+
+def _session(eng=None):
+    return sessionmaker(bind=eng or _engine())()
 
 
 def _valid(**over):
@@ -33,15 +50,14 @@ def _valid(**over):
     return Exercise(**base)
 
 
-# ---------- model + defaults ----------
+# ---------- defaults e listas ----------
 
-def test_cria_exercicio_com_defaults():
+def test_insert_sem_listas_retorna_listas_vazias_apos_leitura():
     db = _session()
     db.add(_valid())
     db.commit()
+    db.expire_all()
     ex = db.query(Exercise).one()
-    assert ex.id == 1
-    assert ex.slug == 'supino-reto'
     assert ex.secondary_muscles == []
     assert ex.common_errors == []
     assert ex.cautions == []
@@ -49,11 +65,50 @@ def test_cria_exercicio_com_defaults():
     assert ex.media == []
     assert ex.is_active is True
     assert ex.instructions is None
-    assert ex.created_at is not None
-    assert ex.updated_at is not None
 
 
-def test_slug_unico():
+def test_listas_nao_sao_compartilhadas_entre_instancias():
+    db = _session()
+    db.add(_valid())
+    db.add(_valid(slug='remada-curvada', name='Remada'))
+    db.commit()
+    db.expire_all()
+    a = db.query(Exercise).filter_by(slug='supino-reto').one()
+    b = db.query(Exercise).filter_by(slug='remada-curvada').one()
+    a.secondary_muscles.append('Triceps')
+    assert b.secondary_muscles == [], 'default mutavel vazou entre instancias'
+    assert a.secondary_muscles is not b.secondary_muscles
+
+
+def test_server_default_de_listas_no_banco():
+    # INSERT cru sem as colunas de lista -> banco preenche '[]' (server_default)
+    eng = _engine()
+    with eng.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO exercises (slug, name, primary_muscle, equipment, level) "
+            "VALUES ('afundo', 'Afundo', 'Quadriceps', 'Peso corporal', 'iniciante')"
+        ))
+    db = _session(eng)
+    ex = db.query(Exercise).filter_by(slug='afundo').one()
+    assert ex.secondary_muscles == []
+    assert ex.media == []
+    assert ex.is_active is True
+
+
+# ---------- constraints no banco ----------
+
+def test_banco_rejeita_level_invalido():
+    # INSERT cru (bypassa validacao Python) -> CHECK constraint do enum rejeita
+    eng = _engine()
+    with pytest.raises(IntegrityError):
+        with eng.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO exercises (slug, name, primary_muscle, equipment, level) "
+                "VALUES ('x', 'X', 'Peito', 'Barra', 'mestre')"
+            ))
+
+
+def test_slug_duplicado_rejeitado():
     db = _session()
     db.add(_valid())
     db.commit()
@@ -62,7 +117,9 @@ def test_slug_unico():
         db.commit()
 
 
-def test_slug_imutavel():
+# ---------- imutabilidade do slug ----------
+
+def test_atribuicao_comum_ao_slug_rejeitada():
     db = _session()
     db.add(_valid())
     db.commit()
@@ -71,20 +128,87 @@ def test_slug_imutavel():
         ex.slug = 'outro-slug'
 
 
-def test_slug_reatribuir_mesmo_valor_nao_falha():
+def test_reatribuir_mesmo_slug_permitido():
     db = _session()
     db.add(_valid())
     db.commit()
     ex = db.query(Exercise).one()
-    ex.slug = 'supino-reto'  # mesmo valor: permitido
+    ex.slug = 'supino-reto'
     db.commit()
 
 
-def test_level_enum_rejeita_valor_invalido():
-    db = _session()
-    db.add(_valid(level='mestre'))
-    with pytest.raises((StatementError, LookupError)):
+@pytest.mark.skipif(
+    not os.getenv('TEST_POSTGRES_URL'),
+    reason='exige PostgreSQL real (defina TEST_POSTGRES_URL); SQLite nao valida trigger plpgsql',
+)
+def test_bulk_update_do_slug_rejeitado_no_postgres():
+    """GARANTIA SO VERIFICAVEL EM POSTGRES REAL: o trigger exercises_slug_immutable
+    rejeita bulk update (que bypassa o listener ORM)."""
+    from migrate import run_migrations
+    eng = create_engine(os.environ['TEST_POSTGRES_URL'])
+    Base.metadata.create_all(eng, tables=[Exercise.__table__])
+    run_migrations(eng)
+    db = _session(eng)
+    try:
+        db.add(_valid(slug='pg-bulk-teste'))
         db.commit()
+        with pytest.raises(DBAPIError):
+            db.query(Exercise).filter_by(slug='pg-bulk-teste').update({'slug': 'mudou'})
+            db.commit()
+    finally:
+        db.rollback()
+        with eng.begin() as conn:
+            conn.execute(text("DELETE FROM exercises WHERE slug = 'pg-bulk-teste'"))
+
+
+# ---------- verificacoes por compilacao/inspecao ----------
+
+def test_ddl_postgres_compila_com_defaults_e_check():
+    from sqlalchemy.dialects import postgresql
+    ddl = str(CreateTable(Exercise.__table__).compile(dialect=postgresql.dialect()))
+    assert "DEFAULT '[]'" in ddl, 'server_default de listas ausente no DDL PostgreSQL'
+    assert 'CHECK' in ddl and 'iniciante' in ddl, 'CHECK constraint do level ausente no DDL'
+    assert 'DEFAULT true' in ddl, 'server_default de is_active ausente no DDL PostgreSQL'
+
+
+def test_trigger_pg_presente_e_guardado_no_migrate():
+    src = open(os.path.join(APP_DIR, 'migrate.py'), encoding='utf-8').read()
+    assert 'exercises_slug_immutable' in src, 'trigger de slug ausente do migrate.py'
+    assert 'trg_exercises_slug_immutable' in src
+    guard_pos = src.find('engine.dialect.name == "postgresql"')
+    trigger_pos = src.find('exercises_slug_immutable')
+    assert 0 <= guard_pos < trigger_pos, 'trigger PG sem guarda de dialeto antes dele'
+
+
+def test_model_e_schema_possuem_timestamps():
+    cols = {c.name for c in Exercise.__table__.columns}
+    assert {'created_at', 'updated_at'} <= cols
+    fields = set(ExerciseResponse.model_fields)
+    assert {'created_at', 'updated_at'} <= fields
+
+
+def test_tabelas_de_plano_intactas():
+    from models.plan import Plan
+    from models.client_plan import ClientPlan
+    assert {c.name for c in Plan.__table__.columns} == {
+        'id', 'client_id', 'onboarding_id', 'training_plan', 'diet_plan',
+        'notes', 'created_at', 'updated_at',
+    }
+    assert {c.name for c in ClientPlan.__table__.columns} == {
+        'id', 'client_id', 'content', 'status', 'created_at',
+    }
+
+
+def test_nenhum_endpoint_de_exercicio_criado():
+    routers_dir = os.path.join(APP_DIR, 'routers')
+    for fname in os.listdir(routers_dir):
+        if not fname.endswith('.py'):
+            continue
+        src = open(os.path.join(routers_dir, fname), encoding='utf-8', errors='ignore').read()
+        assert '/exercises' not in src, f'endpoint de exercises encontrado em routers/{fname}'
+    main_src = open(os.path.join(APP_DIR, 'main.py'), encoding='utf-8', errors='ignore').read()
+    assert 'exercises' not in main_src.lower().replace('base.metadata', ''), \
+        'referencia a exercises em main.py (nao deveria haver endpoint/router)'
 
 
 # ---------- schemas de dominio ----------
@@ -101,14 +225,13 @@ def test_schema_valida_payload_completo():
     assert e.is_active is True
 
 
-def test_schema_defaults_vazios():
-    e = ExerciseBase(slug='remada', name='Remada', primary_muscle='Costas',
-                     equipment='Halter', level='avancado')
-    assert e.secondary_muscles == []
-    assert e.common_errors == []
-    assert e.cautions == []
-    assert e.approved_substitutions == []
-    assert e.media == []
+def test_schema_defaults_vazios_e_nao_compartilhados():
+    e1 = ExerciseBase(slug='remada', name='Remada', primary_muscle='Costas',
+                      equipment='Halter', level='avancado')
+    e2 = ExerciseBase(slug='barra-fixa', name='Barra fixa', primary_muscle='Costas',
+                      equipment='Barra', level='avancado')
+    e1.secondary_muscles.append('Biceps')
+    assert e2.secondary_muscles == []
 
 
 def test_schema_rejeita_level_invalido():
@@ -119,41 +242,3 @@ def test_schema_rejeita_level_invalido():
 def test_schema_rejeita_media_sem_url():
     with pytest.raises(ValidationError):
         ExerciseMedia(type='video')
-
-
-def test_schema_rejeita_obrigatorios_vazios():
-    with pytest.raises(ValidationError):
-        ExerciseBase(slug='', name='X', primary_muscle='Peito', equipment='Barra', level='iniciante')
-
-
-# ---------- migration 002 (ambiente descartavel) ----------
-
-def test_migration_upgrade_e_downgrade(tmp_path):
-    from alembic import command
-    from alembic.config import Config
-
-    app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    db_path = tmp_path / 'disposable.db'
-    url = f'sqlite:///{db_path.as_posix()}'
-
-    cfg = Config(os.path.join(app_dir, 'alembic.ini'))
-    cfg.set_main_option('script_location', os.path.join(app_dir, 'alembic'))
-    cfg.set_main_option('sqlalchemy.url', url)
-
-    # banco descartavel comeca no estado da 001 (sem tocar tabelas existentes)
-    command.stamp(cfg, '001_add_landbot_user_id')
-
-    command.upgrade(cfg, 'head')
-    insp = inspect(create_engine(url))
-    assert 'exercises' in insp.get_table_names()
-    cols = {c['name'] for c in insp.get_columns('exercises')}
-    assert {'id', 'slug', 'name', 'primary_muscle', 'secondary_muscles', 'equipment',
-            'level', 'instructions', 'common_errors', 'cautions',
-            'approved_substitutions', 'media', 'is_active',
-            'created_at', 'updated_at'} <= cols
-    uniques = [i for i in insp.get_indexes('exercises') if i['unique']]
-    assert any('slug' in i['column_names'] for i in uniques)
-
-    command.downgrade(cfg, '001_add_landbot_user_id')
-    insp2 = inspect(create_engine(url))
-    assert 'exercises' not in insp2.get_table_names()

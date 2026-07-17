@@ -166,4 +166,31 @@ def run_migrations(engine):
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+        # --- LIB-002: imutabilidade do slug em exercises (garantia no banco) ---
+        # Especifico desta tabela e idempotente (CREATE OR REPLACE / DROP IF EXISTS).
+        # Roda SOMENTE em PostgreSQL: plpgsql nao existe em SQLite; a protecao
+        # equivalente no ambiente local/dev fica no listener ORM do model.
+        if engine.dialect.name == "postgresql":
+            exercises_slug_guard = [
+                """CREATE OR REPLACE FUNCTION exercises_slug_immutable() RETURNS trigger AS $$
+                BEGIN
+                    IF NEW.slug IS DISTINCT FROM OLD.slug THEN
+                        RAISE EXCEPTION 'exercises.slug e imutavel';
+                    END IF;
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql""",
+                "DROP TRIGGER IF EXISTS trg_exercises_slug_immutable ON exercises",
+                """CREATE TRIGGER trg_exercises_slug_immutable
+                    BEFORE UPDATE OF slug ON exercises
+                    FOR EACH ROW EXECUTE FUNCTION exercises_slug_immutable()""",
+            ]
+            for sql in exercises_slug_guard:
+                try:
+                    conn.execute(text(sql))
+                    conn.commit()
+                except Exception as e:
+                    conn.rollback()
+                    logger.error(f"Erro no guard de slug de exercises: {e}")
     logger.info("Migrations concluidas.")
