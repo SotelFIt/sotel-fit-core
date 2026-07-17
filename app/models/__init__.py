@@ -13,10 +13,11 @@ from models.lead_onboarding import LeadOnboarding
 from models.client_plan import ClientPlan
 from models.client_diet import ClientDiet
 from models.client_checkin import ClientCheckin
+from models.exercise import Exercise
 
 __all__ = [
     'Base', 'Client', 'Onboarding', 'Plan', 'PlanVersion',
     'Diet', 'DietVersion', 'Checkin', 'DecisionLog', 'Subscription',
     'ConversationState', 'LeadOnboarding',
-    'ClientPlan', 'ClientDiet', 'ClientCheckin'
+    'ClientPlan', 'ClientDiet', 'ClientCheckin', 'Exercise'
 ]
