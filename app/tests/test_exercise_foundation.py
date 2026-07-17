@@ -137,13 +137,26 @@ def test_reatribuir_mesmo_slug_permitido():
     db.commit()
 
 
+# SQLSTATE do `RAISE EXCEPTION` sem ERRCODE explicito no plpgsql (raise_exception).
+TRIGGER_SQLSTATE = 'P0001'
+TRIGGER_MESSAGE = 'exercises.slug e imutavel'
+TRIGGER_FUNCTION = 'exercises_slug_immutable'
+
+
 @pytest.mark.skipif(
     not os.getenv('TEST_POSTGRES_URL'),
     reason='exige PostgreSQL real (defina TEST_POSTGRES_URL); SQLite nao valida trigger plpgsql',
 )
 def test_bulk_update_do_slug_rejeitado_no_postgres():
     """GARANTIA SO VERIFICAVEL EM POSTGRES REAL: o trigger exercises_slug_immutable
-    rejeita bulk update (que bypassa o listener ORM)."""
+    rejeita bulk update (que bypassa o listener ORM).
+
+    Exigencia da revisao Codex (LIB-002): um DBAPIError generico NAO conta como
+    sucesso. A falha tem de vir comprovadamente do trigger de imutabilidade -
+    provada pela funcao plpgsql `exercises_slug_immutable` na origem E pela
+    mensagem 'exercises.slug e imutavel' OU pelo SQLSTATE P0001 configurado pelo
+    trigger. Alem disso, o slug NAO pode ter mudado apos o bloqueio.
+    """
     from migrate import run_migrations
     eng = create_engine(os.environ['TEST_POSTGRES_URL'])
     Base.metadata.create_all(eng, tables=[Exercise.__table__])
@@ -152,9 +165,37 @@ def test_bulk_update_do_slug_rejeitado_no_postgres():
     try:
         db.add(_valid(slug='pg-bulk-teste'))
         db.commit()
-        with pytest.raises(DBAPIError):
+
+        with pytest.raises(DBAPIError) as exc_info:
             db.query(Exercise).filter_by(slug='pg-bulk-teste').update({'slug': 'mudou'})
             db.commit()
+        db.rollback()
+
+        # Excecao nativa do driver (psycopg2) por baixo do wrapper do SQLAlchemy.
+        orig = exc_info.value.orig
+        diag = getattr(orig, 'diag', None)
+        sqlstate = (
+            getattr(orig, 'pgcode', None)
+            or getattr(diag, 'sqlstate', None)
+        )
+        primary = getattr(diag, 'message_primary', None) or ''
+        context = getattr(diag, 'context', None) or ''
+        full = f'{orig}\n{context}'  # str(orig) ja inclui o CONTEXT; reforca a checagem
+
+        # (1) A falha veio DO TRIGGER de slug, nao de um erro qualquer do banco.
+        assert TRIGGER_FUNCTION in full, (
+            f'a falha nao foi originada pela funcao {TRIGGER_FUNCTION}; '
+            f'erro real: {full!r}'
+        )
+        # (2) Mensagem esperada OU o SQLSTATE especifico do trigger.
+        assert (TRIGGER_MESSAGE in primary or TRIGGER_MESSAGE in full) \
+            or sqlstate == TRIGGER_SQLSTATE, (
+            f"nem a mensagem '{TRIGGER_MESSAGE}' nem o SQLSTATE "
+            f"{TRIGGER_SQLSTATE} presentes; sqlstate={sqlstate!r} erro={full!r}"
+        )
+        # (3) O bulk update foi efetivamente barrado: slug intacto.
+        assert db.query(Exercise).filter_by(slug='pg-bulk-teste').count() == 1
+        assert db.query(Exercise).filter_by(slug='mudou').count() == 0
     finally:
         db.rollback()
         with eng.begin() as conn:
