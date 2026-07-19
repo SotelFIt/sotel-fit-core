@@ -165,6 +165,13 @@ except Exception as e:
     logger.error(f"Body analysis router nao carregado: {e}")
 app.include_router(audit_router)
 app.include_router(observability_router)
+try:
+    from routers.exercise import public_router as exercises_router, admin_router as exercises_admin_router
+    app.include_router(exercises_router)
+    app.include_router(exercises_admin_router)
+    logger.info("Exercises router (LIB-003) carregado")
+except Exception as e:
+    logger.error(f"Exercises router nao carregado: {e}")
 
 @app.get("/health")
 def health():

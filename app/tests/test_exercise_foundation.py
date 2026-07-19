@@ -240,16 +240,16 @@ def test_tabelas_de_plano_intactas():
     }
 
 
-def test_nenhum_endpoint_de_exercicio_criado():
-    routers_dir = os.path.join(APP_DIR, 'routers')
-    for fname in os.listdir(routers_dir):
-        if not fname.endswith('.py'):
-            continue
-        src = open(os.path.join(routers_dir, fname), encoding='utf-8', errors='ignore').read()
-        assert '/exercises' not in src, f'endpoint de exercises encontrado em routers/{fname}'
+def test_endpoints_de_exercicio_registrados_lib003():
+    """LIB-002 nasceu SEM endpoints (guard original). A LIB-003 adiciona a API da
+    biblioteca; este teste passou a afirmar o oposto: o router de exercicios existe
+    e esta registrado em main.py. Historico do guard preservado no git."""
+    router_path = os.path.join(APP_DIR, 'routers', 'exercise.py')
+    assert os.path.exists(router_path), 'routers/exercise.py (LIB-003) ausente'
+    router_src = open(router_path, encoding='utf-8').read()
+    assert '/exercises' in router_src.replace('prefix="/exercises"', '/exercises')
     main_src = open(os.path.join(APP_DIR, 'main.py'), encoding='utf-8', errors='ignore').read()
-    assert 'exercises' not in main_src.lower().replace('base.metadata', ''), \
-        'referencia a exercises em main.py (nao deveria haver endpoint/router)'
+    assert 'from routers.exercise import' in main_src, 'router de exercises nao registrado em main.py'
 
 
 # ---------- schemas de dominio ----------

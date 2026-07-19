@@ -38,3 +38,32 @@ class ExerciseResponse(ExerciseBase):
 
     class Config:
         from_attributes = True
+
+
+# ---------------- LIB-003 (API) ----------------
+
+class ExerciseCreate(ExerciseBase):
+    """Payload de criacao administrativa. Herda todas as validacoes de campo
+    de ExerciseBase (obrigatorios, enum de nivel, formato de midia)."""
+    pass
+
+
+class ExerciseUpdate(BaseModel):
+    """Edicao administrativa parcial (PATCH). Todos os campos opcionais.
+
+    `slug` e aceito apenas para deteccao explicita de tentativa de alteracao:
+    o endpoint responde 409 se vier diferente do slug do path (slug e imutavel).
+    A desativacao logica e feita via `is_active=false` (sem exclusao fisica).
+    """
+    slug: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1)
+    primary_muscle: Optional[str] = Field(default=None, min_length=1)
+    secondary_muscles: Optional[List[str]] = None
+    equipment: Optional[str] = Field(default=None, min_length=1)
+    level: Optional[ExerciseLevel] = None
+    instructions: Optional[str] = None
+    common_errors: Optional[List[str]] = None
+    cautions: Optional[List[str]] = None
+    approved_substitutions: Optional[List[str]] = None
+    media: Optional[List[ExerciseMedia]] = None
+    is_active: Optional[bool] = None
