@@ -10,7 +10,7 @@
  * Autenticacao admin: mesma convencao do painel existente (localStorage.adminKey
  * enviado como header x-api-key). Nenhuma alteracao de backend/auth/contrato.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -68,9 +68,8 @@ const C = {
 const PAGE_SIZE = 10;
 
 // ---- helpers ----
-const csvToArray = (s: string): string[] =>
-  s.split(",").map((x) => x.trim()).filter(Boolean);
-const arrayToCsv = (a: string[]): string => a.join(", ");
+// Comparacao estrutural previsivel (arrays/objetos) para o PATCH parcial (BLOCKER 3).
+const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 interface FormState {
   slug: string;
@@ -78,10 +77,12 @@ interface FormState {
   primary_muscle: string;
   equipment: string;
   level: Level;
-  secondary_muscles: string;
+  // BLOCKER 2: listas sao arrays reais (nao string com virgula), preservando
+  // itens que contenham virgula (ex.: "Descer rapido, sem controle").
+  secondary_muscles: string[];
   instructions: string;
-  common_errors: string;
-  cautions: string;
+  common_errors: string[];
+  cautions: string[];
   approved_substitutions: string[];
   media: Media[];
   is_active: boolean;
@@ -93,10 +94,10 @@ const emptyForm = (): FormState => ({
   primary_muscle: "",
   equipment: "",
   level: "iniciante",
-  secondary_muscles: "",
+  secondary_muscles: [],
   instructions: "",
-  common_errors: "",
-  cautions: "",
+  common_errors: [],
+  cautions: [],
   approved_substitutions: [],
   media: [],
   is_active: true,
@@ -108,10 +109,10 @@ const formFromExercise = (ex: Exercise): FormState => ({
   primary_muscle: ex.primary_muscle,
   equipment: ex.equipment,
   level: ex.level,
-  secondary_muscles: arrayToCsv(ex.secondary_muscles),
+  secondary_muscles: [...ex.secondary_muscles],
   instructions: ex.instructions ?? "",
-  common_errors: arrayToCsv(ex.common_errors),
-  cautions: arrayToCsv(ex.cautions),
+  common_errors: [...ex.common_errors],
+  cautions: [...ex.cautions],
   approved_substitutions: [...ex.approved_substitutions],
   media: ex.media.map((m) => ({ type: m.type, url: m.url, alt: m.alt ?? "" })),
   is_active: ex.is_active,
@@ -146,6 +147,51 @@ const btn = (bg: string): React.CSSProperties => ({
   fontWeight: 600,
 });
 
+// BLOCKER 2: editor de lista com itens independentes (add/editar/remover).
+// Cada item e um valor proprio; virgulas dentro do item sao preservadas.
+function ItemListEditor({
+  label,
+  items,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  items: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    onChange([...items, v]);
+    setDraft("");
+  };
+  const edit = (i: number, v: string) => onChange(items.map((x, idx) => (idx === i ? v : x)));
+  const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      {items.map((it, i) => (
+        <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "6px" }}>
+          <input style={inputStyle} value={it} onChange={(e) => edit(i, e.target.value)} />
+          <button onClick={() => remove(i)} style={{ ...btn("transparent"), border: `1px solid ${C.red}`, color: C.red }}>×</button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: "8px" }}>
+        <input
+          style={inputStyle}
+          value={draft}
+          placeholder={placeholder || "Adicionar item"}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+        />
+        <button onClick={add} style={{ ...btn("transparent"), border: `1px solid ${C.border}`, color: C.muted }}>+ Item</button>
+      </div>
+    </div>
+  );
+}
+
 export default function ExerciseLibrary() {
   const navigate = useNavigate();
   const adminKey = localStorage.getItem("adminKey");
@@ -161,12 +207,17 @@ export default function ExerciseLibrary() {
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [detail, setDetail] = useState<Exercise | null>(null);
 
+  // BLOCKER 4: id monotonico de requisicao. So a resposta da requisicao mais
+  // recente pode atualizar items/erro/loading — respostas fora de ordem sao descartadas.
+  const reqIdRef = useRef(0);
+
   const headers: Record<string, string> = {
     "x-api-key": adminKey || "",
     "Content-Type": "application/json",
   };
 
   const fetchList = useCallback(async () => {
+    const myId = ++reqIdRef.current;
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -179,12 +230,14 @@ export default function ExerciseLibrary() {
       const res = await fetch(`${API}/exercises${qs ? "?" + qs : ""}`, { headers });
       if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
+      if (myId !== reqIdRef.current) return; // resposta obsoleta: ignora
       setItems(Array.isArray(data) ? data : []);
       setPage(1);
     } catch {
+      if (myId !== reqIdRef.current) return;
       setMsg({ text: "Erro ao carregar exercicios.", type: "error" });
     } finally {
-      setLoading(false);
+      if (myId === reqIdRef.current) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applied]);
@@ -482,6 +535,7 @@ function ExerciseFormModal({
   const [form, setForm] = useState<FormState>(initial ? formFromExercise(initial) : emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [subInput, setSubInput] = useState("");
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -505,13 +559,10 @@ function ExerciseFormModal({
 
   const submit = async () => {
     setError("");
+    setNotice("");
     // validacoes de UX (o backend e a autoridade final)
     if (!form.name.trim() || !form.primary_muscle.trim() || !form.equipment.trim()) {
       setError("Preencha nome, grupo muscular e equipamento.");
-      return;
-    }
-    if (!isEdit && !form.slug.trim()) {
-      setError("Slug e obrigatorio.");
       return;
     }
     const media = form.media
@@ -522,16 +573,16 @@ function ExerciseFormModal({
       return;
     }
 
-    const base = {
+    // Campos editaveis normalizados do estado atual (sem slug, sem substituicoes).
+    const current = {
       name: form.name.trim(),
       primary_muscle: form.primary_muscle.trim(),
       equipment: form.equipment.trim(),
       level: form.level,
-      secondary_muscles: csvToArray(form.secondary_muscles),
+      secondary_muscles: form.secondary_muscles,
       instructions: form.instructions.trim() || null,
-      common_errors: csvToArray(form.common_errors),
-      cautions: csvToArray(form.cautions),
-      approved_substitutions: form.approved_substitutions,
+      common_errors: form.common_errors,
+      cautions: form.cautions,
       media,
       is_active: form.is_active,
     };
@@ -540,16 +591,47 @@ function ExerciseFormModal({
     try {
       let res: Response;
       if (isEdit && initial) {
+        // BLOCKER 3: PATCH PARCIAL — envia apenas campos realmente alterados vs o
+        // snapshot `initial`, evitando sobrescrever mudancas concorrentes.
+        // BLOCKER 1: approved_substitutions NUNCA vai no PATCH (o GET admin devolve
+        // so as ativas; reenviar apagaria as inativas ja salvas). slug tambem nao.
+        const baseline = {
+          name: initial.name,
+          primary_muscle: initial.primary_muscle,
+          equipment: initial.equipment,
+          level: initial.level,
+          secondary_muscles: initial.secondary_muscles,
+          instructions: initial.instructions,
+          common_errors: initial.common_errors,
+          cautions: initial.cautions,
+          media: initial.media.map((m) => ({ type: m.type, url: m.url, alt: m.alt ?? null })),
+          is_active: initial.is_active,
+        };
+        const patch: Record<string, unknown> = {};
+        (Object.keys(current) as (keyof typeof current)[]).forEach((k) => {
+          if (!eq(current[k], baseline[k])) patch[k as string] = current[k];
+        });
+        if (Object.keys(patch).length === 0) {
+          setSaving(false);
+          setNotice("Nenhuma alteracao para salvar.");
+          return;
+        }
         res = await fetch(`${API}/admin/exercises/${encodeURIComponent(initial.slug)}`, {
           method: "PATCH",
           headers,
-          body: JSON.stringify(base),
+          body: JSON.stringify(patch),
         });
       } else {
+        if (!form.slug.trim()) {
+          setSaving(false);
+          setError("Slug e obrigatorio.");
+          return;
+        }
+        // Criacao: envia tudo, INCLUINDO approved_substitutions (BLOCKER 1 nao se aplica).
         res = await fetch(`${API}/admin/exercises`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ slug: form.slug.trim(), ...base }),
+          body: JSON.stringify({ slug: form.slug.trim(), ...current, approved_substitutions: form.approved_substitutions }),
         });
       }
       if (!res.ok) {
@@ -607,8 +689,7 @@ function ExerciseFormModal({
       </div>
 
       <div style={{ marginTop: "12px" }}>
-        <label style={labelStyle}>Musculos secundarios (separados por virgula)</label>
-        <input style={inputStyle} value={form.secondary_muscles} onChange={(e) => set("secondary_muscles", e.target.value)} placeholder="Triceps, Ombro" />
+        <ItemListEditor label="Musculos secundarios" items={form.secondary_muscles} onChange={(v) => set("secondary_muscles", v)} placeholder="Ex: Triceps" />
       </div>
       <div style={{ marginTop: "12px" }}>
         <label style={labelStyle}>Instrucoes</label>
@@ -619,44 +700,49 @@ function ExerciseFormModal({
         />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "12px" }}>
-        <div>
-          <label style={labelStyle}>Erros comuns (virgula)</label>
-          <input style={inputStyle} value={form.common_errors} onChange={(e) => set("common_errors", e.target.value)} />
-        </div>
-        <div>
-          <label style={labelStyle}>Cuidados (virgula)</label>
-          <input style={inputStyle} value={form.cautions} onChange={(e) => set("cautions", e.target.value)} />
-        </div>
+        <ItemListEditor label="Erros comuns" items={form.common_errors} onChange={(v) => set("common_errors", v)} placeholder="Ex: Descer rapido, sem controle" />
+        <ItemListEditor label="Cuidados" items={form.cautions} onChange={(v) => set("cautions", v)} placeholder="Ex: Hernia lombar" />
       </div>
 
-      {/* substituicoes */}
+      {/* substituicoes: editaveis SOMENTE na criacao (BLOCKER 1) */}
       <div style={{ marginTop: "16px", borderTop: `1px solid ${C.border}`, paddingTop: "14px" }}>
         <label style={labelStyle}>Substituicoes aprovadas (slugs)</label>
-        <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-          <input
-            style={inputStyle}
-            list="all-slugs"
-            value={subInput}
-            placeholder="slug do exercicio substituto"
-            onChange={(e) => setSubInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSub(); } }}
-          />
-          <datalist id="all-slugs">
-            {allSlugs.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-          <button onClick={addSub} style={btn(C.accent)}>Adicionar</button>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-          {form.approved_substitutions.map((s) => (
-            <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: "20px", padding: "4px 10px", fontSize: "13px" }}>
-              {s}
-              <span style={{ cursor: "pointer", color: C.red }} onClick={() => removeSub(s)}>×</span>
-            </span>
-          ))}
-          {form.approved_substitutions.length === 0 && <span style={{ color: C.faint, fontSize: "13px" }}>Nenhuma.</span>}
-        </div>
+        {isEdit ? (
+          <p style={{ color: C.faint, fontSize: "13px", margin: 0, lineHeight: 1.5 }}>
+            A edicao de substituicoes esta indisponivel nesta tela. O GET administrativo
+            retorna apenas as substituicoes <strong>ativas</strong>, entao alterar aqui
+            poderia apagar referencias inativas ja salvas. Elas sao preservadas intactas e
+            <strong> nao sao enviadas</strong> nesta edicao.
+          </p>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+              <input
+                style={inputStyle}
+                list="all-slugs"
+                value={subInput}
+                placeholder="slug do exercicio substituto"
+                onChange={(e) => setSubInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSub(); } }}
+              />
+              <datalist id="all-slugs">
+                {allSlugs.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+              <button onClick={addSub} style={btn(C.accent)}>Adicionar</button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {form.approved_substitutions.map((s) => (
+                <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: "20px", padding: "4px 10px", fontSize: "13px" }}>
+                  {s}
+                  <span style={{ cursor: "pointer", color: C.red }} onClick={() => removeSub(s)}>×</span>
+                </span>
+              ))}
+              {form.approved_substitutions.length === 0 && <span style={{ color: C.faint, fontSize: "13px" }}>Nenhuma.</span>}
+            </div>
+          </>
+        )}
       </div>
 
       {/* midia */}
@@ -681,6 +767,7 @@ function ExerciseFormModal({
       </div>
 
       {error && <p style={{ color: "#fca5a5", fontSize: "13px", marginTop: "14px" }}>{error}</p>}
+      {notice && <p style={{ color: C.muted, fontSize: "13px", marginTop: "14px" }}>{notice}</p>}
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "18px" }}>
         <button onClick={onClose} style={{ ...btn("transparent"), border: `1px solid ${C.border}`, color: C.muted }}>Cancelar</button>
