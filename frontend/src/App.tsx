@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import ExerciseLibrary from "./pages/ExerciseLibrary";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -1429,7 +1430,10 @@ function AdminDashboard() {
           <span style={{ fontSize: "20px" }}>⚡</span>
           <h1 style={{ fontSize: "18px", fontWeight: "700" }}>Sotel Fit – Admin</h1>
         </div>
-        <button onClick={logout} style={{ background: "transparent", color: "#94a3b8", border: "1px solid #334155", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>Sair</button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button onClick={() => navigate("/admin/exercises")} style={{ background: "transparent", color: "#94a3b8", border: "1px solid #334155", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>🏋️ Biblioteca de Exercícios</button>
+          <button onClick={logout} style={{ background: "transparent", color: "#94a3b8", border: "1px solid #334155", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>Sair</button>
+        </div>
       </nav>
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 16px" }}>
@@ -1560,6 +1564,7 @@ export default function App() {
         <Route path="/checkin" element={<Checkin />} />
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/exercises" element={<ExerciseLibrary />} />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
