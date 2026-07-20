@@ -8,7 +8,11 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 # slug URL-safe, um unico segmento: sem '/', sem espacos, so caracteres unreserved.
-SLUG_RE = re.compile(r"^[A-Za-z0-9._~-]+$")
+# Sem ancoras: a validacao usa fullmatch (ancora inicio E fim de forma exata),
+# evitando o '$' que aceitaria uma quebra de linha final ("supino\n").
+SLUG_RE = re.compile(r"[A-Za-z0-9._~-]+")
+# Segmentos de path especiais que nunca podem ser slug (traversal).
+SLUG_RESERVED = {".", ".."}
 
 ExerciseLevel = Literal["iniciante", "intermediario", "avancado"]
 
@@ -54,10 +58,12 @@ class ExerciseCreate(ExerciseBase):
     @classmethod
     def _slug_url_safe(cls, v: str) -> str:
         # BLOCKER 3: rejeita slug que inviabiliza a rota ('/', espacos, invalidos).
-        if not SLUG_RE.match(v or ""):
+        # 2a auditoria: fullmatch (nao match/'$', que aceitava '\n' final) e
+        # rejeicao explicita dos segmentos especiais '.' e '..'.
+        if v in SLUG_RESERVED or not SLUG_RE.fullmatch(v or ""):
             raise ValueError(
                 "slug deve ser URL-safe e um unico segmento (apenas letras, numeros "
-                "e '-', '_', '.', '~'; sem '/' nem espacos)"
+                "e '-', '_', '.', '~'; sem '/' nem espacos; '.' e '..' proibidos)"
             )
         return v
 

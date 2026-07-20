@@ -387,6 +387,18 @@ def test_b3_slug_valido_aceito():
     assert _create(slug="supino-reto_v2.1~a").status_code == 201
 
 
+def test_b3_slug_ponto_e_ponto_ponto_422():
+    # 2a auditoria: segmentos especiais '.' e '..' (traversal) sao proibidos.
+    assert _create(slug=".").status_code == 422
+    assert _create(slug="..").status_code == 422
+
+
+def test_b3_slug_quebra_de_linha_final_422():
+    # 2a auditoria: fullmatch impede aceitar '\n' no fim (o '$' aceitava).
+    assert _create(slug="supino\n").status_code == 422
+    assert _create(slug="supino-reto\n").status_code == 422
+
+
 # ---- BLOCKER 4: unicidade garantida no commit (409), nao so no SELECT ----
 
 def test_b4_slug_duplicado_no_commit_409():
