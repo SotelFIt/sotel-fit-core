@@ -11,31 +11,26 @@ sem telas admin, sem cadastro em massa. Nada de client tocado.
 
 Convencao de auth reusada do backend:
   - `verify_dual_auth` -> qualquer autenticado (JWT de cliente OU API key admin).
-  - admin = API key (verify_dual_auth -> 0) ou client_id conhecido de admin,
-    mesma convencao dos demais /admin/* (routers/admin.py: ADMIN_CLIENT_IDS).
+  - admin -> mecanismo OFICIAL `core.security.require_admin` (API key -> 0).
+    (BLOCKER 1 da auditoria: removido o bypass local {0,2}; sem politica nova.)
 """
 import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.security import verify_dual_auth
+from core.security import require_admin, verify_dual_auth
 from models.exercise import Exercise
 from schemas.exercise import ExerciseCreate, ExerciseResponse, ExerciseUpdate
 
 logger = logging.getLogger(__name__)
 
-# Mesma convencao dos demais /admin/* deste backend (routers/admin.py).
-ADMIN_CLIENT_IDS = {0, 2}
-
-
-def require_admin(auth_client_id: int = Depends(verify_dual_auth)) -> int:
-    if auth_client_id not in ADMIN_CLIENT_IDS:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Apenas admin")
-    return auth_client_id
+# Admin desta API == autenticacao administrativa oficial (verify_dual_auth -> 0).
+ADMIN_AUTH_ID = 0
 
 
 public_router = APIRouter(prefix="/exercises", tags=["exercises"])
@@ -115,8 +110,9 @@ def list_exercises(
     is_active: Optional[bool] = Query(None),
     q: Optional[str] = Query(None, description="busca textual em name e slug"),
     db: Session = Depends(get_db),
-    _auth: int = Depends(verify_dual_auth),
+    auth_id: int = Depends(verify_dual_auth),
 ):
+    is_admin = auth_id == ADMIN_AUTH_ID
     query = db.query(Exercise)
     if primary_muscle:
         query = query.filter(func.lower(Exercise.primary_muscle) == primary_muscle.lower())
@@ -124,8 +120,13 @@ def list_exercises(
         query = query.filter(func.lower(Exercise.equipment) == equipment.lower())
     if level:
         query = query.filter(Exercise.level == level)
-    if is_active is not None:
-        query = query.filter(Exercise.is_active.is_(is_active))
+    # BLOCKER 5: cliente comum enxerga SOMENTE ativos (o filtro is_active dele e
+    # ignorado); inativos so aparecem para autenticacao administrativa.
+    if is_admin:
+        if is_active is not None:
+            query = query.filter(Exercise.is_active.is_(is_active))
+    else:
+        query = query.filter(Exercise.is_active.is_(True))
     if q:
         like = f"%{q.lower()}%"
         query = query.filter(
@@ -142,10 +143,12 @@ def list_exercises(
 def get_exercise(
     slug: str,
     db: Session = Depends(get_db),
-    _auth: int = Depends(verify_dual_auth),
+    auth_id: int = Depends(verify_dual_auth),
 ):
+    is_admin = auth_id == ADMIN_AUTH_ID
     ex = db.query(Exercise).filter(Exercise.slug == slug).first()
-    if not ex:
+    # BLOCKER 5: inativo e invisivel para cliente comum (404, como se nao existisse).
+    if not ex or (not is_admin and not ex.is_active):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercicio nao encontrado")
     active = _active_substitution_slugs(db, set(ex.approved_substitutions or []))
     return _public(ex, active)
@@ -180,7 +183,16 @@ def create_exercise(
         is_active=payload.is_active,
     )
     db.add(ex)
-    db.commit()
+    # BLOCKER 4: o SELECT previo e apenas otimizacao; a autoridade da unicidade e
+    # a constraint no commit. Captura a violacao, faz rollback e responde 409
+    # (cobre a corrida em que dois inserts passam pelo SELECT antes do commit).
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"slug ja existe: {payload.slug}"
+        )
     db.refresh(ex)
     logger.info(f"Exercicio criado: slug={ex.slug}")
     return _admin_view(ex)

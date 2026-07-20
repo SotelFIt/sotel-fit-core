@@ -2,9 +2,13 @@
 Schemas de dominio da Biblioteca de Exercicios V1 (LIB-002).
 Validacao dos campos da tabela exercises. Sem endpoints nesta missao.
 """
+import re
 from datetime import datetime
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# slug URL-safe, um unico segmento: sem '/', sem espacos, so caracteres unreserved.
+SLUG_RE = re.compile(r"^[A-Za-z0-9._~-]+$")
 
 ExerciseLevel = Literal["iniciante", "intermediario", "avancado"]
 
@@ -45,7 +49,17 @@ class ExerciseResponse(ExerciseBase):
 class ExerciseCreate(ExerciseBase):
     """Payload de criacao administrativa. Herda todas as validacoes de campo
     de ExerciseBase (obrigatorios, enum de nivel, formato de midia)."""
-    pass
+
+    @field_validator("slug")
+    @classmethod
+    def _slug_url_safe(cls, v: str) -> str:
+        # BLOCKER 3: rejeita slug que inviabiliza a rota ('/', espacos, invalidos).
+        if not SLUG_RE.match(v or ""):
+            raise ValueError(
+                "slug deve ser URL-safe e um unico segmento (apenas letras, numeros "
+                "e '-', '_', '.', '~'; sem '/' nem espacos)"
+            )
+        return v
 
 
 class ExerciseUpdate(BaseModel):
@@ -67,3 +81,19 @@ class ExerciseUpdate(BaseModel):
     approved_substitutions: Optional[List[str]] = None
     media: Optional[List[ExerciseMedia]] = None
     is_active: Optional[bool] = None
+
+    # BLOCKER 2: campos NAO-anulaveis do contrato nao aceitam null explicito.
+    # Omitir o campo => nao altera (exclude_unset no endpoint). Enviar null => 422,
+    # nunca IntegrityError/500 nem estado invalido persistido. `instructions` fica
+    # de fora por ser o unico campo anulavel no model.
+    @field_validator(
+        "slug", "name", "primary_muscle", "secondary_muscles", "equipment",
+        "level", "common_errors", "cautions", "approved_substitutions",
+        "media", "is_active",
+        mode="before",
+    )
+    @classmethod
+    def _reject_explicit_null(cls, v, info):
+        if v is None:
+            raise ValueError(f"{info.field_name} nao pode ser null")
+        return v

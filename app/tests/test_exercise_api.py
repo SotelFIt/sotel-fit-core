@@ -170,6 +170,7 @@ def test_substituicao_valida_aceita():
 # ---------------- listagem / filtros ----------------
 
 def test_filtros_de_listagem():
+    # Filtros vistos por autenticacao admin (enxerga ativos e inativos).
     _create(slug="supino", name="Supino", primary_muscle="Peito",
             equipment="Barra", level="iniciante")
     _create(slug="agacho", name="Agachamento", primary_muscle="Perna",
@@ -177,12 +178,12 @@ def test_filtros_de_listagem():
     _create(slug="rosca", name="Rosca", primary_muscle="Biceps",
             equipment="Halter", level="intermediario", is_active=False)
 
-    assert len(client.get("/exercises", headers=CLIENT_HEADERS).json()) == 3
-    assert len(client.get("/exercises?primary_muscle=Peito", headers=CLIENT_HEADERS).json()) == 1
-    assert len(client.get("/exercises?equipment=Barra", headers=CLIENT_HEADERS).json()) == 2
-    assert len(client.get("/exercises?level=avancado", headers=CLIENT_HEADERS).json()) == 1
-    assert len(client.get("/exercises?is_active=false", headers=CLIENT_HEADERS).json()) == 1
-    assert len(client.get("/exercises?is_active=true", headers=CLIENT_HEADERS).json()) == 2
+    assert len(client.get("/exercises", headers=ADMIN_HEADERS).json()) == 3
+    assert len(client.get("/exercises?primary_muscle=Peito", headers=ADMIN_HEADERS).json()) == 1
+    assert len(client.get("/exercises?equipment=Barra", headers=ADMIN_HEADERS).json()) == 2
+    assert len(client.get("/exercises?level=avancado", headers=ADMIN_HEADERS).json()) == 1
+    assert len(client.get("/exercises?is_active=false", headers=ADMIN_HEADERS).json()) == 1
+    assert len(client.get("/exercises?is_active=true", headers=ADMIN_HEADERS).json()) == 2
 
 
 def test_busca_textual_por_name_e_slug():
@@ -260,9 +261,11 @@ def test_desativacao_logica():
     r = client.patch("/admin/exercises/supino-reto", json={"is_active": False}, headers=ADMIN_HEADERS)
     assert r.status_code == 200
     assert r.json()["is_active"] is False
-    # continua existindo (sem exclusao fisica), apenas fora do filtro ativo
-    assert client.get("/exercises/supino-reto", headers=CLIENT_HEADERS).status_code == 200
-    assert client.get("/exercises?is_active=true", headers=CLIENT_HEADERS).json() == []
+    # continua existindo (sem exclusao fisica): admin ainda consulta o registro.
+    assert client.get("/exercises/supino-reto", headers=ADMIN_HEADERS).status_code == 200
+    # cliente comum nao ve mais o inativo (nem no detalhe, nem na listagem).
+    assert client.get("/exercises/supino-reto", headers=CLIENT_HEADERS).status_code == 404
+    assert client.get("/exercises", headers=CLIENT_HEADERS).json() == []
 
 
 def test_edicao_substituicao_invalida_422():
@@ -296,3 +299,144 @@ def test_rotas_existentes_intactas():
 def test_health_responde():
     r = client.get("/health")
     assert r.status_code in (200, 503)  # 503 se o engine real do main nao subir; rota existe
+
+
+# ================================================================
+# Regressoes dos blockers da auditoria Codex (PR #13)
+# ================================================================
+
+# ---- BLOCKER 1: gate administrativo oficial (sem bypass {0,2}) ----
+
+def test_b1_cliente_comum_403():
+    r = _create(as_admin=False)  # JWT de cliente id=99
+    assert r.status_code == 403
+
+
+def test_b1_client_id_2_nao_e_admin():
+    # Prova a remocao do bypass {0,2}: um cliente com id=2 NAO e admin.
+    headers = {"Authorization": f"Bearer {create_access_token(2)}"}
+    r = client.post("/admin/exercises", json=_payload(), headers=headers)
+    assert r.status_code == 403
+
+
+def test_b1_api_administrativa_permitida():
+    r = _create(as_admin=True)  # x-api-key oficial -> 0
+    assert r.status_code == 201
+
+
+# ---- BLOCKER 2: PATCH nunca aceita null em campo nao-anulavel (422) ----
+
+def _patch_null(field, value=None):
+    _create()
+    return client.patch("/admin/exercises/supino-reto", json={field: value}, headers=ADMIN_HEADERS)
+
+
+def test_b2_null_boolean_422():
+    assert _patch_null("is_active").status_code == 422
+
+
+def test_b2_null_string_422():
+    assert _patch_null("name").status_code == 422
+    # e o estado nao foi corrompido: registro segue integro
+    body = client.get("/exercises/supino-reto", headers=ADMIN_HEADERS).json()
+    assert body["name"] == "Supino reto"
+
+
+def test_b2_null_enum_422():
+    assert _patch_null("level").status_code == 422
+
+
+def test_b2_null_lista_json_422():
+    assert _patch_null("secondary_muscles").status_code == 422
+    assert _patch_null("common_errors").status_code == 422
+    assert _patch_null("cautions").status_code == 422
+
+
+def test_b2_null_media_422():
+    assert _patch_null("media").status_code == 422
+
+
+def test_b2_null_substitutions_422():
+    assert _patch_null("approved_substitutions").status_code == 422
+
+
+def test_b2_instructions_aceita_null():
+    # instructions e o unico campo anulavel do model: null e valido (nao 422).
+    _create()
+    r = client.patch("/admin/exercises/supino-reto", json={"instructions": None}, headers=ADMIN_HEADERS)
+    assert r.status_code == 200
+    assert r.json()["instructions"] is None
+
+
+# ---- BLOCKER 3: slug precisa ser URL-safe / segmento unico (422) ----
+
+def test_b3_slug_com_barra_422():
+    assert _create(slug="supino/reto").status_code == 422
+
+
+def test_b3_slug_com_espaco_422():
+    assert _create(slug="supino reto").status_code == 422
+
+
+def test_b3_slug_caracteres_invalidos_422():
+    for ruim in ("supino#1", "supino?x", "supino%20", "acento-ç", "sup\tino"):
+        assert _create(slug=ruim).status_code == 422, ruim
+
+
+def test_b3_slug_valido_aceito():
+    assert _create(slug="supino-reto_v2.1~a").status_code == 201
+
+
+# ---- BLOCKER 4: unicidade garantida no commit (409), nao so no SELECT ----
+
+def test_b4_slug_duplicado_no_commit_409():
+    from unittest.mock import patch
+    assert _create().status_code == 201
+    # Simula a corrida: o SELECT previo NAO enxerga o registro (retorna None),
+    # forcando o caminho a bater na unique constraint no commit -> 409 (nao 500).
+    with patch("sqlalchemy.orm.query.Query.first", return_value=None):
+        r = _create(name="Corrida")
+    assert r.status_code == 409
+    # rollback ocorreu: nao ficou lixo, o slug continua unico.
+    assert len(client.get("/exercises?q=supino-reto", headers=ADMIN_HEADERS).json()) == 1
+
+
+# ---- BLOCKER 5: cliente comum so ve ativos; inativo so por admin ----
+
+def test_b5_cliente_ve_apenas_ativos_na_listagem():
+    _create(slug="ativo", name="Ativo")
+    _create(slug="inativo", name="Inativo", is_active=False)
+    slugs = [e["slug"] for e in client.get("/exercises", headers=CLIENT_HEADERS).json()]
+    assert slugs == ["ativo"]
+
+
+def test_b5_cliente_nao_burla_via_filtro():
+    _create(slug="inativo", name="Inativo", is_active=False)
+    # mesmo pedindo is_active=false, o cliente comum nao recebe inativos.
+    assert client.get("/exercises?is_active=false", headers=CLIENT_HEADERS).json() == []
+
+
+def test_b5_admin_ve_inativos():
+    _create(slug="inativo", name="Inativo", is_active=False)
+    slugs = [e["slug"] for e in client.get("/exercises", headers=ADMIN_HEADERS).json()]
+    assert "inativo" in slugs
+
+
+def test_b5_cliente_detalhe_inativo_404():
+    _create(slug="inativo", name="Inativo", is_active=False)
+    assert client.get("/exercises/inativo", headers=CLIENT_HEADERS).status_code == 404
+
+
+def test_b5_admin_detalhe_inativo_200():
+    _create(slug="inativo", name="Inativo", is_active=False)
+    assert client.get("/exercises/inativo", headers=ADMIN_HEADERS).status_code == 200
+
+
+def test_b5_substituicoes_ativas_preservadas():
+    # comportamento de substituicoes ativas continua valendo (nao regrediu).
+    _create(slug="remada", name="Remada")
+    _create(slug="puxada", name="Puxada")
+    _create(slug="supino-reto", name="Supino", approved_substitutions=["remada", "puxada"])
+    client.patch("/admin/exercises/puxada", json={"is_active": False}, headers=ADMIN_HEADERS)
+    detail = client.get("/exercises/supino-reto", headers=CLIENT_HEADERS).json()
+    assert detail["approved_substitutions"] == ["remada"]
