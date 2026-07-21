@@ -149,13 +149,34 @@ def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
 
 @router.get("/{client_id}/plan")
 def get_my_plan(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
-    result = db.execute(
-        text("SELECT published_content FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
-        {"cid": client_id}
-    ).fetchone()
+    # LIB-005: seleciona tambem o enriquecimento; fallback para bancos sem a coluna.
+    try:
+        result = db.execute(
+            text("SELECT published_content, enrichment_json FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+            {"cid": client_id}
+        ).fetchone()
+    except Exception:
+        db.rollback()
+        result = db.execute(
+            text("SELECT published_content FROM client_plans WHERE client_id = :cid AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
+            {"cid": client_id}
+        ).fetchone()
     if not result or not result[0]:
         return {"content": "Plano em preparação. Aguarde a liberação do seu personal."}
-    return {"content": result[0]}
+    # `content` INALTERADO (contrato antigo preservado). exercises[]/coverage sao
+    # ADITIVOS e OPCIONAIS: ausentes em planos antigos / sem enriquecimento.
+    payload = {"content": result[0]}
+    try:
+        enr_raw = result[1] if len(result) > 1 else None
+        if enr_raw:
+            import json as _json
+            enr = _json.loads(enr_raw)
+            if isinstance(enr, dict) and enr.get("exercises"):
+                payload["exercises"] = enr["exercises"]
+                payload["coverage"] = enr.get("coverage")
+    except Exception:
+        pass
+    return payload
 
 
 @router.get("/{client_id}/diet")

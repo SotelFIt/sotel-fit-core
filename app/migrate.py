@@ -47,6 +47,12 @@ def run_migrations(engine):
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS client_id INTEGER",
             "ALTER TABLE client_plans ADD COLUMN IF NOT EXISTS published_content TEXT",
             "ALTER TABLE client_diets ADD COLUMN IF NOT EXISTS published_content TEXT",
+            # LIB-005 Parte A: aliases na Biblioteca (dominio da Biblioteca).
+            "ALTER TABLE exercises ADD COLUMN IF NOT EXISTS aliases JSON DEFAULT '[]'",
+            # LIB-005 Parte B: enriquecimento paralelo do plano (NAO altera published_content).
+            # Serializado como JSON em TEXT (portavel); idempotencia via source_hash.
+            "ALTER TABLE client_plans ADD COLUMN IF NOT EXISTS enrichment_json TEXT",
+            "ALTER TABLE client_plans ADD COLUMN IF NOT EXISTS enrichment_source_hash TEXT",
         ]
 
         for sql in alterations:

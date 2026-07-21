@@ -423,6 +423,27 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
         logger.error(f"Falha ao publicar plano client_id={client_id}: {e}")
         raise HTTPException(status_code=500, detail="Falha ao publicar plano. Tente novamente.")
 
+    # LIB-005: enriquecimento aditivo do treino publicado. Transacao SEPARADA e
+    # idempotente (source_hash). NUNCA altera published_content e NUNCA bloqueia a
+    # publicacao: qualquer falha e apenas logada (retrocompatibilidade preservada).
+    try:
+        import json as _json
+        from services.exercise_binding import build_enrichment, compute_source_hash
+        _enrichment = build_enrichment(db, plan_safe)
+        db.execute(
+            text("UPDATE client_plans SET enrichment_json = :ej, enrichment_source_hash = :eh WHERE id = :pid"),
+            {"ej": _json.dumps(_enrichment, ensure_ascii=False),
+             "eh": compute_source_hash(plan_safe), "pid": plan[0]},
+        )
+        db.commit()
+        logger.info(
+            f"LIB-005 enriquecimento client_id={client_id} "
+            f"cobertura={_enrichment['coverage']['resolved']}/{_enrichment['coverage']['total']}"
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"LIB-005: enriquecimento nao aplicado client_id={client_id}: {e}")
+
     whatsapp_sent = False
     whatsapp_error = None
     # Camada 2: link identificado por cliente quando USE_MAGIC_LINK=true (fallback: APP_LINK).

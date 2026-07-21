@@ -28,6 +28,7 @@ interface Exercise {
   id: number;
   slug: string;
   name: string;
+  aliases: string[];
   primary_muscle: string;
   secondary_muscles: string[];
   equipment: string;
@@ -74,6 +75,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 interface FormState {
   slug: string;
   name: string;
+  aliases: string[];
   primary_muscle: string;
   equipment: string;
   level: Level;
@@ -91,6 +93,7 @@ interface FormState {
 const emptyForm = (): FormState => ({
   slug: "",
   name: "",
+  aliases: [],
   primary_muscle: "",
   equipment: "",
   level: "iniciante",
@@ -106,6 +109,7 @@ const emptyForm = (): FormState => ({
 const formFromExercise = (ex: Exercise): FormState => ({
   slug: ex.slug,
   name: ex.name,
+  aliases: [...(ex.aliases || [])],
   primary_muscle: ex.primary_muscle,
   equipment: ex.equipment,
   level: ex.level,
@@ -576,6 +580,7 @@ function ExerciseFormModal({
     // Campos editaveis normalizados do estado atual (sem slug, sem substituicoes).
     const current = {
       name: form.name.trim(),
+      aliases: form.aliases,
       primary_muscle: form.primary_muscle.trim(),
       equipment: form.equipment.trim(),
       level: form.level,
@@ -597,6 +602,7 @@ function ExerciseFormModal({
         // so as ativas; reenviar apagaria as inativas ja salvas). slug tambem nao.
         const baseline = {
           name: initial.name,
+          aliases: initial.aliases,
           primary_muscle: initial.primary_muscle,
           equipment: initial.equipment,
           level: initial.level,
@@ -688,6 +694,9 @@ function ExerciseFormModal({
         </div>
       </div>
 
+      <div style={{ marginTop: "12px" }}>
+        <ItemListEditor label="Aliases (sinonimos/variacoes p/ resolucao do plano)" items={form.aliases} onChange={(v) => set("aliases", v)} placeholder="Ex: Puxador Frente" />
+      </div>
       <div style={{ marginTop: "12px" }}>
         <ItemListEditor label="Musculos secundarios" items={form.secondary_muscles} onChange={(v) => set("secondary_muscles", v)} placeholder="Ex: Triceps" />
       </div>

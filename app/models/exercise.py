@@ -23,6 +23,9 @@ class Exercise(Base):
     # slug: identificador estavel, unico e IMUTAVEL (listener ORM + trigger PG no migrate.py)
     slug = Column(String, nullable=False, unique=True, index=True)
     name = Column(String, nullable=False)
+    # aliases: sinonimos/variacoes conhecidas do nome (dominio da Biblioteca).
+    # A resolucao name->slug (LIB-005) casa a forma normalizada contra name + aliases.
+    aliases = Column(JSON, nullable=False, default=list, server_default=text("'[]'"))
     primary_muscle = Column(String, nullable=False)
     secondary_muscles = Column(JSON, nullable=False, default=list, server_default=text("'[]'"))
     equipment = Column(String, nullable=False)
