@@ -1,0 +1,494 @@
+{
+  "12": {
+    "ok": true,
+    "count": 15,
+    "items": [
+      {
+        "name": "Leg Press",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Leg Curl",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Cadeira Extensora",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Prancha Estática",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Abdominal na Máquina",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Supino com Haltere",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Remada Sentada",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Rosca Direta",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Triceps na Corda",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Mobilidade de Coluna Torácica",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Hip Thrust",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Stiff (Perna Reta)",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Leg Press (Ângulo 45°)",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Reverse Sled",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Superman Modificado",
+        "context_path": "Treino C"
+      }
+    ]
+  },
+  "19": {
+    "ok": true,
+    "count": 19,
+    "items": [
+      {
+        "name": "Agachamento livre",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Leg press (se disponível)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Rosca direta unilateral",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Cadeira extensora",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Flexora sentada",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Prancha frontal",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Abdominal máquina",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Supino reto (ou smith machine)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Rosca inversa na barra",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Voador peitoral",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Remada curvada (halter)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Crucifixo polia",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Prancha lateral",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Abdominal declinado",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Caminhada/corrida em esteira: 25",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "- Aquecimento",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "- Desaquecimento",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "- Caminhada 20",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Descanso completo | Opcional: alongamento estático 15",
+        "context_path": "Treino C/Domingo"
+      }
+    ]
+  },
+  "23": {
+    "ok": true,
+    "count": 21,
+    "items": [
+      {
+        "name": "AQUECIMENTO",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "FORÇA - Inferior",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Leg Press (máquina)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Cadeira Extensora",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Cadeira Flexora",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Adutora (máquina)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "CARDIO FINAL",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "AQUECIMENTO",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "FORÇA - Superior",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Supino Máquina (horizontal)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Remada Sentada (máquina)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Pec Deck (máquina)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Rosca Direta (halter ou máquina)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "CARDIO FINAL",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "AQUECIMENTO",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "FORÇA - Global",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Leg Press",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Remada Sentada",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Abdutor (máquina)",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "Supino Máquina",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "CARDIO ESTENDIDO (15",
+        "context_path": "Treino C"
+      }
+    ]
+  },
+  "24": {
+    "ok": true,
+    "count": 11,
+    "items": [
+      {
+        "name": "Supino Reto (Haltere/Barra)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Remada Alta (Barra ou Máquina)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Desenvolvimento Militar (Haltere)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Puxada na Barra (ou Máquina)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Rosca Direta (Barra EZ ou Halteres)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Tríceps Corda (Poleia Alta)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "Agachamento Livre (Barra ou Halteres)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Leg Press (ou Hack)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Rosca Direta (Leg Curl Deitado)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Extensão de Quadríceps (Máquina)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "Panturrilha em Pé (Máquina ou Barra)",
+        "context_path": "Treino B"
+      }
+    ]
+  },
+  "36": {
+    "ok": true,
+    "count": 20,
+    "items": [
+      {
+        "name": "- Agachamento no Smith (máquina)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Leg Press (pés altos)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Cadeira extensora",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Panturrilha em pé (máquina)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Puxada frontal (máquina)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Remada baixa (máquina)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Rosca direta (halter)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Encolhimento (halter)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Supino máquina (smith ou halter)",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "- Voador (máquina)",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "- Rosca inversa (barra)",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "- Desenvolvimento (halter sentado)",
+        "context_path": "Treino C"
+      },
+      {
+        "name": "- Leg Press (repetição do padrão)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Cadeira extensora",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Cadeira abdutora (glúteos/coxa lateral)",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Gêmeos sentado",
+        "context_path": "Treino A"
+      },
+      {
+        "name": "- Puxada frontal",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Remada alta (máquina)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Rosca direta (barra)",
+        "context_path": "Treino B"
+      },
+      {
+        "name": "- Abdominal (máquina)",
+        "context_path": "Treino B"
+      }
+    ]
+  },
+  "SOTEL": {
+    "ok": true,
+    "count": 28,
+    "items": [
+      {
+        "name": "Cadeira Extensora",
+        "context_path": "Treino A/Quadríceps"
+      },
+      {
+        "name": "Passada Alternada",
+        "context_path": "Treino A/Quadríceps"
+      },
+      {
+        "name": "Leg Press",
+        "context_path": "Treino A/Quadríceps"
+      },
+      {
+        "name": "Cadeirinha",
+        "context_path": "Treino A/Quadríceps"
+      },
+      {
+        "name": "Agachamento com Halter",
+        "context_path": "Treino A/Quadríceps"
+      },
+      {
+        "name": "Agachamento com Barra",
+        "context_path": "Treino A/Quadríceps"
+      },
+      {
+        "name": "Puxador Frente",
+        "context_path": "Treino A/Costas"
+      },
+      {
+        "name": "Remada Sentada",
+        "context_path": "Treino A/Costas"
+      },
+      {
+        "name": "Pull Down",
+        "context_path": "Treino A/Costas"
+      },
+      {
+        "name": "Elevação Lateral",
+        "context_path": "Treino A/Deltóide"
+      },
+      {
+        "name": "Cadeira Flexora",
+        "context_path": "Treino B/Posterior"
+      },
+      {
+        "name": "Flexora Unilateral (adaptada na extensora)",
+        "context_path": "Treino B/Posterior"
+      },
+      {
+        "name": "Stiff",
+        "context_path": "Treino B/Posterior"
+      },
+      {
+        "name": "Agachamento Sumô com Halter",
+        "context_path": "Treino B/Posterior"
+      },
+      {
+        "name": "Adutora",
+        "context_path": "Treino B/Posterior"
+      },
+      {
+        "name": "Supino Reto",
+        "context_path": "Treino B/Peito"
+      },
+      {
+        "name": "Crossover",
+        "context_path": "Treino B/Peito"
+      },
+      {
+        "name": "Desenvolvimento com Halteres",
+        "context_path": "Treino B/Ombro anterior"
+      },
+      {
+        "name": "Elevação Frontal Unilateral",
+        "context_path": "Treino B/Ombro anterior"
+      },
+      {
+        "name": "ABDUTORA TÉCNICA",
+        "context_path": "Treino C/Glúteos"
+      },
+      {
+        "name": "Mais",
+        "context_path": "Treino C/Glúteos"
+      },
+      {
+        "name": "Agachamento Búlgaro",
+        "context_path": "Treino C/Glúteos"
+      },
+      {
+        "name": "Glúteo no Cross (extensão unilateral)",
+        "context_path": "Treino C/Glúteos"
+      },
+      {
+        "name": "Abdutor no Cabo",
+        "context_path": "Treino C/Glúteos"
+      },
+      {
+        "name": "Tríceps Corda",
+        "context_path": "Treino C/Braços"
+      },
+      {
+        "name": "Rosca Direta",
+        "context_path": "Treino C/Braços"
+      },
+      {
+        "name": "Tríceps Francês",
+        "context_path": "Treino C/Braços"
+      },
+      {
+        "name": "Rosca Banco Scott ou Rosca Concentrada (conforme equipamento disponível)",
+        "context_path": "Treino C/Braços"
+      }
+    ]
+  }
+}

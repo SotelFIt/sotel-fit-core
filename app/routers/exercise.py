@@ -26,6 +26,7 @@ from core.database import get_db
 from core.security import require_admin, verify_dual_auth
 from models.exercise import Exercise
 from schemas.exercise import ExerciseCreate, ExerciseResponse, ExerciseUpdate
+from services.exercise_resolver import resolve_exercise
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +138,23 @@ def list_exercises(
     all_subs = {s for ex in items for s in (ex.approved_substitutions or [])}
     active = _active_substitution_slugs(db, all_subs)
     return [_public(ex, active) for ex in items]
+
+
+@public_router.get("/resolve")
+def resolve_exercise_name(
+    name: str = Query(..., min_length=1, description="nome livre a resolver contra name+aliases"),
+    db: Session = Depends(get_db),
+    _auth: int = Depends(verify_dual_auth),
+):
+    """Estrutura OFICIAL de resolucao da Biblioteca (consumida pela LIB-005).
+    Casa a forma normalizada de `name` contra name + aliases dos exercicios ativos.
+    200 {slug, match:'canonical'|'alias'}  ·  404 se nao houver identidade canonica.
+    Declarada ANTES de /{slug} para nao ser capturada como slug='resolve'.
+    """
+    hit = resolve_exercise(db, name)
+    if not hit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="sem identidade canonica")
+    return hit
 
 
 @public_router.get("/{slug}", response_model=ExerciseResponse)

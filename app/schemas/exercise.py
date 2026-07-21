@@ -27,6 +27,7 @@ class ExerciseMedia(BaseModel):
 class ExerciseBase(BaseModel):
     slug: str = Field(min_length=1)
     name: str = Field(min_length=1)
+    aliases: List[str] = Field(default_factory=list)
     primary_muscle: str = Field(min_length=1)
     secondary_muscles: List[str] = Field(default_factory=list)
     equipment: str = Field(min_length=1)
@@ -77,6 +78,7 @@ class ExerciseUpdate(BaseModel):
     """
     slug: Optional[str] = None
     name: Optional[str] = Field(default=None, min_length=1)
+    aliases: Optional[List[str]] = None
     primary_muscle: Optional[str] = Field(default=None, min_length=1)
     secondary_muscles: Optional[List[str]] = None
     equipment: Optional[str] = Field(default=None, min_length=1)
@@ -93,7 +95,7 @@ class ExerciseUpdate(BaseModel):
     # nunca IntegrityError/500 nem estado invalido persistido. `instructions` fica
     # de fora por ser o unico campo anulavel no model.
     @field_validator(
-        "slug", "name", "primary_muscle", "secondary_muscles", "equipment",
+        "slug", "name", "aliases", "primary_muscle", "secondary_muscles", "equipment",
         "level", "common_errors", "cautions", "approved_substitutions",
         "media", "is_active",
         mode="before",

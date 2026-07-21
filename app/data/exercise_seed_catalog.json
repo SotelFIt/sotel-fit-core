@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "titulo": "LIB-005 - catalogo minimo de REFERENCIA para curadoria da Biblioteca",
+    "uso": "Dado de referencia para populacao MANUAL via painel admin (LIB-004) ou POST /admin/exercises (LIB-003). NAO e executado automaticamente; NAO ha loader.",
+    "regra_alias": "aliases so incluem variacoes cuja forma normalizada DIFERE do nome canonico (senao seriam redundantes). Typos/ambiguos/contraditorios ficam FORA -> resolvem como unresolved.",
+    "campos_obrigatorios": ["slug", "name", "primary_muscle", "equipment", "level"],
+    "origem": "exercicios recorrentes/inequivocos das fixtures reais (planos 12/19/23/24/36 + Sotel real)"
+  },
+  "exercises": [
+    { "slug": "leg-press", "name": "Leg Press", "aliases": [], "primary_muscle": "quadriceps", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "cadeira-extensora", "name": "Cadeira Extensora", "aliases": ["Extensão de Quadríceps"], "primary_muscle": "quadriceps", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "cadeira-flexora", "name": "Cadeira Flexora", "aliases": ["Flexora sentada"], "primary_muscle": "posterior de coxa", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "agachamento-livre", "name": "Agachamento Livre", "aliases": ["Agachamento com Barra"], "primary_muscle": "quadriceps", "equipment": "barra", "level": "intermediario" },
+    { "slug": "stiff", "name": "Stiff", "aliases": [], "primary_muscle": "posterior de coxa", "equipment": "barra", "level": "intermediario" },
+    { "slug": "hip-thrust", "name": "Hip Thrust", "aliases": [], "primary_muscle": "gluteos", "equipment": "barra", "level": "intermediario" },
+    { "slug": "panturrilha-em-pe", "name": "Panturrilha em Pé", "aliases": [], "primary_muscle": "panturrilha", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "supino-reto", "name": "Supino Reto", "aliases": ["Supino com Haltere"], "primary_muscle": "peito", "equipment": "barra", "level": "iniciante" },
+    { "slug": "supino-maquina", "name": "Supino Máquina", "aliases": [], "primary_muscle": "peito", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "voador", "name": "Voador", "aliases": ["Voador Peitoral", "Pec Deck"], "primary_muscle": "peito", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "remada-sentada", "name": "Remada Sentada", "aliases": ["Remada Baixa"], "primary_muscle": "costas", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "puxada-frontal", "name": "Puxada Frontal", "aliases": ["Puxador Frente", "Pull Down", "Puxada na Barra"], "primary_muscle": "costas", "equipment": "maquina", "level": "iniciante" },
+    { "slug": "remada-alta", "name": "Remada Alta", "aliases": [], "primary_muscle": "costas", "equipment": "barra", "level": "iniciante" },
+    { "slug": "desenvolvimento", "name": "Desenvolvimento com Halteres", "aliases": ["Desenvolvimento", "Desenvolvimento Militar"], "primary_muscle": "ombro", "equipment": "halter", "level": "iniciante" },
+    { "slug": "elevacao-lateral", "name": "Elevação Lateral", "aliases": [], "primary_muscle": "ombro", "equipment": "halter", "level": "iniciante" },
+    { "slug": "rosca-direta", "name": "Rosca Direta", "aliases": ["Rosca Direta Unilateral"], "primary_muscle": "biceps", "equipment": "barra", "level": "iniciante" },
+    { "slug": "triceps-corda", "name": "Tríceps na Corda", "aliases": ["Tríceps Corda"], "primary_muscle": "triceps", "equipment": "polia", "level": "iniciante" },
+    { "slug": "prancha-frontal", "name": "Prancha Frontal", "aliases": ["Prancha Estática"], "primary_muscle": "core", "equipment": "peso corporal", "level": "iniciante" },
+    { "slug": "abdominal-maquina", "name": "Abdominal na Máquina", "aliases": ["Abdominal Máquina", "Abdominal"], "primary_muscle": "core", "equipment": "maquina", "level": "iniciante" }
+  ]
+}
