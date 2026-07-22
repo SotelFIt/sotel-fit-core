@@ -189,6 +189,7 @@ def create_exercise(
     ex = Exercise(
         slug=payload.slug,
         name=payload.name,
+        aliases=list(payload.aliases),
         primary_muscle=payload.primary_muscle,
         secondary_muscles=list(payload.secondary_muscles),
         equipment=payload.equipment,
