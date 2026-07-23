@@ -3,7 +3,7 @@ LIB-007A - testes do importador seguro (tools/import_exercise_catalog.py).
 
 Sem rede real, sem producao, sem token real. Usa httpx.MockTransport como
 servidor fake da API oficial. Cobre validacao do catalogo, idempotencia,
-recuperacao de ambiguidade, --limit, bloqueio por conflito, seguranca da chave
+recuperacao de ambiguidade, --limit, conflito isolado por exercicio, seguranca da chave
 e a contagem exata do catalogo oficial (25).
 """
 import json
@@ -60,11 +60,23 @@ class FakeApi:
             self.post_calls.append(slug)
             beh = self.post_behaviors.get(slug)
             if beh:
-                b = beh.pop(0)
-                if b == "timeout":
+                step = beh.pop(0)
+                # str legado ("timeout"/"500") ou dict {"code":..,"store":"equal"|"divergent"}
+                if isinstance(step, str):
+                    step = {"code": "timeout" if step == "timeout" else int(step)}
+                store = step.get("store")
+                if store == "equal":
+                    self.insert(payload)               # servidor gravou versao equivalente
+                elif store == "divergent":
+                    d = dict(payload)
+                    d["aliases"] = list(payload.get("aliases", [])) + ["ZZZ Divergente"]
+                    self.insert(d)                     # servidor gravou versao divergente
+                code = step["code"]
+                if code == "timeout":
                     raise httpx.TimeoutException("simulado", request=request)
-                if b == "500":
-                    return httpx.Response(500, json={"detail": "erro"})
+                if code == 201:
+                    return httpx.Response(201, json=self.store[slug])
+                return httpx.Response(code, json={"detail": "beh"})
             if slug in self.store:
                 return httpx.Response(409, json={"detail": f"slug ja existe: {slug}"})
             return httpx.Response(201, json=self.insert(payload))
@@ -289,6 +301,42 @@ def test_19_http_409_divergente_vira_conflict():
     fake.hidden.add("a")
     rep = _run(fake, [_entry("a", "Alfa", aliases=["Novo"])], apply=True)
     assert rep["results"][0]["status"] == "conflict"
+
+
+# --------------- LIB-007A.2: recuperacao de 409/5xx apos retentativa de 5xx --------------- #
+
+def test_a2_1_retry_apos_500_409_equivalente_vira_ambiguous_recovered():
+    fake = FakeApi()
+    fake.post_behaviors["a"] = [{"code": 500}, {"code": 409, "store": "equal"}]
+    rep = _run(fake, [_entry("a", "Alfa")], apply=True)
+    assert rep["results"][0]["status"] == "ambiguous_recovered"
+    assert fake.post_calls == ["a", "a"]  # exatamente 2 POSTs
+
+
+def test_a2_2_retry_apos_500_409_divergente_vira_conflict():
+    fake = FakeApi()
+    fake.post_behaviors["a"] = [{"code": 500}, {"code": 409, "store": "divergent"}]
+    rep = _run(fake, [_entry("a", "Alfa")], apply=True)
+    r = rep["results"][0]
+    assert r["status"] == "conflict"
+    assert "aliases" in r["diffs"]
+    assert fake.post_calls == ["a", "a"]
+
+
+def test_a2_3_retry_apos_500_409_ausente_vira_failed():
+    fake = FakeApi()
+    fake.post_behaviors["a"] = [{"code": 500}, {"code": 409}]  # 409 sem gravar -> GET ausente
+    rep = _run(fake, [_entry("a", "Alfa")], apply=True)
+    assert rep["results"][0]["status"] == "failed"
+    assert fake.post_calls == ["a", "a"]
+
+
+def test_a2_4_retry_apos_500_novo_500_equivalente_ambiguous_sem_terceiro_post():
+    fake = FakeApi()
+    fake.post_behaviors["a"] = [{"code": 500}, {"code": 500, "store": "equal"}]
+    rep = _run(fake, [_entry("a", "Alfa")], apply=True)
+    assert rep["results"][0]["status"] == "ambiguous_recovered"
+    assert fake.post_calls == ["a", "a"]  # nenhum 3o POST
 
 
 def test_20_limit_cria_no_maximo_n():

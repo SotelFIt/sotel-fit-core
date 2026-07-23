@@ -193,60 +193,80 @@ def _classify_after_get(desired: dict, existing: Optional[dict]) -> Optional[str
     return "ambiguous_recovered" if not diff_fields(desired, existing) else "conflict"
 
 
+def _conflict(payload: dict, existing: dict) -> dict:
+    return {"status": "conflict", "diffs": diff_fields(payload, existing)}
+
+
+def _finalize_by_get(client: httpx.Client, payload: dict, *, equal_status: str) -> dict:
+    """GET de confirmacao apos uma resposta: equivalente -> equal_status;
+    divergente -> conflict; ausente -> failed. (nao faz POST)"""
+    existing = get_by_slug(client, payload["slug"])
+    if existing is None:
+        return {"status": "failed", "reason": "GET nao encontrou o slug apos a resposta"}
+    return {"status": equal_status} if not diff_fields(payload, existing) else _conflict(payload, existing)
+
+
+def _classify_or_failed(client: httpx.Client, payload: dict, *, absent_reason: str) -> dict:
+    """GET final quando NAO havera novo POST: equivalente -> ambiguous_recovered;
+    divergente -> conflict; ausente -> failed."""
+    existing = get_by_slug(client, payload["slug"])
+    cls = _classify_after_get(payload, existing)
+    if cls == "conflict":
+        return _conflict(payload, existing)
+    if cls == "ambiguous_recovered":
+        return {"status": "ambiguous_recovered"}
+    return {"status": "failed", "reason": absent_reason}
+
+
+def _retry_once(client: httpx.Client, payload: dict) -> dict:
+    """A UNICA retentativa permitida (2o POST). Interpreta 201/409/5xx/4xx/timeout
+    e NUNCA faz um 3o POST (maximo absoluto de 2 POSTs por slug)."""
+    try:
+        r2 = client.post("/admin/exercises", json=payload)
+    except (httpx.TimeoutException, httpx.TransportError):
+        return _classify_or_failed(client, payload, absent_reason="timeout na 2a tentativa; slug ausente")
+    if r2.status_code == 201:
+        return _finalize_by_get(client, payload, equal_status="created")
+    if r2.status_code == 409:
+        # 409 na retentativa: o 1o POST pode ter sido efetivado apesar do 5xx -> recuperado
+        return _finalize_by_get(client, payload, equal_status="ambiguous_recovered")
+    if r2.status_code >= 500:
+        return _classify_or_failed(client, payload, absent_reason="5xx persistente na 2a tentativa; slug ausente")
+    return {"status": "failed", "reason": f"HTTP {r2.status_code} na 2a tentativa"}
+
+
 def create_one(client: httpx.Client, payload: dict) -> dict:
-    """Cria UM exercicio com semantica segura (Gates 6/7). Nunca faz loop de POST.
-    Retorna {status, ...}. status in:
+    """Cria UM exercicio com semantica segura (Gates 6/7 + LIB-007A.2).
+    NUNCA faz loop; no maximo 2 POSTs por slug. status in:
       created, skipped_equal, ambiguous_recovered, conflict, failed
     """
     slug = payload["slug"]
-
-    def _post():
-        return client.post("/admin/exercises", json=payload)
-
-    # Tentativa 1
     try:
-        r = _post()
+        r = client.post("/admin/exercises", json=payload)
     except (httpx.TimeoutException, httpx.TransportError):
-        # ambiguo: confirma por GET
+        # 1o POST ambiguo por timeout: GET; se recuperavel usa, senao UMA retentativa
         existing = get_by_slug(client, slug)
         cls = _classify_after_get(payload, existing)
-        if cls:
-            return {"status": cls, "diffs": diff_fields(payload, existing) if cls == "conflict" else []}
-        # ausente -> UMA unica retentativa controlada
-        try:
-            r = _post()
-        except (httpx.TimeoutException, httpx.TransportError):
-            return {"status": "failed", "reason": "timeout na 2a tentativa"}
+        if cls == "conflict":
+            return _conflict(payload, existing)
+        if cls == "ambiguous_recovered":
+            return {"status": "ambiguous_recovered"}
+        return _retry_once(client, payload)
 
-    # Interpreta a resposta
     if r.status_code == 201:
-        # confirma por GET (Gate 6 CASO 1)
-        existing = get_by_slug(client, slug)
-        if existing is None:
-            return {"status": "failed", "reason": "201 recebido mas GET nao encontrou o slug"}
-        return {"status": "created"} if not diff_fields(payload, existing) else \
-               {"status": "conflict", "diffs": diff_fields(payload, existing)}
+        return _finalize_by_get(client, payload, equal_status="created")
     if r.status_code == 409:
-        existing = get_by_slug(client, slug)
-        if existing is None:
-            return {"status": "failed", "reason": "409 mas slug ausente no GET"}
-        return {"status": "skipped_equal"} if not diff_fields(payload, existing) else \
-               {"status": "conflict", "diffs": diff_fields(payload, existing)}
+        # Existente na criacao: igual -> skipped_equal; divergente -> conflict
+        return _finalize_by_get(client, payload, equal_status="skipped_equal")
     if r.status_code >= 500:
         existing = get_by_slug(client, slug)
         cls = _classify_after_get(payload, existing)
-        if cls:
-            return {"status": cls, "diffs": diff_fields(payload, existing) if cls == "conflict" else []}
-        try:
-            r2 = _post()
-        except (httpx.TimeoutException, httpx.TransportError):
-            return {"status": "failed", "reason": "timeout na 2a tentativa apos 5xx"}
-        if r2.status_code == 201:
-            existing = get_by_slug(client, slug)
-            return {"status": "created"} if existing and not diff_fields(payload, existing) else \
-                   {"status": "failed", "reason": "pos-retry inconsistente"}
-        return {"status": "failed", "reason": f"5xx persistente ({r2.status_code})"}
-    # 4xx (ex.: 422) e demais -> falha (nao repetir)
+        if cls == "conflict":
+            return _conflict(payload, existing)
+        if cls == "ambiguous_recovered":
+            return {"status": "ambiguous_recovered"}
+        return _retry_once(client, payload)  # ausente -> UNICA retentativa
+    # demais 4xx (ex.: 422) -> failed, sem retentativa
     return {"status": "failed", "reason": f"HTTP {r.status_code}"}
 
 
