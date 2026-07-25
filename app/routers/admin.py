@@ -331,8 +331,25 @@ def get_client_diet(client_id: int, db: Session = Depends(get_db), _: int = Depe
 @router.post("/clients/{client_id}/save-plan")
 def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
+        # Salvar rascunho NAO republica: preserva na nova linha ativa o published_content
+        # (e o enriquecimento) da linha ativa anterior, para o cliente continuar lendo o
+        # plano publicado ate um novo release-plan. Sem isso, salvar "despublicava" o plano.
+        prev = db.execute(
+            text("SELECT published_content, enrichment_json, enrichment_source_hash "
+                 "FROM client_plans WHERE client_id = :cid AND status = 'active' "
+                 "ORDER BY created_at DESC LIMIT 1"),
+            {"cid": client_id},
+        ).fetchone()
+        prev_pub = prev[0] if prev else None
+        prev_enr = prev[1] if prev else None
+        prev_hash = prev[2] if prev else None
         db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-        db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
+        db.execute(
+            text("INSERT INTO client_plans "
+                 "(client_id, content, status, published_content, enrichment_json, enrichment_source_hash, created_at) "
+                 "VALUES (:cid, :content, 'active', :pub, :enr, :hash, NOW())"),
+            {"cid": client_id, "content": payload.content, "pub": prev_pub, "enr": prev_enr, "hash": prev_hash},
+        )
         db.commit()
         audit_log(db, action="save_plan", client_id=client_id, details="treino atualizado")
         return {"status": "ok", "message": "Plano salvo com sucesso"}
@@ -343,8 +360,20 @@ def save_client_plan(client_id: int, payload: SavePlanRequest, db: Session = Dep
 @router.post("/clients/{client_id}/save-diet")
 def save_client_diet(client_id: int, payload: SaveDietRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
+        # Mesmo principio do save-plan: preserva o published_content da dieta ativa anterior
+        # (client_diets nao tem enriquecimento). Salvar rascunho nao republica.
+        prev = db.execute(
+            text("SELECT published_content FROM client_diets WHERE client_id = :cid AND status = 'active' "
+                 "ORDER BY created_at DESC LIMIT 1"),
+            {"cid": client_id},
+        ).fetchone()
+        prev_pub = prev[0] if prev else None
         db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-        db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.content})
+        db.execute(
+            text("INSERT INTO client_diets (client_id, content, status, published_content, created_at) "
+                 "VALUES (:cid, :content, 'active', :pub, NOW())"),
+            {"cid": client_id, "content": payload.content, "pub": prev_pub},
+        )
         db.commit()
         audit_log(db, action="save_diet", client_id=client_id, details="dieta atualizada")
         return {"status": "ok", "message": "Dieta salva com sucesso"}
@@ -355,12 +384,34 @@ def save_client_diet(client_id: int, payload: SaveDietRequest, db: Session = Dep
 @router.post("/clients/{client_id}/save-full-plan")
 def save_full_plan(client_id: int, payload: SaveFullPlanRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
     try:
+        # Mesma preservacao de publicacao do save-plan/save-diet (save nao republica).
         if payload.training_content:
+            prev = db.execute(
+                text("SELECT published_content, enrichment_json, enrichment_source_hash "
+                     "FROM client_plans WHERE client_id = :cid AND status = 'active' "
+                     "ORDER BY created_at DESC LIMIT 1"),
+                {"cid": client_id},
+            ).fetchone()
             db.execute(text("UPDATE client_plans SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-            db.execute(text("INSERT INTO client_plans (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.training_content})
+            db.execute(
+                text("INSERT INTO client_plans "
+                     "(client_id, content, status, published_content, enrichment_json, enrichment_source_hash, created_at) "
+                     "VALUES (:cid, :content, 'active', :pub, :enr, :hash, NOW())"),
+                {"cid": client_id, "content": payload.training_content,
+                 "pub": prev[0] if prev else None, "enr": prev[1] if prev else None, "hash": prev[2] if prev else None},
+            )
         if payload.diet_content:
+            prevd = db.execute(
+                text("SELECT published_content FROM client_diets WHERE client_id = :cid AND status = 'active' "
+                     "ORDER BY created_at DESC LIMIT 1"),
+                {"cid": client_id},
+            ).fetchone()
             db.execute(text("UPDATE client_diets SET status = 'inactive' WHERE client_id = :cid"), {"cid": client_id})
-            db.execute(text("INSERT INTO client_diets (client_id, content, status, created_at) VALUES (:cid, :content, 'active', NOW())"), {"cid": client_id, "content": payload.diet_content})
+            db.execute(
+                text("INSERT INTO client_diets (client_id, content, status, published_content, created_at) "
+                     "VALUES (:cid, :content, 'active', :pub, NOW())"),
+                {"cid": client_id, "content": payload.diet_content, "pub": prevd[0] if prevd else None},
+            )
         db.commit()
         audit_log(db, action="save_full_plan", client_id=client_id, details=f"release={payload.release_to_client}")
         return {"status": "ok", "message": "Plano completo salvo"}
