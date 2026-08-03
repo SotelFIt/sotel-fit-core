@@ -3,7 +3,16 @@
     "sprint": "LIB-007 Sprint 1",
     "count": 25,
     "descricao": "Catalogo oficial da Sprint 1 da Biblioteca de Exercicios. Importado SOMENTE pela API admin oficial via tools/import_exercise_catalog.py (idempotente, dry-run por padrao). NAO e loader de startup.",
+    "taxonomia": {
+      "status": "VOCABULARIO CONTROLADO (LIB-011A) - este catalogo e a FONTE OFICIAL da taxonomia.",
+      "primary_muscle": ["peitoral", "costas", "ombros", "biceps", "triceps", "quadriceps", "posteriores", "gluteos", "panturrilhas", "core"],
+      "equipment": ["peso corporal", "barra", "halteres", "maquina", "cabo"],
+      "level": ["iniciante", "intermediario", "avancado"],
+      "regra": "singular/plural NAO coexistem: use sempre 'halteres' (nunca 'halter'). Valor novo so entra apos decisao do Proprietario.",
+      "travado_por": "app/tests/test_catalog_taxonomy.py"
+    },
     "notas": [
+      "LIB-011A: 'halter' -> 'halteres' em remada-unilateral e triceps-frances (vocabulario controlado). PRODUCAO ainda tem 'halter' nesses dois; o importer os reportara como 'conflict' ate a reconciliacao autorizada pelo Proprietario (escrita em producao NAO foi feita).",
       "flexao-de-bracos ja foi criada manualmente em producao; a ferramenta a trata como existente.",
       "Aliases 'Push Up' e 'Push-Up' colidem sob normalize_name ('push up'); por politica (sem duplicata normalizada) o catalogo mantem apenas 'Push Up'. Em producao a flexao possui os dois, entao a ferramenta reportara flexao-de-bracos como 'conflict' (seguro; nao sobrescreve) ate reconciliacao humana.",
       "supino-reto, supino-inclinado, crucifixo-com-halteres e crossover NAO fazem parte destas 25 entradas.",
@@ -24,7 +33,7 @@
     { "slug": "remada-sentada", "name": "Remada Sentada", "primary_muscle": "costas", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Seated Cable Row", "Remada Baixa", "Remada no Pulley Sentado"] },
     { "slug": "puxada-frontal", "name": "Puxada Frontal", "primary_muscle": "costas", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Puxada Frente", "Lat Pulldown", "Puxada Aberta"] },
     { "slug": "remada-curvada", "name": "Remada Curvada", "primary_muscle": "costas", "equipment": "barra", "level": "intermediario", "is_active": true, "aliases": ["Barbell Row", "Bent Over Row", "Remada Curvada com Barra"] },
-    { "slug": "remada-unilateral", "name": "Remada Unilateral", "primary_muscle": "costas", "equipment": "halter", "level": "intermediario", "is_active": true, "aliases": ["Serrote", "One Arm Dumbbell Row", "Remada com Halter Unilateral"] },
+    { "slug": "remada-unilateral", "name": "Remada Unilateral", "primary_muscle": "costas", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Serrote", "One Arm Dumbbell Row", "Remada com Halter Unilateral"] },
     { "slug": "desenvolvimento", "name": "Desenvolvimento com Halteres", "primary_muscle": "ombros", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Dumbbell Shoulder Press", "Desenvolvimento de Ombros com Halteres", "Press de Ombros com Halteres"] },
     { "slug": "elevacao-lateral", "name": "Elevação Lateral", "primary_muscle": "ombros", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Lateral Raise", "Elevação Lateral com Halteres", "Dumbbell Lateral Raise"] },
     { "slug": "elevacao-frontal", "name": "Elevação Frontal", "primary_muscle": "ombros", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Front Raise", "Elevação Frontal com Halteres", "Dumbbell Front Raise"] },
@@ -33,7 +42,7 @@
     { "slug": "rosca-alternada", "name": "Rosca Alternada", "primary_muscle": "biceps", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Alternating Dumbbell Curl", "Rosca Alternada com Halteres", "Rosca Bíceps Alternada"] },
     { "slug": "rosca-martelo", "name": "Rosca Martelo", "primary_muscle": "biceps", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Hammer Curl", "Rosca Martelo com Halteres", "Rosca Neutra"] },
     { "slug": "triceps-corda", "name": "Tríceps na Corda", "primary_muscle": "triceps", "equipment": "cabo", "level": "iniciante", "is_active": true, "aliases": ["Rope Pushdown", "Tríceps Pulley com Corda", "Tríceps Corda"] },
-    { "slug": "triceps-frances", "name": "Tríceps Francês", "primary_muscle": "triceps", "equipment": "halter", "level": "intermediario", "is_active": true, "aliases": ["Overhead Triceps Extension", "Extensão de Tríceps Acima da Cabeça", "Tríceps Francês com Halter"] },
+    { "slug": "triceps-frances", "name": "Tríceps Francês", "primary_muscle": "triceps", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Overhead Triceps Extension", "Extensão de Tríceps Acima da Cabeça", "Tríceps Francês com Halter"] },
     { "slug": "prancha-frontal", "name": "Prancha Frontal", "primary_muscle": "core", "equipment": "peso corporal", "level": "iniciante", "is_active": true, "aliases": ["Plank", "Front Plank", "Prancha Abdominal"] },
     { "slug": "abdominal-maquina", "name": "Abdominal na Máquina", "primary_muscle": "core", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Machine Crunch", "Crunch na Máquina", "Máquina de Abdominal"] }
   ]
