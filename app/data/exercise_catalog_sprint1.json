@@ -5,50 +5,426 @@
     "descricao": "Catalogo OFICIAL da Biblioteca de Exercicios (fonte unica de identidade e taxonomia). Importado SOMENTE pela API admin oficial via tools/import_exercise_catalog.py (idempotente, dry-run por padrao). NAO e loader de startup. LIB-011B incorporou os 4 exercicios que existiam apenas em producao (crossover, crucifixo-com-halteres, supino-inclinado, supino-reto), copiados EXATAMENTE de GET /exercises, sem inventar alias, musculo secundario, instrucao, midia ou substituicao.",
     "taxonomia": {
       "status": "VOCABULARIO CONTROLADO (LIB-011A) - este catalogo e a FONTE OFICIAL da taxonomia.",
-      "primary_muscle": ["peitoral", "costas", "ombros", "biceps", "triceps", "quadriceps", "posteriores", "gluteos", "panturrilhas", "core"],
-      "equipment": ["peso corporal", "barra", "halteres", "maquina", "cabo"],
-      "level": ["iniciante", "intermediario", "avancado"],
+      "primary_muscle": [
+        "peitoral",
+        "costas",
+        "ombros",
+        "biceps",
+        "triceps",
+        "quadriceps",
+        "posteriores",
+        "gluteos",
+        "panturrilhas",
+        "core"
+      ],
+      "equipment": [
+        "peso corporal",
+        "barra",
+        "halteres",
+        "maquina",
+        "cabo"
+      ],
+      "level": [
+        "iniciante",
+        "intermediario",
+        "avancado"
+      ],
       "regra": "singular/plural NAO coexistem: use sempre 'halteres' (nunca 'halter'). Valor novo so entra apos decisao do Proprietario.",
       "travado_por": "app/tests/test_catalog_taxonomy.py"
     },
     "notas": [
-      "LIB-011A: 'halter' -> 'halteres' em remada-unilateral e triceps-frances (vocabulario controlado). PRODUCAO ainda tem 'halter' nesses dois; o importer os reportara como 'conflict' ate a reconciliacao autorizada pelo Proprietario (escrita em producao NAO foi feita).",
+      "LIB-011C (2026-08-08): migrados 6 aliases historicos do seed obsoleto (Extensao de Quadriceps, Puxador Frente, Pull Down, Desenvolvimento, Prancha Estatica, Abdominal Maquina) e padronizado o nome 'SUPINO RETO' -> 'Supino Reto'. 5 chaves ficaram AMBIGUAS (decisao do Proprietario) e 'Remada Alta' foi descartada (exigiria criar exercicio novo).",
       "flexao-de-bracos ja foi criada manualmente em producao; a ferramenta a trata como existente.",
-      "Aliases 'Push Up' e 'Push-Up' colidem sob normalize_name ('push up'); por politica (sem duplicata normalizada) o catalogo mantem apenas 'Push Up'. Em producao a flexao possui os dois, entao a ferramenta reportara flexao-de-bracos como 'conflict' (seguro; nao sobrescreve) ate reconciliacao humana.",
-      "supino-reto, supino-inclinado, crucifixo-com-halteres e crossover NAO fazem parte destas 25 entradas.",
-      "Sem approved_substitutions e sem media nesta etapa (defaults vazios)."
+      "Sem approved_substitutions e sem media nesta etapa (defaults vazios).",
+      "Producao e catalogo estao SINCRONIZADOS (LIB-011C, 2026-08-08): importer --dry-run = 29/29 skipped_equal, 0 conflitos."
     ]
   },
   "exercises": [
-    { "slug": "flexao-de-bracos", "name": "Flexão de Braços", "primary_muscle": "peitoral", "equipment": "peso corporal", "level": "iniciante", "is_active": true, "aliases": ["Flexão", "Push Up", "Flexão no Solo"] },
-    { "slug": "leg-press", "name": "Leg Press", "primary_muscle": "quadriceps", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Leg Press 45", "Leg Press Máquina", "Pressão de Pernas"] },
-    { "slug": "cadeira-extensora", "name": "Cadeira Extensora", "primary_muscle": "quadriceps", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Extensora", "Leg Extension", "Extensão de Joelhos"] },
-    { "slug": "cadeira-flexora", "name": "Cadeira Flexora", "primary_muscle": "posteriores", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Flexora Sentada", "Seated Leg Curl", "Leg Curl Sentado"] },
-    { "slug": "agachamento-livre", "name": "Agachamento Livre", "primary_muscle": "quadriceps", "equipment": "barra", "level": "avancado", "is_active": true, "aliases": ["Agachamento com Barra", "Back Squat", "Barbell Squat"] },
-    { "slug": "stiff", "name": "Stiff", "primary_muscle": "posteriores", "equipment": "barra", "level": "intermediario", "is_active": true, "aliases": ["Stiff com Barra", "Levantamento Terra Romeno", "Romanian Deadlift"] },
-    { "slug": "hip-thrust", "name": "Hip Thrust", "primary_muscle": "gluteos", "equipment": "barra", "level": "intermediario", "is_active": true, "aliases": ["Elevação Pélvica", "Elevação de Quadril", "Barbell Hip Thrust"] },
-    { "slug": "panturrilha-em-pe", "name": "Panturrilha em Pé", "primary_muscle": "panturrilhas", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Standing Calf Raise", "Elevação de Panturrilha em Pé", "Gêmeos em Pé"] },
-    { "slug": "supino-maquina", "name": "Supino Máquina", "primary_muscle": "peitoral", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Chest Press", "Supino na Máquina", "Machine Chest Press"] },
-    { "slug": "voador", "name": "Voador", "primary_muscle": "peitoral", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Pec Deck", "Voador Peitoral", "Fly na Máquina"] },
-    { "slug": "remada-sentada", "name": "Remada Sentada", "primary_muscle": "costas", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Seated Cable Row", "Remada Baixa", "Remada no Pulley Sentado"] },
-    { "slug": "puxada-frontal", "name": "Puxada Frontal", "primary_muscle": "costas", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Puxada Frente", "Lat Pulldown", "Puxada Aberta"] },
-    { "slug": "remada-curvada", "name": "Remada Curvada", "primary_muscle": "costas", "equipment": "barra", "level": "intermediario", "is_active": true, "aliases": ["Barbell Row", "Bent Over Row", "Remada Curvada com Barra"] },
-    { "slug": "remada-unilateral", "name": "Remada Unilateral", "primary_muscle": "costas", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Serrote", "One Arm Dumbbell Row", "Remada com Halter Unilateral"] },
-    { "slug": "desenvolvimento", "name": "Desenvolvimento com Halteres", "primary_muscle": "ombros", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Dumbbell Shoulder Press", "Desenvolvimento de Ombros com Halteres", "Press de Ombros com Halteres"] },
-    { "slug": "elevacao-lateral", "name": "Elevação Lateral", "primary_muscle": "ombros", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Lateral Raise", "Elevação Lateral com Halteres", "Dumbbell Lateral Raise"] },
-    { "slug": "elevacao-frontal", "name": "Elevação Frontal", "primary_muscle": "ombros", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Front Raise", "Elevação Frontal com Halteres", "Dumbbell Front Raise"] },
-    { "slug": "face-pull", "name": "Face Pull", "primary_muscle": "ombros", "equipment": "cabo", "level": "intermediario", "is_active": true, "aliases": ["Puxada para o Rosto", "Face Pull com Corda", "Cable Face Pull"] },
-    { "slug": "rosca-direta", "name": "Rosca Direta", "primary_muscle": "biceps", "equipment": "barra", "level": "iniciante", "is_active": true, "aliases": ["Rosca com Barra", "Barbell Curl", "Rosca Direta com Barra"] },
-    { "slug": "rosca-alternada", "name": "Rosca Alternada", "primary_muscle": "biceps", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Alternating Dumbbell Curl", "Rosca Alternada com Halteres", "Rosca Bíceps Alternada"] },
-    { "slug": "rosca-martelo", "name": "Rosca Martelo", "primary_muscle": "biceps", "equipment": "halteres", "level": "iniciante", "is_active": true, "aliases": ["Hammer Curl", "Rosca Martelo com Halteres", "Rosca Neutra"] },
-    { "slug": "triceps-corda", "name": "Tríceps na Corda", "primary_muscle": "triceps", "equipment": "cabo", "level": "iniciante", "is_active": true, "aliases": ["Rope Pushdown", "Tríceps Pulley com Corda", "Tríceps Corda"] },
-    { "slug": "triceps-frances", "name": "Tríceps Francês", "primary_muscle": "triceps", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Overhead Triceps Extension", "Extensão de Tríceps Acima da Cabeça", "Tríceps Francês com Halter"] },
-    { "slug": "prancha-frontal", "name": "Prancha Frontal", "primary_muscle": "core", "equipment": "peso corporal", "level": "iniciante", "is_active": true, "aliases": ["Plank", "Front Plank", "Prancha Abdominal"] },
-    { "slug": "abdominal-maquina", "name": "Abdominal na Máquina", "primary_muscle": "core", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Machine Crunch", "Crunch na Máquina", "Máquina de Abdominal"] },
-
-    { "slug": "crossover", "name": "Crossover", "primary_muscle": "peitoral", "equipment": "cabo", "level": "intermediario", "is_active": true, "aliases": ["Crossover no Cabo", "Cable Crossover", "Crucifixo no Cabo", "Cross Over"] },
-    { "slug": "crucifixo-com-halteres", "name": "Crucifixo com Halteres", "primary_muscle": "peitoral", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Crucifixo Reto com Halteres", "Dumbbell Fly", "Dumbbell Chest Fly", "Supino Crucifixo"] },
-    { "slug": "supino-inclinado", "name": "Supino Inclinado", "primary_muscle": "peitoral", "equipment": "barra", "level": "avancado", "is_active": true, "aliases": ["Supino Inclinado com Barra", "Incline Bench Press", "Barbell Incline Bench Press"] },
-    { "slug": "supino-reto", "name": "SUPINO RETO", "primary_muscle": "peitoral", "equipment": "barra", "level": "avancado", "is_active": true, "aliases": ["Bench Press", "Supino Barra", "Barbell Bench Press", "Supino Horizontal"] }
+    {
+      "slug": "flexao-de-bracos",
+      "name": "Flexão de Braços",
+      "primary_muscle": "peitoral",
+      "equipment": "peso corporal",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Flexão",
+        "Push Up",
+        "Flexão no Solo"
+      ]
+    },
+    {
+      "slug": "leg-press",
+      "name": "Leg Press",
+      "primary_muscle": "quadriceps",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Leg Press 45",
+        "Leg Press Máquina",
+        "Pressão de Pernas"
+      ]
+    },
+    {
+      "slug": "cadeira-extensora",
+      "name": "Cadeira Extensora",
+      "primary_muscle": "quadriceps",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Extensora",
+        "Leg Extension",
+        "Extensão de Joelhos",
+        "Extensão de Quadríceps"
+      ]
+    },
+    {
+      "slug": "cadeira-flexora",
+      "name": "Cadeira Flexora",
+      "primary_muscle": "posteriores",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Flexora Sentada",
+        "Seated Leg Curl",
+        "Leg Curl Sentado"
+      ]
+    },
+    {
+      "slug": "agachamento-livre",
+      "name": "Agachamento Livre",
+      "primary_muscle": "quadriceps",
+      "equipment": "barra",
+      "level": "avancado",
+      "is_active": true,
+      "aliases": [
+        "Agachamento com Barra",
+        "Back Squat",
+        "Barbell Squat"
+      ]
+    },
+    {
+      "slug": "stiff",
+      "name": "Stiff",
+      "primary_muscle": "posteriores",
+      "equipment": "barra",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Stiff com Barra",
+        "Levantamento Terra Romeno",
+        "Romanian Deadlift"
+      ]
+    },
+    {
+      "slug": "hip-thrust",
+      "name": "Hip Thrust",
+      "primary_muscle": "gluteos",
+      "equipment": "barra",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Elevação Pélvica",
+        "Elevação de Quadril",
+        "Barbell Hip Thrust"
+      ]
+    },
+    {
+      "slug": "panturrilha-em-pe",
+      "name": "Panturrilha em Pé",
+      "primary_muscle": "panturrilhas",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Standing Calf Raise",
+        "Elevação de Panturrilha em Pé",
+        "Gêmeos em Pé"
+      ]
+    },
+    {
+      "slug": "supino-maquina",
+      "name": "Supino Máquina",
+      "primary_muscle": "peitoral",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Chest Press",
+        "Supino na Máquina",
+        "Machine Chest Press"
+      ]
+    },
+    {
+      "slug": "voador",
+      "name": "Voador",
+      "primary_muscle": "peitoral",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Pec Deck",
+        "Voador Peitoral",
+        "Fly na Máquina"
+      ]
+    },
+    {
+      "slug": "remada-sentada",
+      "name": "Remada Sentada",
+      "primary_muscle": "costas",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Seated Cable Row",
+        "Remada Baixa",
+        "Remada no Pulley Sentado"
+      ]
+    },
+    {
+      "slug": "puxada-frontal",
+      "name": "Puxada Frontal",
+      "primary_muscle": "costas",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Puxada Frente",
+        "Lat Pulldown",
+        "Puxada Aberta",
+        "Puxador Frente",
+        "Pull Down"
+      ]
+    },
+    {
+      "slug": "remada-curvada",
+      "name": "Remada Curvada",
+      "primary_muscle": "costas",
+      "equipment": "barra",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Barbell Row",
+        "Bent Over Row",
+        "Remada Curvada com Barra"
+      ]
+    },
+    {
+      "slug": "remada-unilateral",
+      "name": "Remada Unilateral",
+      "primary_muscle": "costas",
+      "equipment": "halteres",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Serrote",
+        "One Arm Dumbbell Row",
+        "Remada com Halter Unilateral"
+      ]
+    },
+    {
+      "slug": "desenvolvimento",
+      "name": "Desenvolvimento com Halteres",
+      "primary_muscle": "ombros",
+      "equipment": "halteres",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Dumbbell Shoulder Press",
+        "Desenvolvimento de Ombros com Halteres",
+        "Press de Ombros com Halteres",
+        "Desenvolvimento"
+      ]
+    },
+    {
+      "slug": "elevacao-lateral",
+      "name": "Elevação Lateral",
+      "primary_muscle": "ombros",
+      "equipment": "halteres",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Lateral Raise",
+        "Elevação Lateral com Halteres",
+        "Dumbbell Lateral Raise"
+      ]
+    },
+    {
+      "slug": "elevacao-frontal",
+      "name": "Elevação Frontal",
+      "primary_muscle": "ombros",
+      "equipment": "halteres",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Front Raise",
+        "Elevação Frontal com Halteres",
+        "Dumbbell Front Raise"
+      ]
+    },
+    {
+      "slug": "face-pull",
+      "name": "Face Pull",
+      "primary_muscle": "ombros",
+      "equipment": "cabo",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Puxada para o Rosto",
+        "Face Pull com Corda",
+        "Cable Face Pull"
+      ]
+    },
+    {
+      "slug": "rosca-direta",
+      "name": "Rosca Direta",
+      "primary_muscle": "biceps",
+      "equipment": "barra",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Rosca com Barra",
+        "Barbell Curl",
+        "Rosca Direta com Barra"
+      ]
+    },
+    {
+      "slug": "rosca-alternada",
+      "name": "Rosca Alternada",
+      "primary_muscle": "biceps",
+      "equipment": "halteres",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Alternating Dumbbell Curl",
+        "Rosca Alternada com Halteres",
+        "Rosca Bíceps Alternada"
+      ]
+    },
+    {
+      "slug": "rosca-martelo",
+      "name": "Rosca Martelo",
+      "primary_muscle": "biceps",
+      "equipment": "halteres",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Hammer Curl",
+        "Rosca Martelo com Halteres",
+        "Rosca Neutra"
+      ]
+    },
+    {
+      "slug": "triceps-corda",
+      "name": "Tríceps na Corda",
+      "primary_muscle": "triceps",
+      "equipment": "cabo",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Rope Pushdown",
+        "Tríceps Pulley com Corda",
+        "Tríceps Corda"
+      ]
+    },
+    {
+      "slug": "triceps-frances",
+      "name": "Tríceps Francês",
+      "primary_muscle": "triceps",
+      "equipment": "halteres",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Overhead Triceps Extension",
+        "Extensão de Tríceps Acima da Cabeça",
+        "Tríceps Francês com Halter"
+      ]
+    },
+    {
+      "slug": "prancha-frontal",
+      "name": "Prancha Frontal",
+      "primary_muscle": "core",
+      "equipment": "peso corporal",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Plank",
+        "Front Plank",
+        "Prancha Abdominal",
+        "Prancha Estática"
+      ]
+    },
+    {
+      "slug": "abdominal-maquina",
+      "name": "Abdominal na Máquina",
+      "primary_muscle": "core",
+      "equipment": "maquina",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": [
+        "Machine Crunch",
+        "Crunch na Máquina",
+        "Máquina de Abdominal",
+        "Abdominal Máquina"
+      ]
+    },
+    {
+      "slug": "crossover",
+      "name": "Crossover",
+      "primary_muscle": "peitoral",
+      "equipment": "cabo",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Crossover no Cabo",
+        "Cable Crossover",
+        "Crucifixo no Cabo",
+        "Cross Over"
+      ]
+    },
+    {
+      "slug": "crucifixo-com-halteres",
+      "name": "Crucifixo com Halteres",
+      "primary_muscle": "peitoral",
+      "equipment": "halteres",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Crucifixo Reto com Halteres",
+        "Dumbbell Fly",
+        "Dumbbell Chest Fly",
+        "Supino Crucifixo"
+      ]
+    },
+    {
+      "slug": "supino-inclinado",
+      "name": "Supino Inclinado",
+      "primary_muscle": "peitoral",
+      "equipment": "barra",
+      "level": "avancado",
+      "is_active": true,
+      "aliases": [
+        "Supino Inclinado com Barra",
+        "Incline Bench Press",
+        "Barbell Incline Bench Press"
+      ]
+    },
+    {
+      "slug": "supino-reto",
+      "name": "Supino Reto",
+      "primary_muscle": "peitoral",
+      "equipment": "barra",
+      "level": "avancado",
+      "is_active": true,
+      "aliases": [
+        "Bench Press",
+        "Supino Barra",
+        "Barbell Bench Press",
+        "Supino Horizontal"
+      ]
+    }
   ]
 }
