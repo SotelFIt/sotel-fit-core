@@ -43,7 +43,8 @@ ALLOWED_KEYS = set(ExerciseBase.model_fields.keys())  # campos aceitos no payloa
 COMPARE_FIELDS = list(ExerciseBase.model_fields.keys())  # ignora id/created_at/updated_at
 # LIB-011B: 25 da Sprint 1 + 4 incorporados de producao (crossover,
 # crucifixo-com-halteres, supino-inclinado, supino-reto).
-SPRINT1_EXPECTED_COUNT = 29
+# LIB-011D: + remada-alta (novo canonico).
+SPRINT1_EXPECTED_COUNT = 30
 API_KEY_ENV = "SOTEL_ADMIN_API_KEY"
 
 # Timeouts curtos: leitura pode ter retry limitado; POST nunca entra em loop.
