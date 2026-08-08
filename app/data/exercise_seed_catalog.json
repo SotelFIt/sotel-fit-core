@@ -1,5 +1,7 @@
 {
   "_meta": {
+    "OBSOLETO": "LIB-011A: este NAO e o catalogo oficial. Fonte oficial da Biblioteca e da taxonomia = exercise_catalog_sprint1.json. Este arquivo e FIXTURE HISTORICA de teste (app/tests/test_seed_catalog_coverage.py trava numeros de cobertura do Gate 0 sobre ele) e foi PRESERVADO por isso.",
+    "divergencias_conhecidas": "33 campos divergem da producao; usa taxonomia ANTIGA ('posterior de coxa', 'ombro', 'peito', 'halter', 'polia') e contem 'remada-alta', que nao existe em producao. NAO usar como referencia de curadoria nem de vocabulario.",
     "titulo": "LIB-005 - catalogo minimo de REFERENCIA para curadoria da Biblioteca",
     "uso": "Dado de referencia para populacao MANUAL via painel admin (LIB-004) ou POST /admin/exercises (LIB-003). NAO e executado automaticamente; NAO ha loader.",
     "regra_alias": "aliases so incluem variacoes cuja forma normalizada DIFERE do nome canonico (senao seriam redundantes). Typos/ambiguos/contraditorios ficam FORA -> resolvem como unresolved.",
