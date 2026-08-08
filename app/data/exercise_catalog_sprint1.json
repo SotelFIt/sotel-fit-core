@@ -38,7 +38,8 @@
       "LIB-011C (2026-08-08): migrados 6 aliases historicos do seed obsoleto (Extensao de Quadriceps, Puxador Frente, Pull Down, Desenvolvimento, Prancha Estatica, Abdominal Maquina) e padronizado o nome 'SUPINO RETO' -> 'Supino Reto'. 5 chaves ficaram AMBIGUAS (decisao do Proprietario) e 'Remada Alta' foi descartada (exigiria criar exercicio novo).",
       "flexao-de-bracos ja foi criada manualmente em producao; a ferramenta a trata como existente.",
       "Sem approved_substitutions e sem media nesta etapa (defaults vazios).",
-      "Producao e catalogo SINCRONIZADOS (LIB-011E, 2026-08-08): importer --dry-run = 33/33 skipped_equal, 0 conflitos."
+      "Producao e catalogo SINCRONIZADOS (LIB-011E, 2026-08-08): importer --dry-run = 33/33 skipped_equal, 0 conflitos.",
+      "LIB-012A (2026-08-08): KNOWLEDGE LAYER - piloto de 5 exercicios (supino-reto, remada-sentada, leg-press, desenvolvimento, prancha-frontal) com instructions/cautions/common_errors/secondary_muscles preenchidos. Identidade inalterada. Os outros 28 permanecem vazios ate a LIB-012B. Padrao editorial: instructions = 5 passos numerados; cautions = cuidados do movimento; common_errors = erros observaveis; secondary_muscles = vocabulario de _meta.taxonomia.primary_muscle."
     ]
   },
   "exercises": [
@@ -66,6 +67,23 @@
         "Leg Press 45",
         "Leg Press Máquina",
         "Pressão de Pernas"
+      ],
+      "secondary_muscles": [
+        "gluteos",
+        "posteriores"
+      ],
+      "instructions": "1. Sente-se com as costas e o quadril totalmente apoiados no encosto.\n2. Posicione os pes na plataforma na largura dos ombros, com as pontas levemente para fora.\n3. Destrave o carro e flexione os joelhos, descendo a plataforma de forma controlada.\n4. Desca ate o limite em que o quadril permanece apoiado e a lombar nao se descola do encosto.\n5. Empurre a plataforma pelo meio do pe ate quase estender os joelhos, sem travar a articulacao.",
+      "common_errors": [
+        "Descer alem da amplitude que o encosto sustenta, elevando o quadril.",
+        "Empurrar com a ponta dos pes, tirando o calcanhar da plataforma.",
+        "Estender os joelhos com impacto no final do movimento.",
+        "Reduzir a amplitude a ponto de quase nao flexionar os joelhos."
+      ],
+      "cautions": [
+        "Interrompa a descida antes de o quadril rodar e a lombar perder o apoio.",
+        "Mantenha os joelhos alinhados aos pes; nao deixe que caiam para dentro.",
+        "Nao trave os joelhos no final da extensao.",
+        "Nao apoie as maos sobre os joelhos durante o movimento."
       ]
     },
     {
@@ -184,6 +202,22 @@
         "Seated Cable Row",
         "Remada Baixa",
         "Remada no Pulley Sentado"
+      ],
+      "secondary_muscles": [
+        "biceps",
+        "ombros"
+      ],
+      "instructions": "1. Sente-se com os pes apoiados na plataforma e os joelhos levemente flexionados.\n2. Segure o pegador com o tronco ereto e os bracos estendidos, sem deixar os ombros caírem a frente.\n3. Puxe o pegador em direcao ao abdomen, conduzindo os cotovelos para tras e proximos ao tronco.\n4. Aproxime as escapulas no final da puxada e sustente por um instante, sem inclinar o tronco para tras.\n5. Estenda os bracos de forma controlada ate a posicao inicial, mantendo o tronco estavel.",
+      "common_errors": [
+        "Balancar o tronco para frente e para tras para gerar impulso.",
+        "Encolher os ombros em direcao as orelhas durante a puxada.",
+        "Interromper o retorno antes da extensao completa dos bracos.",
+        "Puxar o pegador ate a altura do peito em vez do abdomen."
+      ],
+      "cautions": [
+        "Mantenha a coluna em posicao neutra; nao flexione as costas para acompanhar o peso.",
+        "Conduza o movimento pelos cotovelos, nao apenas pela forca dos bracos.",
+        "Evite estender os joelhos por completo durante a puxada."
       ]
     },
     {
@@ -239,6 +273,24 @@
         "Desenvolvimento de Ombros com Halteres",
         "Press de Ombros com Halteres",
         "Desenvolvimento"
+      ],
+      "secondary_muscles": [
+        "triceps",
+        "core"
+      ],
+      "instructions": "1. Sente-se ou fique em pe com o tronco ereto e o abdomen ativo.\n2. Leve os halteres a altura dos ombros, palmas voltadas para a frente e cotovelos abaixo dos punhos.\n3. Empurre os halteres para cima ate quase estender os cotovelos, aproximando-os acima da cabeca sem encosta-los.\n4. Desca de forma controlada ate os halteres voltarem a altura dos ombros.\n5. Repita mantendo a mesma trajetoria dos dois lados e, ao terminar, apoie os halteres com controle.",
+      "common_errors": [
+        "Arquear a lombar e transformar o movimento em um empurrar inclinado.",
+        "Descer os halteres abaixo da linha dos ombros perdendo o controle.",
+        "Subir os halteres em trajetorias diferentes entre os lados.",
+        "Bater um haltere no outro no final da subida.",
+        "Impulsionar com as pernas em uma execucao que deveria ser estrita."
+      ],
+      "cautions": [
+        "Mantenha a lombar neutra; nao arqueie o tronco para empurrar o peso.",
+        "Nao trave os cotovelos de forma brusca no topo.",
+        "Nao deixe os cotovelos caírem muito atras da linha do corpo na descida.",
+        "Reduza a amplitude ou a carga se nao conseguir manter o tronco alinhado."
       ]
     },
     {
@@ -357,6 +409,22 @@
         "Front Plank",
         "Prancha Abdominal",
         "Prancha Estática"
+      ],
+      "secondary_muscles": [
+        "ombros",
+        "gluteos"
+      ],
+      "instructions": "1. Apoie os antebracos no chao com os cotovelos alinhados abaixo dos ombros.\n2. Estenda as pernas para tras e apoie as pontas dos pes, afastados na largura do quadril.\n3. Contraia abdomen e gluteos ate alinhar tornozelo, quadril, tronco e cabeca.\n4. Sustente a posicao pelo tempo prescrito, respirando de forma continua.\n5. Encerre apoiando os joelhos no chao de forma controlada.",
+      "common_errors": [
+        "Elevar o quadril, transformando a prancha em um 'V' invertido.",
+        "Deixar o quadril cair e perder o alinhamento do tronco.",
+        "Apoiar os cotovelos a frente da linha dos ombros.",
+        "Estender o pescoco olhando para a frente."
+      ],
+      "cautions": [
+        "Interrompa a sustentacao quando o quadril comecar a cair: tempo nao substitui alinhamento.",
+        "Mantenha o pescoco alinhado ao tronco, com o olhar para o chao.",
+        "Nao prenda a respiracao durante a sustentacao."
       ]
     },
     {
@@ -426,6 +494,24 @@
         "Supino Barra",
         "Barbell Bench Press",
         "Supino Horizontal"
+      ],
+      "secondary_muscles": [
+        "triceps",
+        "ombros"
+      ],
+      "instructions": "1. Deite no banco com os pes apoiados no chao e as escapulas retraidas contra o encosto.\n2. Segure a barra um pouco alem da largura dos ombros, com os punhos alinhados aos antebracos.\n3. Retire a barra do suporte e posicione-a sobre a linha do peito, com os cotovelos a cerca de 45 graus do tronco.\n4. Desca a barra de forma controlada ate tocar levemente o peito, sem quicar.\n5. Empurre a barra ate quase estender os cotovelos e, ao final da serie, devolva-a ao suporte.",
+      "common_errors": [
+        "Quicar a barra no peito para ganhar impulso.",
+        "Abrir os cotovelos a 90 graus em relacao ao tronco.",
+        "Elevar o quadril do banco durante a subida.",
+        "Parar a descida em alturas diferentes a cada repeticao.",
+        "Deixar o punho cair para tras da linha do antebraco."
+      ],
+      "cautions": [
+        "Mantenha as escapulas retraidas e apoiadas do inicio ao fim do movimento.",
+        "Preserve o contato do quadril com o banco; nao arqueie a lombar para vencer a carga.",
+        "Nao trave os cotovelos de forma brusca no topo.",
+        "Trabalhe com margem de repeticoes; use suporte de seguranca ou acompanhamento sempre que a carga limitar a execucao."
       ]
     },
     {
