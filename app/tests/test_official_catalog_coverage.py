@@ -14,7 +14,11 @@ POR QUE OS NUMEROS MUDARAM (nao houve regressao de codigo):
 
   Antes (seed)    -> 12:11/15  19:9/19  23:10/21  24:11/11  36:15/20  SOTEL:13/28
   LIB-011B(oficial)-> 12:9/15   19:8/19  23:10/21  24:7/11   36:12/20  SOTEL:13/28  = 59/114 (52%)
-  LIB-011C(atual)  -> 12:10/15  19:9/19  23:10/21  24:8/11   36:13/20  SOTEL:15/28  = 65/114 (57%)
+  LIB-011C         -> 12:10/15  19:9/19  23:10/21  24:8/11   36:13/20  SOTEL:15/28  = 65/114 (57%)
+  LIB-011D(atual)  -> 12:10/15  19:9/19  23:10/21  24:9/11   36:14/20  SOTEL:15/28  = 67/114 (59%)
+
+  LIB-011D (2026-08-08): criou o canonico 'Remada Alta' (2 usos reais, sem
+  equivalente na Biblioteca). Ganho por NOVO CANONICO, nao por alias.
 
   LIB-011C (2026-08-08): migrou 6 das 12 chaves historicas (as inequivocas e sem
   colisao) para o catalogo E para producao, subindo a cobertura de 52% para 57%.
@@ -92,8 +96,8 @@ def test_cobertura_esperada_por_plano_real():
         '12': (10, 15),
         '19': (9, 19),
         '23': (10, 21),
-        '24': (8, 11),
-        '36': (13, 20),
+        '24': (9, 11),
+        '36': (14, 20),
         'SOTEL': (15, 28),
     }
     for k, (res, tot) in esperado.items():
@@ -109,7 +113,7 @@ def test_cobertura_total_consolidada():
     for k in plans:
         cov = build_enrichment(db, plans[k])['coverage']
         r += cov['resolved']; t += cov['total']
-    assert (r, t) == (65, 114), f"cobertura consolidada {r}/{t} != 65/114"
+    assert (r, t) == (67, 114), f"cobertura consolidada {r}/{t} != 67/114"
 
 
 def test_alias_resolve_variacao_conhecida():
@@ -136,6 +140,9 @@ def test_aliases_do_seed_obsoleto_ainda_nao_migrados():
     idx = build_index(db)
     # LIB-011C migrou as inequivocas; aqui ficam SO as classificadas AMBIGUAS,
     # que dependem de decisao do Proprietario (nao inventar alias).
+    # LIB-011D: 'Supino com Haltere', 'Desenvolvimento Militar' e 'Rosca Direta
+    # Unilateral' NAO viraram alias - sao CANDIDATOS A CANONICO PROPRIO (equipamento
+    # e/ou padrao motor distintos). 'Puxada na Barra' e 'Abdominal' seguem genericas.
     nao_migrados = ['Puxada na Barra', 'Abdominal', 'Desenvolvimento Militar',
                     'Supino com Haltere', 'Rosca Direta Unilateral']
     for termo in nao_migrados:

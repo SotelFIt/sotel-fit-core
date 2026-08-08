@@ -119,5 +119,5 @@ def test_campos_obrigatorios_presentes():
 
 def test_quantidade_do_catalogo_oficial():
     cat = _catalog()
-    assert len(cat) == 29, f"catalogo oficial deve ter 29 exercicios (25 Sprint 1 + 4 incorporados na LIB-011B); tem {len(cat)}"
+    assert len(cat) == 30, f"catalogo oficial deve ter 30 exercicios (25 Sprint 1 + 4 na LIB-011B + Remada Alta na LIB-011D); tem {len(cat)}"
 

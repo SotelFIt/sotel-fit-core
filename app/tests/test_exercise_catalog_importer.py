@@ -105,13 +105,13 @@ def _run(fake, entries, **kw):
 
 def test_01_catalogo_oficial_valido():
     catalog = imp.load_catalog(CATALOG_PATH)
-    payloads = imp.validate_catalog(catalog)  # expected_count=29 default (LIB-011B)
-    assert len(payloads) == 29
+    payloads = imp.validate_catalog(catalog)  # expected_count=30 default (LIB-011D)
+    assert len(payloads) == 30
 
 
-def test_25_catalogo_oficial_tem_exatamente_29():
+def test_25_catalogo_oficial_tem_exatamente_30():
     catalog = imp.load_catalog(CATALOG_PATH)
-    assert len(catalog["exercises"]) == 29
+    assert len(catalog["exercises"]) == 30
     with pytest.raises(imp.CatalogError):
         imp.validate_catalog({"exercises": catalog["exercises"][:24]})  # 24 != 25
 
@@ -370,7 +370,7 @@ def test_20b_limit_conta_apenas_criacoes_nao_conflitos():
 def test_prod_cenario_flexao_conflict_demais_criados():
     """Cenario equivalente a producao: flexao-de-bracos existente e divergente
     por aliases; os outros 24 ausentes continuam sendo criados. Usa o catalogo
-    OFICIAL (29) para provar 1 conflict + 28 created, sem skipped_blocked."""
+    OFICIAL (30) para provar 1 conflict + 29 created, sem skipped_blocked."""
     catalog = imp.load_catalog(CATALOG_PATH)
     fake = FakeApi()
     # producao: flexao com o alias redundante extra 'Push-Up'
@@ -382,8 +382,8 @@ def test_prod_cenario_flexao_conflict_demais_criados():
     rep = imp.run_import(_client(fake), catalog, apply=True, base_url="http://mock")
     c = rep["counts"]
     assert c["conflict"] == 1
-    assert rep["created_total"] == 28
-    assert c["created"] == 28
+    assert rep["created_total"] == 29
+    assert c["created"] == 29
     assert "skipped_blocked" not in c
     flex = [r for r in rep["results"] if r["slug"] == "flexao-de-bracos"][0]
     assert flex["status"] == "conflict" and flex["diffs"] == ["aliases"]
