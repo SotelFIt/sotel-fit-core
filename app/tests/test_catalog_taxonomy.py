@@ -1,4 +1,4 @@
-"""
+﻿"""
 LIB-011A - identidade e taxonomia do catalogo OFICIAL da Biblioteca.
 
 Trava, sobre `app/data/exercise_catalog_sprint1.json` (fonte oficial):
@@ -117,6 +117,7 @@ def test_campos_obrigatorios_presentes():
             assert e.get(campo), f"{e.get('slug')}: campo obrigatorio ausente: {campo}"
 
 
-def test_quantidade_do_sprint1_preservada():
+def test_quantidade_do_catalogo_oficial():
     cat = _catalog()
-    assert len(cat) == 25, f"catalogo Sprint 1 deve ter 25 exercicios; tem {len(cat)}"
+    assert len(cat) == 29, f"catalogo oficial deve ter 29 exercicios (25 Sprint 1 + 4 incorporados na LIB-011B); tem {len(cat)}"
+

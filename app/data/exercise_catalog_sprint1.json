@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "sprint": "LIB-007 Sprint 1",
-    "count": 25,
-    "descricao": "Catalogo oficial da Sprint 1 da Biblioteca de Exercicios. Importado SOMENTE pela API admin oficial via tools/import_exercise_catalog.py (idempotente, dry-run por padrao). NAO e loader de startup.",
+    "sprint": "LIB-007 Sprint 1 + LIB-011B",
+    "count": 29,
+    "descricao": "Catalogo OFICIAL da Biblioteca de Exercicios (fonte unica de identidade e taxonomia). Importado SOMENTE pela API admin oficial via tools/import_exercise_catalog.py (idempotente, dry-run por padrao). NAO e loader de startup. LIB-011B incorporou os 4 exercicios que existiam apenas em producao (crossover, crucifixo-com-halteres, supino-inclinado, supino-reto), copiados EXATAMENTE de GET /exercises, sem inventar alias, musculo secundario, instrucao, midia ou substituicao.",
     "taxonomia": {
       "status": "VOCABULARIO CONTROLADO (LIB-011A) - este catalogo e a FONTE OFICIAL da taxonomia.",
       "primary_muscle": ["peitoral", "costas", "ombros", "biceps", "triceps", "quadriceps", "posteriores", "gluteos", "panturrilhas", "core"],
@@ -44,6 +44,11 @@
     { "slug": "triceps-corda", "name": "Tríceps na Corda", "primary_muscle": "triceps", "equipment": "cabo", "level": "iniciante", "is_active": true, "aliases": ["Rope Pushdown", "Tríceps Pulley com Corda", "Tríceps Corda"] },
     { "slug": "triceps-frances", "name": "Tríceps Francês", "primary_muscle": "triceps", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Overhead Triceps Extension", "Extensão de Tríceps Acima da Cabeça", "Tríceps Francês com Halter"] },
     { "slug": "prancha-frontal", "name": "Prancha Frontal", "primary_muscle": "core", "equipment": "peso corporal", "level": "iniciante", "is_active": true, "aliases": ["Plank", "Front Plank", "Prancha Abdominal"] },
-    { "slug": "abdominal-maquina", "name": "Abdominal na Máquina", "primary_muscle": "core", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Machine Crunch", "Crunch na Máquina", "Máquina de Abdominal"] }
+    { "slug": "abdominal-maquina", "name": "Abdominal na Máquina", "primary_muscle": "core", "equipment": "maquina", "level": "iniciante", "is_active": true, "aliases": ["Machine Crunch", "Crunch na Máquina", "Máquina de Abdominal"] },
+
+    { "slug": "crossover", "name": "Crossover", "primary_muscle": "peitoral", "equipment": "cabo", "level": "intermediario", "is_active": true, "aliases": ["Crossover no Cabo", "Cable Crossover", "Crucifixo no Cabo", "Cross Over"] },
+    { "slug": "crucifixo-com-halteres", "name": "Crucifixo com Halteres", "primary_muscle": "peitoral", "equipment": "halteres", "level": "intermediario", "is_active": true, "aliases": ["Crucifixo Reto com Halteres", "Dumbbell Fly", "Dumbbell Chest Fly", "Supino Crucifixo"] },
+    { "slug": "supino-inclinado", "name": "Supino Inclinado", "primary_muscle": "peitoral", "equipment": "barra", "level": "avancado", "is_active": true, "aliases": ["Supino Inclinado com Barra", "Incline Bench Press", "Barbell Incline Bench Press"] },
+    { "slug": "supino-reto", "name": "SUPINO RETO", "primary_muscle": "peitoral", "equipment": "barra", "level": "avancado", "is_active": true, "aliases": ["Bench Press", "Supino Barra", "Barbell Bench Press", "Supino Horizontal"] }
   ]
 }
