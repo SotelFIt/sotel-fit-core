@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "sprint": "LIB-007 Sprint 1 + LIB-011B",
-    "count": 30,
+    "sprint": "LIB-007 Sprint 1 + LIB-011B/D/E",
+    "count": 33,
     "descricao": "Catalogo OFICIAL da Biblioteca de Exercicios (fonte unica de identidade e taxonomia). Importado SOMENTE pela API admin oficial via tools/import_exercise_catalog.py (idempotente, dry-run por padrao). NAO e loader de startup. LIB-011B incorporou os 4 exercicios que existiam apenas em producao (crossover, crucifixo-com-halteres, supino-inclinado, supino-reto), copiados EXATAMENTE de GET /exercises, sem inventar alias, musculo secundario, instrucao, midia ou substituicao.",
     "taxonomia": {
       "status": "VOCABULARIO CONTROLADO (LIB-011A) - este catalogo e a FONTE OFICIAL da taxonomia.",
@@ -33,11 +33,12 @@
       "travado_por": "app/tests/test_catalog_taxonomy.py"
     },
     "notas": [
+      "LIB-011E (2026-08-08): criados 3 canonicos PROPRIOS, autorizados apos auditoria de identidade - supino-com-halteres (alias 'Supino com Haltere', literal do plano 12), desenvolvimento-militar (equipment 'halteres' por evidencia LITERAL do plano 24: 'Desenvolvimento Militar (Haltere)') e rosca-direta-unilateral. Nenhum foi associado como alias de supino-reto/desenvolvimento/rosca-direta. Instructions, cautions, common_errors, midia e substituicoes ficam para a LIB-012. FASE DE IDENTIDADE (LIB-011) ENCERRADA: 33 exercicios, catalogo == producao.",
       "LIB-011D (2026-08-08): criado o canonico 'Remada Alta' (slug remada-alta). Identidade comprovada: 2 usos reais (planos 24 e 36); primary_muscle/equipment/level vindos do registro historico do proprio projeto (exercise_seed_catalog.json). SEM aliases/instructions/midia/substituicoes inventados. Permanecem AMBIGUAS por decisao do Proprietario: 'Supino com Haltere', 'Desenvolvimento Militar' e 'Rosca Direta Unilateral' sao CANDIDATOS A CANONICO PROPRIO (equipamento/padrao motor distintos); 'Puxada na Barra' e 'Abdominal' seguem ambiguas por serem genericas demais.",
       "LIB-011C (2026-08-08): migrados 6 aliases historicos do seed obsoleto (Extensao de Quadriceps, Puxador Frente, Pull Down, Desenvolvimento, Prancha Estatica, Abdominal Maquina) e padronizado o nome 'SUPINO RETO' -> 'Supino Reto'. 5 chaves ficaram AMBIGUAS (decisao do Proprietario) e 'Remada Alta' foi descartada (exigiria criar exercicio novo).",
       "flexao-de-bracos ja foi criada manualmente em producao; a ferramenta a trata como existente.",
       "Sem approved_substitutions e sem media nesta etapa (defaults vazios).",
-      "Producao e catalogo estao SINCRONIZADOS (LIB-011C, 2026-08-08): importer --dry-run = 29/29 skipped_equal, 0 conflitos."
+      "Producao e catalogo SINCRONIZADOS (LIB-011E, 2026-08-08): importer --dry-run = 33/33 skipped_equal, 0 conflitos."
     ]
   },
   "exercises": [
@@ -435,6 +436,35 @@
       "level": "iniciante",
       "is_active": true,
       "aliases": []
+    },
+    {
+      "slug": "desenvolvimento-militar",
+      "name": "Desenvolvimento Militar",
+      "primary_muscle": "ombros",
+      "equipment": "halteres",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": []
+    },
+    {
+      "slug": "rosca-direta-unilateral",
+      "name": "Rosca Direta Unilateral",
+      "primary_muscle": "biceps",
+      "equipment": "halteres",
+      "level": "iniciante",
+      "is_active": true,
+      "aliases": []
+    },
+    {
+      "slug": "supino-com-halteres",
+      "name": "Supino com Halteres",
+      "primary_muscle": "peitoral",
+      "equipment": "halteres",
+      "level": "intermediario",
+      "is_active": true,
+      "aliases": [
+        "Supino com Haltere"
+      ]
     }
   ]
 }
