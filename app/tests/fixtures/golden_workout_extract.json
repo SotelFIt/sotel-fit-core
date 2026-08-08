@@ -126,19 +126,19 @@
         "context_path": "Treino B"
       },
       {
-        "name": "- Caminhada/corrida em esteira: 25",
+        "name": "Caminhada/corrida em esteira: 25",
         "context_path": "Treino C"
       },
       {
-        "name": "- Aquecimento",
+        "name": "Aquecimento",
         "context_path": "Treino C"
       },
       {
-        "name": "- Desaquecimento",
+        "name": "Desaquecimento",
         "context_path": "Treino C"
       },
       {
-        "name": "- Caminhada 20",
+        "name": "Caminhada 20",
         "context_path": "Treino C"
       },
       {
@@ -292,83 +292,83 @@
     "count": 20,
     "items": [
       {
-        "name": "- Agachamento no Smith (máquina)",
+        "name": "Agachamento no Smith (máquina)",
         "context_path": "Treino A"
       },
       {
-        "name": "- Leg Press (pés altos)",
+        "name": "Leg Press (pés altos)",
         "context_path": "Treino A"
       },
       {
-        "name": "- Cadeira extensora",
+        "name": "Cadeira extensora",
         "context_path": "Treino A"
       },
       {
-        "name": "- Panturrilha em pé (máquina)",
+        "name": "Panturrilha em pé (máquina)",
         "context_path": "Treino A"
       },
       {
-        "name": "- Puxada frontal (máquina)",
+        "name": "Puxada frontal (máquina)",
         "context_path": "Treino B"
       },
       {
-        "name": "- Remada baixa (máquina)",
+        "name": "Remada baixa (máquina)",
         "context_path": "Treino B"
       },
       {
-        "name": "- Rosca direta (halter)",
+        "name": "Rosca direta (halter)",
         "context_path": "Treino B"
       },
       {
-        "name": "- Encolhimento (halter)",
+        "name": "Encolhimento (halter)",
         "context_path": "Treino B"
       },
       {
-        "name": "- Supino máquina (smith ou halter)",
+        "name": "Supino máquina (smith ou halter)",
         "context_path": "Treino C"
       },
       {
-        "name": "- Voador (máquina)",
+        "name": "Voador (máquina)",
         "context_path": "Treino C"
       },
       {
-        "name": "- Rosca inversa (barra)",
+        "name": "Rosca inversa (barra)",
         "context_path": "Treino C"
       },
       {
-        "name": "- Desenvolvimento (halter sentado)",
+        "name": "Desenvolvimento (halter sentado)",
         "context_path": "Treino C"
       },
       {
-        "name": "- Leg Press (repetição do padrão)",
+        "name": "Leg Press (repetição do padrão)",
         "context_path": "Treino A"
       },
       {
-        "name": "- Cadeira extensora",
+        "name": "Cadeira extensora",
         "context_path": "Treino A"
       },
       {
-        "name": "- Cadeira abdutora (glúteos/coxa lateral)",
+        "name": "Cadeira abdutora (glúteos/coxa lateral)",
         "context_path": "Treino A"
       },
       {
-        "name": "- Gêmeos sentado",
+        "name": "Gêmeos sentado",
         "context_path": "Treino A"
       },
       {
-        "name": "- Puxada frontal",
+        "name": "Puxada frontal",
         "context_path": "Treino B"
       },
       {
-        "name": "- Remada alta (máquina)",
+        "name": "Remada alta (máquina)",
         "context_path": "Treino B"
       },
       {
-        "name": "- Rosca direta (barra)",
+        "name": "Rosca direta (barra)",
         "context_path": "Treino B"
       },
       {
-        "name": "- Abdominal (máquina)",
+        "name": "Abdominal (máquina)",
         "context_path": "Treino B"
       }
     ]

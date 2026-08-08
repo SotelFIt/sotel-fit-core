@@ -75,6 +75,90 @@ def _titleize(s: str) -> str:
     return (t[0].upper() + t[1:]) if t else t
 
 
+# --- LIB-010A: limpeza do NOME e formatos adicionais ----------------------
+# PARIDADE OBRIGATORIA: cada regra aqui tem equivalente identico no cliente
+# `sotel-client/src/lib/parseWorkout.ts`. Nao evoluir um parser sozinho.
+
+_MD_EMPH = re.compile(r"\*")
+# bullets/hifen/emoji/decor no INICIO do nome (mesma classe do _LEAD_DECOR + hifens)
+_LEAD_BULLET_NAME = re.compile(r"^[\s\U0001F000-\U0001FAFF←-⯿️•*>·#+\-–—]+")
+# celula de repeticoes de tabela com colunas separadas: "12", "12-15", "12 reps"
+REPS_CELL_RE = re.compile(r"^\d+\s*(?:[-–—a]\s*\d+)?\s*(?:rep(?:eti[çc][õo]es|s)?)?$", re.IGNORECASE)
+# celula de series de tabela com colunas separadas: "3", "3-4"
+SETS_CELL_RE = re.compile(r"^\d{1,2}(?:\s*[-–—]\s*\d{1,2})?$")
+
+_PRES_1 = re.compile(r"\d+\s*[x×]\s*\d+(?:\s*[-–—]\s*\d+)?", re.IGNORECASE)
+_PRES_2 = re.compile(r"\d+\s*(?:a|at[ée])\s*\d+", re.IGNORECASE)
+_PRES_3 = re.compile(
+    r"\d+\s*(?:rep(?:eti[çc][õo]es|s)?|s[ée]ries?|series?|segundos?|seg|min(?:utos?)?|passos?|kg)\b",
+    re.IGNORECASE,
+)
+_PRES_4 = re.compile(
+    r"\b(?:descanso|rest|carga|series?|s[ée]ries?|reps?|repeti[çc][õo]es)\b", re.IGNORECASE
+)
+_PRES_5 = re.compile(r"[\d\s|:.,;()\[\]\-–—/×x°%]")
+
+_ENUM_MK = re.compile(r"^\d{1,2}[.)º°]\s+")
+_DASH_MK = re.compile(r"^[-–—]\s+")
+_STAR_MK = re.compile(r"^[*+]\s+")
+_BULLET_MK = re.compile(r"^[•·▶>]\s*")
+_NAME_LETTERS = re.compile(r"[^A-Za-zÀ-ÿ]")
+
+
+def _clean_name(s: str) -> str:
+    """Nome final: sem marcadores Markdown, sem bullet/hifen inicial, sem cauda decorativa.
+    NAO altera a CLASSIFICACAO da linha (que segue usando `_strip_lead`)."""
+    n = _MD_EMPH.sub("", s)
+    n = _LEAD_BULLET_NAME.sub("", n)
+    n = _EX_NAME_TRIM.sub("", n)
+    return n.strip()
+
+
+def _is_pure_prescription(s: str) -> bool:
+    """Linha que e SOMENTE prescricao ("3 x 12-15", "3 series x 12 repeticoes | 60 seg").
+    Guarda rigida da Fase B: exige indicador de reps E ausencia de texto narrativo."""
+    if not s or not REP_RE.search(s):
+        return False
+    rest = _PRES_1.sub(" ", s)
+    rest = _PRES_2.sub(" ", rest)
+    rest = _PRES_3.sub(" ", rest)
+    rest = _PRES_4.sub(" ", rest)
+    rest = _PRES_5.sub("", rest)
+    return len(rest) <= 2
+
+
+def _is_plausible_name(s: str) -> bool:
+    """Nome plausivel para a Fase B (linha sem prescricao propria)."""
+    if not s:
+        return False
+    t = s.strip()
+    if len(t) < 3 or len(t) > 60:
+        return False
+    if t.endswith(":"):
+        return False
+    if re.search(r"\d", re.sub(r"\s+", "", t)):
+        return False
+    return len(_NAME_LETTERS.sub("", t)) >= 3
+
+
+def _lead_info(raw_line: str):
+    """(indent, marker) de uma linha CRUA. Na Fase B exige-se que a prescricao esteja
+    em nivel/marcador DIFERENTE do nome — distingue "nome + prescricao" de LISTA DE DICAS."""
+    indent = len(raw_line) - len(raw_line.lstrip())
+    t = raw_line.strip()
+    if _ENUM_MK.match(t):
+        marker = "enum"
+    elif _DASH_MK.match(t):
+        marker = "dash"
+    elif _STAR_MK.match(t):
+        marker = "star"
+    elif _BULLET_MK.match(t):
+        marker = "bullet"
+    else:
+        marker = "none"
+    return indent, marker
+
+
 def _is_muscle_subheader(s: str) -> bool:
     if not s or re.search(r"\d", s):
         return False
@@ -101,18 +185,27 @@ def _parse_table_row_name(line: str):
         cells.pop()
     if len(cells) < 2:
         return None
-    sets_idx = next((i for i, c in enumerate(cells) if REP_RE.search(c)), -1)
-    if sets_idx <= 0:
+    name = _clean_name(cells[0])
+    if not name or not _HAS_LETTER.search(name):
         return None
-    name = cells[0]
-    return name or None
+
+    sets_idx = next((i for i, c in enumerate(cells) if REP_RE.search(c)), -1)
+    if sets_idx > 0:
+        return name
+
+    # LIB-010A: tabela com colunas SEPARADAS ("| Nome | Series | Reps | Descanso |").
+    # So entra quando o caminho padrao falhou; cabecalho nao casa (celulas sao texto).
+    for i in range(1, len(cells) - 1):
+        if SETS_CELL_RE.match(cells[i]) and REPS_CELL_RE.match(cells[i + 1]):
+            return name
+    return None
 
 
 def _parse_exercise_name(body: str):
     m = REP_RE.search(body)
     if not m:
         return None
-    name = _EX_NAME_TRIM.sub("", body[: m.start()]).strip()
+    name = _clean_name(body[: m.start()])
     if not name or not _HAS_LETTER.search(name):
         return None
     return name
@@ -150,8 +243,14 @@ def extract_exercises(raw: str) -> List[Dict[str, str]]:
         current = {"title": f"Treino {division.upper()}", "sections": []}
         workouts.append(current)
 
-    for raw_line in raw.split("\n"):
-        trimmed = raw_line.replace("\r", "").strip()
+    lines = [l.replace("\r", "") for l in raw.split("\n")]
+    li = -1
+    while True:
+        li += 1
+        if li >= len(lines):
+            break
+        raw_line = lines[li]
+        trimmed = raw_line.strip()
         if not trimmed:
             continue
         led = _strip_lead(trimmed)
@@ -195,6 +294,25 @@ def extract_exercises(raw: str) -> List[Dict[str, str]]:
         if ex:
             push_exercise(cur, ex)
             continue
+
+        # LIB-010A (Fase B): NOME nesta linha, PRESCRICAO na proxima.
+        # Guarda rigida: nome plausivel SEM prescricao propria (o passo acima ja falhou),
+        # proxima linha e prescricao PURA e em nivel/marcador DIFERENTE (evita lista de
+        # dicas do tipo "• Lombar contraida" / "• 15 repeticoes").
+        name_cand = _clean_name(led)
+        if _is_plausible_name(name_cand):
+            nx = li + 1
+            while nx < len(lines) and not lines[nx].strip():
+                nx += 1
+            if nx < len(lines):
+                pres = _strip_lead(lines[nx].strip())
+                ind_a, mk_a = _lead_info(lines[li])
+                ind_b, mk_b = _lead_info(lines[nx])
+                nivel_distinto = ind_b > ind_a or mk_b != mk_a
+                if nivel_distinto and _is_pure_prescription(pres):
+                    push_exercise(cur, name_cand)
+                    li = nx  # consome a linha de prescricao
+                    continue
         # demais linhas: observacao do ultimo exercicio -> ignorada na extracao
 
     items: List[Dict[str, str]] = []
