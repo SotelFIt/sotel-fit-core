@@ -99,8 +99,8 @@ def test_conhecimento_nao_faz_afirmacao_clinica(com_conhecimento):
             assert termo not in blob, f"{e['slug']}: afirmacao clinica {termo!r}"
 
 
-def test_campos_ainda_reservados_a_lib_013_seguem_vazios(catalogo):
-    """approved_substitutions e media pertencem a missoes posteriores."""
+def test_midia_segue_fora_de_escopo(catalogo):
+    """`media` continua reservada a uma missao posterior. `approved_substitutions`
+    saiu desta reserva na LIB-013A e passou a ser coberto por test_substitution_graph.py."""
     for e in catalogo["exercises"]:
-        assert not e.get("approved_substitutions"), f"{e['slug']}: substituicoes fora de escopo"
         assert not e.get("media"), f"{e['slug']}: midia fora de escopo"
