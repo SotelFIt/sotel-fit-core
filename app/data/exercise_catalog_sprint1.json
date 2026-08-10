@@ -39,7 +39,8 @@
       "flexao-de-bracos ja foi criada manualmente em producao; a ferramenta a trata como existente.",
       "Sem approved_substitutions e sem media nesta etapa (defaults vazios).",
       "Producao e catalogo SINCRONIZADOS (LIB-011E, 2026-08-08): importer --dry-run = 33/33 skipped_equal, 0 conflitos.",
-      "LIB-012A (2026-08-08): KNOWLEDGE LAYER - piloto de 5 exercicios (supino-reto, remada-sentada, leg-press, desenvolvimento, prancha-frontal) com instructions/cautions/common_errors/secondary_muscles preenchidos. Identidade inalterada. Os outros 28 permanecem vazios ate a LIB-012B. Padrao editorial: instructions = 5 passos numerados; cautions = cuidados do movimento; common_errors = erros observaveis; secondary_muscles = vocabulario de _meta.taxonomia.primary_muscle."
+      "LIB-012A (2026-08-08): KNOWLEDGE LAYER - piloto de 5 exercicios (supino-reto, remada-sentada, leg-press, desenvolvimento, prancha-frontal) com instructions/cautions/common_errors/secondary_muscles preenchidos. Identidade inalterada. Os outros 28 permanecem vazios ate a LIB-012B. Padrao editorial: instructions = 5 passos numerados; cautions = cuidados do movimento; common_errors = erros observaveis; secondary_muscles = vocabulario de _meta.taxonomia.primary_muscle.",
+      "LIB-012A.1 (2026-08-10): refino tecnico do piloto - retiradas as redacoes absolutas antes de escalar o padrao. Curvatura lombar natural deixa de ser erro (so extensao exagerada com perda de estabilidade); 'nao travar' vira 'sem hiperextensao nem impacto'; protracao escapular controlada e permitida na remada; posicao dos pes no leg press e na prancha passa a ser estavel/confortavel, nao unica. Identidade e secondary_muscles inalterados."
     ]
   },
   "exercises": [
@@ -72,17 +73,18 @@
         "gluteos",
         "posteriores"
       ],
-      "instructions": "1. Sente-se com as costas e o quadril totalmente apoiados no encosto.\n2. Posicione os pes na plataforma na largura dos ombros, com as pontas levemente para fora.\n3. Destrave o carro e flexione os joelhos, descendo a plataforma de forma controlada.\n4. Desca ate o limite em que o quadril permanece apoiado e a lombar nao se descola do encosto.\n5. Empurre a plataforma pelo meio do pe ate quase estender os joelhos, sem travar a articulacao.",
+      "instructions": "1. Sente-se com as costas e o quadril totalmente apoiados no encosto.\n2. Posicione os pes na plataforma em uma base estavel e confortavel para voce.\n3. Destrave o carro e flexione os joelhos, descendo a plataforma de forma controlada.\n4. Desca ate o limite em que o quadril permanece apoiado e a lombar nao se descola do encosto.\n5. Empurre a plataforma pelo meio do pe ate estender os joelhos, sem hiperextensao nem impacto.",
       "common_errors": [
         "Descer alem da amplitude que o encosto sustenta, elevando o quadril.",
         "Empurrar com a ponta dos pes, tirando o calcanhar da plataforma.",
-        "Estender os joelhos com impacto no final do movimento.",
+        "Deixar os joelhos desviarem da direcao dos pes.",
         "Reduzir a amplitude a ponto de quase nao flexionar os joelhos."
       ],
       "cautions": [
-        "Interrompa a descida antes de o quadril rodar e a lombar perder o apoio.",
-        "Mantenha os joelhos alinhados aos pes; nao deixe que caiam para dentro.",
-        "Nao trave os joelhos no final da extensao.",
+        "Interrompa a descida antes de o quadril rodar e perder o apoio no encosto.",
+        "Os joelhos devem acompanhar a direcao dos pes, qualquer que seja a base escolhida.",
+        "Mantenha quadril e tronco apoiados durante toda a serie.",
+        "Finalize a extensao sem hiperextensao nem impacto na articulacao.",
         "Nao apoie as maos sobre os joelhos durante o movimento."
       ]
     },
@@ -207,17 +209,17 @@
         "biceps",
         "ombros"
       ],
-      "instructions": "1. Sente-se com os pes apoiados na plataforma e os joelhos levemente flexionados.\n2. Segure o pegador com o tronco ereto e os bracos estendidos, sem deixar os ombros caírem a frente.\n3. Puxe o pegador em direcao ao abdomen, conduzindo os cotovelos para tras e proximos ao tronco.\n4. Aproxime as escapulas no final da puxada e sustente por um instante, sem inclinar o tronco para tras.\n5. Estenda os bracos de forma controlada ate a posicao inicial, mantendo o tronco estavel.",
+      "instructions": "1. Sente-se com os pes apoiados na plataforma e os joelhos em posicao confortavel.\n2. Segure o pegador com o tronco ereto e os bracos estendidos, permitindo uma protracao escapular controlada.\n3. Puxe conduzindo os cotovelos para tras e proximos ao tronco, em trajetoria coerente com o pegador utilizado.\n4. Aproxime as escapulas no final da puxada e sustente por um instante, mantendo o tronco estavel.\n5. Retorne de forma controlada ate a extensao dos bracos, permitindo o retorno natural das escapulas.",
       "common_errors": [
         "Balancar o tronco para frente e para tras para gerar impulso.",
         "Encolher os ombros em direcao as orelhas durante a puxada.",
-        "Interromper o retorno antes da extensao completa dos bracos.",
-        "Puxar o pegador ate a altura do peito em vez do abdomen."
+        "Interromper o retorno antes da extensao dos bracos.",
+        "Trocar a conducao pelos cotovelos por um puxao feito so com os bracos."
       ],
       "cautions": [
-        "Mantenha a coluna em posicao neutra; nao flexione as costas para acompanhar o peso.",
+        "Mantenha o tronco estavel; evite oscilar para acompanhar a carga.",
         "Conduza o movimento pelos cotovelos, nao apenas pela forca dos bracos.",
-        "Evite estender os joelhos por completo durante a puxada."
+        "O retorno escapular controlado faz parte do movimento; nao mantenha as escapulas rigidas o tempo todo."
       ]
     },
     {
@@ -278,19 +280,19 @@
         "triceps",
         "core"
       ],
-      "instructions": "1. Sente-se ou fique em pe com o tronco ereto e o abdomen ativo.\n2. Leve os halteres a altura dos ombros, palmas voltadas para a frente e cotovelos abaixo dos punhos.\n3. Empurre os halteres para cima ate quase estender os cotovelos, aproximando-os acima da cabeca sem encosta-los.\n4. Desca de forma controlada ate os halteres voltarem a altura dos ombros.\n5. Repita mantendo a mesma trajetoria dos dois lados e, ao terminar, apoie os halteres com controle.",
+      "instructions": "1. Sente-se ou fique em pe com o tronco ereto e o abdomen ativo.\n2. Leve os halteres a altura dos ombros, com os cotovelos abaixo dos punhos e a pegada confortavel.\n3. Empurre os halteres para cima em trajetoria confortavel e controlada, ate estender os cotovelos sem hiperextensao.\n4. Desca de forma controlada ate os halteres voltarem a altura dos ombros.\n5. Repita mantendo o tronco estavel e, ao terminar, apoie os halteres com controle.",
       "common_errors": [
-        "Arquear a lombar e transformar o movimento em um empurrar inclinado.",
-        "Descer os halteres abaixo da linha dos ombros perdendo o controle.",
-        "Subir os halteres em trajetorias diferentes entre os lados.",
+        "Compensar com a lombar, transformando o movimento em um empurrar inclinado.",
+        "Perder o dominio da descida dos halteres.",
+        "Subir os halteres em trajetorias muito diferentes entre os lados.",
         "Bater um haltere no outro no final da subida.",
-        "Impulsionar com as pernas em uma execucao que deveria ser estrita."
+        "Impulsionar com as pernas quando a execucao prescrita e estrita."
       ],
       "cautions": [
-        "Mantenha a lombar neutra; nao arqueie o tronco para empurrar o peso.",
-        "Nao trave os cotovelos de forma brusca no topo.",
-        "Nao deixe os cotovelos caírem muito atras da linha do corpo na descida.",
-        "Reduza a amplitude ou a carga se nao conseguir manter o tronco alinhado."
+        "Mantenha o tronco estavel; evite compensar com a lombar para vencer a carga.",
+        "Finalize a subida sem hiperextensao dos cotovelos nem impacto na articulacao.",
+        "Conduza os halteres em trajetoria confortavel e controlada, sem perder o dominio da descida.",
+        "Reduza a amplitude ou a carga se nao conseguir manter o tronco estavel."
       ]
     },
     {
@@ -414,7 +416,7 @@
         "ombros",
         "gluteos"
       ],
-      "instructions": "1. Apoie os antebracos no chao com os cotovelos alinhados abaixo dos ombros.\n2. Estenda as pernas para tras e apoie as pontas dos pes, afastados na largura do quadril.\n3. Contraia abdomen e gluteos ate alinhar tornozelo, quadril, tronco e cabeca.\n4. Sustente a posicao pelo tempo prescrito, respirando de forma continua.\n5. Encerre apoiando os joelhos no chao de forma controlada.",
+      "instructions": "1. Apoie os antebracos no chao com os cotovelos alinhados abaixo dos ombros.\n2. Estenda as pernas para tras e apoie as pontas dos pes em posicao confortavel e estavel.\n3. Contraia abdomen e gluteos ate alinhar tornozelo, quadril, tronco e cabeca.\n4. Sustente a posicao pelo tempo prescrito, respirando de forma continua.\n5. Encerre apoiando os joelhos no chao de forma controlada.",
       "common_errors": [
         "Elevar o quadril, transformando a prancha em um 'V' invertido.",
         "Deixar o quadril cair e perder o alinhamento do tronco.",
@@ -499,19 +501,19 @@
         "triceps",
         "ombros"
       ],
-      "instructions": "1. Deite no banco com os pes apoiados no chao e as escapulas retraidas contra o encosto.\n2. Segure a barra um pouco alem da largura dos ombros, com os punhos alinhados aos antebracos.\n3. Retire a barra do suporte e posicione-a sobre a linha do peito, com os cotovelos a cerca de 45 graus do tronco.\n4. Desca a barra de forma controlada ate tocar levemente o peito, sem quicar.\n5. Empurre a barra ate quase estender os cotovelos e, ao final da serie, devolva-a ao suporte.",
+      "instructions": "1. Deite no banco com os pes apoiados de forma estavel e as escapulas retraidas contra o encosto.\n2. Segure a barra um pouco alem da largura dos ombros, com os punhos alinhados aos antebracos.\n3. Retire a barra do suporte e posicione-a sobre a linha do peito, com os cotovelos a cerca de 45 graus do tronco.\n4. Desca a barra de forma controlada ate tocar levemente o peito, sem quicar.\n5. Empurre a barra ate estender os cotovelos, sem hiperextensao nem impacto, e devolva-a ao suporte ao final da serie.",
       "common_errors": [
         "Quicar a barra no peito para ganhar impulso.",
         "Abrir os cotovelos a 90 graus em relacao ao tronco.",
-        "Elevar o quadril do banco durante a subida.",
+        "Perder a estabilidade do tronco, com extensao lombar exagerada e quadril saindo do apoio.",
         "Parar a descida em alturas diferentes a cada repeticao.",
         "Deixar o punho cair para tras da linha do antebraco."
       ],
       "cautions": [
-        "Mantenha as escapulas retraidas e apoiadas do inicio ao fim do movimento.",
-        "Preserve o contato do quadril com o banco; nao arqueie a lombar para vencer a carga.",
-        "Nao trave os cotovelos de forma brusca no topo.",
-        "Trabalhe com margem de repeticoes; use suporte de seguranca ou acompanhamento sempre que a carga limitar a execucao."
+        "Mantenha pes, quadril, escapulas e tronco estaveis do inicio ao fim da serie.",
+        "A curvatura natural da lombar e esperada; o que se evita e a extensao exagerada com perda de estabilidade.",
+        "Finalize a subida sem hiperextensao dos cotovelos nem impacto na articulacao.",
+        "Use travas de seguranca ou acompanhamento de um parceiro quando a execucao exigir."
       ]
     },
     {
