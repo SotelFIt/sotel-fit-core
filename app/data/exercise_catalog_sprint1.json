@@ -55,6 +55,23 @@
         "Flexão",
         "Push Up",
         "Flexão no Solo"
+      ],
+      "secondary_muscles": [
+        "triceps",
+        "ombros",
+        "core"
+      ],
+      "instructions": "1. Apoie as maos no chao um pouco alem da largura dos ombros, com o corpo alinhado da cabeca aos calcanhares.\n2. Contraia abdomen e gluteos para manter o alinhamento do tronco.\n3. Desca flexionando os cotovelos, mantendo-os a cerca de 45 graus do tronco.\n4. Desca ate a profundidade em que voce preserva o alinhamento e o controle.\n5. Empurre o chao ate estender os cotovelos, sem hiperextensao, mantendo o corpo alinhado.",
+      "common_errors": [
+        "Deixar o quadril cair e perder o alinhamento do tronco.",
+        "Elevar o quadril, transformando o movimento em um 'V' invertido.",
+        "Adiantar a cabeca em direcao ao chao antes do peito.",
+        "Abrir os cotovelos a 90 graus em relacao ao tronco."
+      ],
+      "cautions": [
+        "O alinhamento do tronco vale mais que a profundidade da descida.",
+        "Se o quadril comecar a cair ou a subir, reduza a amplitude ou apoie os joelhos.",
+        "Mantenha a respiracao continua durante a serie."
       ]
     },
     {
@@ -100,6 +117,19 @@
         "Leg Extension",
         "Extensão de Joelhos",
         "Extensão de Quadríceps"
+      ],
+      "instructions": "1. Sente-se na cadeira com as costas apoiadas no encosto e o quadril bem encaixado.\n2. Ajuste o apoio para que fique sobre a parte de baixo da canela, com os joelhos alinhados ao eixo da maquina.\n3. Estenda os joelhos elevando o apoio de forma controlada, sem hiperextensao nem impacto no final.\n4. Sustente brevemente a posicao mais alta que voce consegue controlar.\n5. Retorne devagar ate a posicao inicial, sem deixar o peso bater na pilha.",
+      "common_errors": [
+        "Impulsionar o apoio com um movimento rapido e sem controle.",
+        "Deslizar o quadril para frente no banco durante a subida.",
+        "Deixar o peso cair no retorno, batendo na pilha.",
+        "Posicionar o apoio sobre o tornozelo ou sobre o joelho, fora da canela."
+      ],
+      "cautions": [
+        "Alinhe o eixo da maquina com a articulacao do joelho antes de comecar.",
+        "Mantenha o quadril apoiado no encosto durante toda a serie.",
+        "Trabalhe na amplitude em que voce preserva o controle do movimento.",
+        "Finalize a extensao sem hiperextensao nem impacto."
       ]
     },
     {
@@ -113,6 +143,21 @@
         "Flexora Sentada",
         "Seated Leg Curl",
         "Leg Curl Sentado"
+      ],
+      "secondary_muscles": [
+        "panturrilhas"
+      ],
+      "instructions": "1. Sente-se com as costas apoiadas e o quadril bem encaixado no banco.\n2. Ajuste o apoio para ficar sobre a parte de tras da perna, logo acima do tornozelo, com o joelho alinhado ao eixo da maquina.\n3. Flexione os joelhos puxando o apoio de forma controlada.\n4. Sustente brevemente a posicao de maior flexao que voce controla, com o quadril apoiado.\n5. Retorne devagar ate a extensao inicial, sem deixar o peso bater na pilha.",
+      "common_errors": [
+        "Elevar o quadril do banco para completar a flexao.",
+        "Usar impulso para vencer o inicio do movimento.",
+        "Posicionar o apoio sobre o tornozelo ou muito alto na panturrilha.",
+        "Soltar o retorno, deixando o peso bater."
+      ],
+      "cautions": [
+        "Alinhe o eixo da maquina com o joelho antes de comecar.",
+        "Mantenha o quadril apoiado; se ele se elevar, reduza a amplitude ou a carga.",
+        "Controle tambem o retorno, nao apenas a puxada."
       ]
     },
     {
@@ -126,6 +171,25 @@
         "Agachamento com Barra",
         "Back Squat",
         "Barbell Squat"
+      ],
+      "secondary_muscles": [
+        "gluteos",
+        "posteriores",
+        "core"
+      ],
+      "instructions": "1. Posicione a barra sobre a musculatura das costas em apoio confortavel e retire-a do suporte.\n2. Afaste-se poucos passos e assuma uma base de pes estavel, com as pontas levemente para fora.\n3. Desca flexionando quadril e joelhos ao mesmo tempo, mantendo a coluna em posicao neutra.\n4. Desca ate a profundidade em que voce preserva o controle e a neutralidade da coluna.\n5. Suba empurrando o chao ate a posicao em pe e, ao final da serie, devolva a barra ao suporte.",
+      "common_errors": [
+        "Perder a neutralidade da coluna na parte baixa do movimento.",
+        "Deixar os joelhos desviarem da direcao dos pes.",
+        "Subir primeiro com o quadril, deixando o tronco para tras.",
+        "Descer rapido demais e perder o controle na transicao.",
+        "Retirar a barra do suporte com base instavel."
+      ],
+      "cautions": [
+        "A profundidade e definida pelo ponto em que o controle e a coluna neutra sao mantidos.",
+        "Os joelhos acompanham a direcao dos pes, qualquer que seja a base escolhida.",
+        "Ajuste as travas de seguranca do suporte antes de iniciar a serie.",
+        "Distribua o apoio no pe inteiro, sem jogar todo o peso na ponta ou no calcanhar."
       ]
     },
     {
@@ -139,6 +203,23 @@
         "Stiff com Barra",
         "Levantamento Terra Romeno",
         "Romanian Deadlift"
+      ],
+      "secondary_muscles": [
+        "gluteos",
+        "costas"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel e a barra proxima as coxas.\n2. Segure a barra com os bracos estendidos, tronco ereto e joelhos levemente flexionados.\n3. Desca a barra rente as pernas levando o quadril para tras, mantendo a coluna em posicao neutra.\n4. Desca ate onde voce preserva a neutralidade da coluna e sente o alongamento dos posteriores.\n5. Retorne estendendo o quadril ate a posicao em pe, sem hiperextender a lombar no final.",
+      "common_errors": [
+        "Perder a neutralidade da coluna, arredondando as costas na descida.",
+        "Afastar a barra do corpo, aumentando a demanda sobre a lombar.",
+        "Flexionar muito os joelhos, convertendo o movimento em agachamento.",
+        "Hiperextender a lombar ao terminar a subida."
+      ],
+      "cautions": [
+        "A amplitude e definida pelo ponto em que a coluna segue neutra, nao pela altura da barra.",
+        "Os joelhos ficam levemente flexionados; nao precisam estar totalmente estendidos.",
+        "Mantenha a barra proxima ao corpo na descida e na subida.",
+        "Finalize em pe sem hiperextender a lombar."
       ]
     },
     {
@@ -152,6 +233,22 @@
         "Elevação Pélvica",
         "Elevação de Quadril",
         "Barbell Hip Thrust"
+      ],
+      "secondary_muscles": [
+        "posteriores",
+        "quadriceps"
+      ],
+      "instructions": "1. Sente-se no chao com as costas apoiadas na lateral de um banco e a barra sobre o quadril, com protecao.\n2. Apoie os pes em base estavel, com os joelhos flexionados.\n3. Estenda o quadril elevando a barra, mantendo o tronco alinhado e o queixo levemente para baixo.\n4. Sustente brevemente a extensao no topo, sem hiperextender a lombar.\n5. Desca de forma controlada ate a posicao inicial.",
+      "common_errors": [
+        "Hiperextender a lombar no topo em vez de estender o quadril.",
+        "Empurrar com a ponta dos pes e perder a base de apoio.",
+        "Deixar os joelhos desviarem da direcao dos pes.",
+        "Descer em queda livre, sem controlar o retorno."
+      ],
+      "cautions": [
+        "A subida termina no alinhamento do tronco: evite hiperextender a lombar para subir mais.",
+        "Ajuste a distancia dos pes ate encontrar a posicao estavel e confortavel para voce.",
+        "Use protecao entre a barra e o quadril."
       ]
     },
     {
@@ -165,6 +262,18 @@
         "Standing Calf Raise",
         "Elevação de Panturrilha em Pé",
         "Gêmeos em Pé"
+      ],
+      "instructions": "1. Posicione os ombros sob os apoios da maquina e fique em pe com o tronco ereto.\n2. Apoie a parte da frente dos pes na plataforma, com os calcanhares livres.\n3. Eleve os calcanhares empurrando a plataforma, ate a altura em que mantem o equilibrio.\n4. Sustente brevemente a posicao mais alta.\n5. Desca de forma controlada ate o alongamento confortavel da panturrilha.",
+      "common_errors": [
+        "Flexionar e estender os joelhos para ajudar na subida.",
+        "Fazer repeticoes rapidas com quique, sem controle.",
+        "Elevar muito pouco os calcanhares, encurtando a amplitude.",
+        "Apoiar o pe inteiro na plataforma, sem deixar o calcanhar livre."
+      ],
+      "cautions": [
+        "Mantenha o tronco ereto e os joelhos estaveis durante a serie.",
+        "Desca ate o alongamento confortavel, sem forcar a amplitude.",
+        "Controle a descida: e nela que o movimento costuma ser perdido."
       ]
     },
     {
@@ -178,6 +287,22 @@
         "Chest Press",
         "Supino na Máquina",
         "Machine Chest Press"
+      ],
+      "secondary_muscles": [
+        "triceps",
+        "ombros"
+      ],
+      "instructions": "1. Sente-se com as costas apoiadas no encosto e os pes firmes no chao.\n2. Ajuste o banco para que os pegadores fiquem proximos a altura do peito.\n3. Empurre os pegadores a frente ate estender os cotovelos, sem hiperextensao nem impacto.\n4. Mantenha os ombros apoiados e o tronco estavel durante o empurrar.\n5. Retorne de forma controlada ate a posicao em que o controle e preservado.",
+      "common_errors": [
+        "Descolar as costas do encosto para empurrar mais carga.",
+        "Terminar a extensao com impacto.",
+        "Deixar o peso voltar sem controle, batendo na pilha.",
+        "Usar altura de banco que joga a trajetoria muito acima ou abaixo do peito."
+      ],
+      "cautions": [
+        "Ajuste a altura do banco antes de comecar: a trajetoria deve sair proxima da linha do peito.",
+        "Mantenha as costas e os ombros apoiados no encosto.",
+        "Volte ate a amplitude confortavel para o seu ombro, sem forcar a abertura."
       ]
     },
     {
@@ -191,6 +316,21 @@
         "Pec Deck",
         "Voador Peitoral",
         "Fly na Máquina"
+      ],
+      "secondary_muscles": [
+        "ombros"
+      ],
+      "instructions": "1. Sente-se com as costas apoiadas no encosto e os pes firmes no chao.\n2. Ajuste o banco para que os pegadores fiquem proximos a altura do peito.\n3. Aproxime os bracos a frente do corpo em trajetoria compativel com o equipamento, com os cotovelos levemente flexionados.\n4. Sustente brevemente a aproximacao, mantendo os ombros apoiados no encosto.\n5. Retorne de forma controlada ate a abertura em que voce preserva o controle.",
+      "common_errors": [
+        "Abrir alem da amplitude controlada, deixando os pegadores puxarem os bracos.",
+        "Elevar os ombros em direcao as orelhas durante a aproximacao.",
+        "Variar a flexao dos cotovelos, convertendo o voador em um empurrar.",
+        "Fazer o retorno em queda livre."
+      ],
+      "cautions": [
+        "Mantenha as costas e os ombros apoiados no encosto durante a serie.",
+        "Abra ate a amplitude em que o controle e o conforto do ombro sao preservados.",
+        "Mantenha o angulo dos cotovelos estavel: o movimento vem dos ombros."
       ]
     },
     {
@@ -235,6 +375,22 @@
         "Puxada Aberta",
         "Puxador Frente",
         "Pull Down"
+      ],
+      "secondary_muscles": [
+        "biceps",
+        "ombros"
+      ],
+      "instructions": "1. Sente-se com as coxas presas sob o apoio e os pes firmes no chao.\n2. Segure a barra em uma largura confortavel e estavel, com os bracos estendidos.\n3. Puxe a barra para baixo conduzindo os cotovelos em direcao as costelas.\n4. Aproxime as escapulas no final da puxada, com o tronco apenas levemente inclinado.\n5. Retorne de forma controlada ate a extensao dos bracos, permitindo o retorno natural das escapulas.",
+      "common_errors": [
+        "Recuar o tronco a cada repeticao para gerar impulso.",
+        "Encolher os ombros em direcao as orelhas durante a puxada.",
+        "Soltar a barra na subida, perdendo o controle do retorno.",
+        "Puxar so com os bracos, sem conduzir os cotovelos."
+      ],
+      "cautions": [
+        "Uma leve inclinacao do tronco e normal; o que se evita e o balanco a cada repeticao.",
+        "Conduza pelos cotovelos, nao apenas pela forca dos bracos.",
+        "A puxada a frente do corpo permite mais controle; a variacao atras da nuca exige mobilidade de ombro que nem todos tem."
       ]
     },
     {
@@ -248,6 +404,22 @@
         "Barbell Row",
         "Bent Over Row",
         "Remada Curvada com Barra"
+      ],
+      "secondary_muscles": [
+        "biceps",
+        "ombros"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel, segurando a barra com os bracos estendidos.\n2. Leve o quadril para tras e incline o tronco a frente, com a coluna neutra e os joelhos levemente flexionados.\n3. Puxe a barra em direcao ao abdomen, conduzindo os cotovelos para tras e proximos ao tronco.\n4. Aproxime as escapulas no final da puxada, mantendo a inclinacao do tronco estavel.\n5. Desca a barra de forma controlada ate a extensao dos bracos.",
+      "common_errors": [
+        "Elevar o tronco a cada repeticao para ajudar na puxada.",
+        "Arredondar as costas durante a puxada.",
+        "Puxar so com os bracos, sem conduzir os cotovelos.",
+        "Deixar a barra descer sem controle."
+      ],
+      "cautions": [
+        "Mantenha a coluna neutra e a inclinacao do tronco estavel durante toda a serie.",
+        "Conduza pelos cotovelos: o ponto em que a barra chega varia com a inclinacao escolhida.",
+        "Se a coluna comecar a arredondar, reduza a carga ou a amplitude."
       ]
     },
     {
@@ -261,6 +433,22 @@
         "Serrote",
         "One Arm Dumbbell Row",
         "Remada com Halter Unilateral"
+      ],
+      "secondary_muscles": [
+        "biceps",
+        "ombros"
+      ],
+      "instructions": "1. Apoie um joelho e a mao do mesmo lado no banco, com o outro pe firme no chao.\n2. Segure o haltere com o braco estendido, coluna neutra e tronco proximo da horizontal.\n3. Puxe o haltere em direcao a lateral do abdomen, conduzindo o cotovelo para tras e proximo ao tronco.\n4. Aproxime a escapula no final da puxada, sem girar o tronco para acompanhar.\n5. Desca o haltere de forma controlada ate a extensao do braco e repita do outro lado.",
+      "common_errors": [
+        "Girar o tronco a cada repeticao para elevar mais o haltere.",
+        "Arredondar as costas durante a puxada.",
+        "Afastar o cotovelo do tronco, transferindo o esforco para o ombro.",
+        "Deixar o haltere descer sem controle."
+      ],
+      "cautions": [
+        "Mantenha a coluna neutra e o tronco estavel; evite girar para ganhar amplitude.",
+        "Conduza pelo cotovelo, nao apenas pela forca do braco.",
+        "Repita o mesmo padrao de execucao nos dois lados."
       ]
     },
     {
@@ -306,6 +494,18 @@
         "Lateral Raise",
         "Elevação Lateral com Halteres",
         "Dumbbell Lateral Raise"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel, um haltere em cada mao ao lado do corpo.\n2. Mantenha os cotovelos levemente flexionados e o tronco ereto.\n3. Eleve os bracos para os lados conduzindo pelos cotovelos, ate a altura em que mantem o controle.\n4. Sustente brevemente a posicao mais alta, sem encolher os ombros.\n5. Desca de forma controlada ate a posicao inicial.",
+      "common_errors": [
+        "Usar impulso do tronco para iniciar a subida.",
+        "Encolher os ombros em direcao as orelhas.",
+        "Variar a flexao dos cotovelos, convertendo a elevacao em um lancamento.",
+        "Soltar a descida sem controle."
+      ],
+      "cautions": [
+        "A altura da elevacao segue o conforto do ombro: nao e obrigatorio ultrapassar a linha dos ombros.",
+        "Mantenha o angulo dos cotovelos estavel durante o movimento.",
+        "Evite balancar o tronco para lancar os halteres."
       ]
     },
     {
@@ -319,6 +519,21 @@
         "Front Raise",
         "Elevação Frontal com Halteres",
         "Dumbbell Front Raise"
+      ],
+      "secondary_muscles": [
+        "peitoral"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel, um haltere em cada mao a frente das coxas.\n2. Mantenha o tronco ereto e os cotovelos levemente flexionados.\n3. Eleve os bracos a frente do corpo ate a altura em que mantem o controle.\n4. Sustente brevemente a posicao mais alta, sem encolher os ombros.\n5. Desca de forma controlada ate a posicao inicial.",
+      "common_errors": [
+        "Usar impulso do tronco para iniciar a subida.",
+        "Encolher os ombros em direcao as orelhas.",
+        "Elevar os dois halteres em alturas diferentes.",
+        "Soltar a descida sem controle."
+      ],
+      "cautions": [
+        "A altura da elevacao segue o conforto do ombro; a linha dos ombros ja atende a maioria dos casos.",
+        "Mantenha o angulo dos cotovelos estavel durante o movimento.",
+        "Evite balancar o tronco para lancar os halteres."
       ]
     },
     {
@@ -332,6 +547,21 @@
         "Puxada para o Rosto",
         "Face Pull com Corda",
         "Cable Face Pull"
+      ],
+      "secondary_muscles": [
+        "costas"
+      ],
+      "instructions": "1. Ajuste a polia proxima a altura do rosto e prenda a corda.\n2. Segure as pontas da corda com pegada neutra e afaste-se ate tensionar, com base de pes estavel.\n3. Puxe a corda em direcao ao rosto, afastando as maos e conduzindo os cotovelos para tras.\n4. Aproxime as escapulas no final da puxada, com os cotovelos proximos a altura dos ombros.\n5. Retorne de forma controlada ate a extensao dos bracos.",
+      "common_errors": [
+        "Puxar com os cotovelos baixos, convertendo o movimento em uma remada.",
+        "Inclinar o tronco para tras para gerar impulso.",
+        "Encerrar a puxada antes de aproximar as escapulas.",
+        "Deixar a corda voltar sem controle."
+      ],
+      "cautions": [
+        "Mantenha o tronco estavel; evite recuar o corpo para vencer a carga.",
+        "Os cotovelos ficam proximos a altura dos ombros durante a puxada.",
+        "Use uma carga que permita completar a puxada sem perder a postura."
       ]
     },
     {
@@ -345,6 +575,19 @@
         "Rosca com Barra",
         "Barbell Curl",
         "Rosca Direta com Barra"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel e a barra a frente das coxas.\n2. Segure a barra com as palmas voltadas para frente, bracos estendidos e cotovelos proximos ao tronco.\n3. Flexione os cotovelos elevando a barra ate a altura em que voce mantem o controle.\n4. Retorne de forma controlada ate a extensao dos cotovelos.\n5. Repita mantendo o tronco estavel e, ao final da serie, apoie a barra com controle.",
+      "common_errors": [
+        "Balancar o tronco para gerar impulso na subida.",
+        "Levar os cotovelos muito a frente, virando o movimento em elevacao de ombro.",
+        "Soltar a descida sem controle.",
+        "Flexionar os punhos para ajudar a vencer a carga."
+      ],
+      "cautions": [
+        "Mantenha o tronco estavel; evite oscilar para lancar a barra.",
+        "Os cotovelos ficam proximos ao tronco, sem precisar estar imoveis.",
+        "Escolha a barra e a pegada que respeitem o conforto dos punhos.",
+        "Controle tambem a fase de descida, nao apenas a subida."
       ]
     },
     {
@@ -358,6 +601,18 @@
         "Alternating Dumbbell Curl",
         "Rosca Alternada com Halteres",
         "Rosca Bíceps Alternada"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel, um haltere em cada mao ao lado do corpo.\n2. Mantenha o tronco ereto e os cotovelos proximos ao tronco.\n3. Flexione um cotovelo elevando o haltere ate a altura em que mantem o controle.\n4. Desca esse haltere de forma controlada ate a extensao do cotovelo.\n5. Repita com o outro braco, alternando os lados a cada repeticao.",
+      "common_errors": [
+        "Balancar o tronco a cada troca de braco.",
+        "Iniciar a subida de um lado antes de terminar a descida do outro.",
+        "Levar os cotovelos muito a frente do tronco.",
+        "Executar um lado com amplitude diferente do outro."
+      ],
+      "cautions": [
+        "Alterne mantendo o mesmo padrao nos dois lados.",
+        "Mantenha o tronco estavel; evite balancar a cada troca de braco.",
+        "O braco que aguarda fica relaxado ao lado do corpo, sem ajudar no movimento."
       ]
     },
     {
@@ -371,6 +626,18 @@
         "Hammer Curl",
         "Rosca Martelo com Halteres",
         "Rosca Neutra"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel, um haltere em cada mao ao lado do corpo.\n2. Mantenha a pegada neutra, com as palmas voltadas uma para a outra, e os cotovelos proximos ao tronco.\n3. Flexione os cotovelos elevando os halteres ate a altura em que mantem o controle.\n4. Retorne de forma controlada ate a extensao dos cotovelos.\n5. Repita mantendo o tronco estavel e a pegada neutra do inicio ao fim.",
+      "common_errors": [
+        "Girar o punho na subida, transformando o movimento em rosca supinada.",
+        "Balancar o tronco para gerar impulso.",
+        "Levar os cotovelos muito a frente do tronco.",
+        "Soltar a descida dos halteres."
+      ],
+      "cautions": [
+        "Mantenha a pegada neutra durante toda a serie: e ela que caracteriza o movimento.",
+        "Evite balancar o tronco para lancar os halteres.",
+        "Controle a descida com a mesma atencao da subida."
       ]
     },
     {
@@ -384,6 +651,18 @@
         "Rope Pushdown",
         "Tríceps Pulley com Corda",
         "Tríceps Corda"
+      ],
+      "instructions": "1. Fique de frente para a polia alta, com a corda presa e os pes em base estavel.\n2. Segure as pontas da corda com pegada neutra e mantenha os cotovelos proximos ao tronco.\n3. Estenda os cotovelos empurrando a corda para baixo, ate a extensao que voce controla.\n4. No final, as maos podem afastar-se levemente acompanhando a corda, sem forcar o movimento.\n5. Retorne de forma controlada ate a flexao inicial, mantendo os cotovelos estaveis.",
+      "common_errors": [
+        "Usar o peso do corpo para empurrar a corda para baixo.",
+        "Afastar os cotovelos do tronco, transferindo o esforco para os ombros.",
+        "Encurtar a amplitude, sem chegar a estender os cotovelos.",
+        "Deixar a corda subir sem controle no retorno."
+      ],
+      "cautions": [
+        "Uma leve inclinacao do tronco a frente e aceitavel; o balanco nao.",
+        "Os cotovelos ficam proximos ao tronco, sem precisar estar imoveis.",
+        "Finalize a extensao sem hiperextensao nem impacto."
       ]
     },
     {
@@ -397,6 +676,18 @@
         "Overhead Triceps Extension",
         "Extensão de Tríceps Acima da Cabeça",
         "Tríceps Francês com Halter"
+      ],
+      "instructions": "1. Sente-se ou fique em pe com o tronco ereto, segurando o haltere com as duas maos acima da cabeca.\n2. Estenda os cotovelos mantendo os bracos proximos as orelhas e a pegada firme.\n3. Flexione os cotovelos levando o haltere para tras da cabeca, de forma controlada.\n4. Desca ate a amplitude em que os ombros ficam confortaveis e o controle e preservado.\n5. Estenda os cotovelos de volta a posicao inicial, sem hiperextensao nem impacto.",
+      "common_errors": [
+        "Abrir os cotovelos para os lados durante a descida.",
+        "Mover os ombros junto com o haltere, convertendo o movimento em pullover.",
+        "Compensar com a lombar para completar a extensao.",
+        "Descer o haltere sem controle."
+      ],
+      "cautions": [
+        "Mantenha os bracos proximos as orelhas: abrir demais tira o esforco do triceps.",
+        "A amplitude da descida segue o conforto do ombro.",
+        "Mantenha o tronco estavel; evite arquear para acompanhar a carga."
       ]
     },
     {
@@ -441,6 +732,18 @@
         "Crunch na Máquina",
         "Máquina de Abdominal",
         "Abdominal Máquina"
+      ],
+      "instructions": "1. Sente-se na maquina com as costas apoiadas e ajuste o equipamento a sua altura.\n2. Segure os pegadores e encaixe o tronco no apoio, com os pes firmes.\n3. Flexione o tronco aproximando as costelas do quadril, em movimento controlado.\n4. Sustente brevemente a posicao de maior flexao que voce controla.\n5. Retorne devagar ate a posicao inicial, sem deixar o peso bater na pilha.",
+      "common_errors": [
+        "Puxar os pegadores com os bracos para completar a flexao.",
+        "Soltar o tronco e retomar com balanco.",
+        "Reduzir a amplitude a ponto de quase nao flexionar o tronco.",
+        "Deixar o retorno acontecer sem controle."
+      ],
+      "cautions": [
+        "O movimento vem da flexao do tronco, nao de puxar com os bracos.",
+        "Ajuste o apoio antes de comecar: o eixo da maquina acompanha o tronco.",
+        "Mantenha a respiracao continua durante a serie."
       ]
     },
     {
@@ -455,6 +758,21 @@
         "Cable Crossover",
         "Crucifixo no Cabo",
         "Cross Over"
+      ],
+      "secondary_muscles": [
+        "ombros"
+      ],
+      "instructions": "1. Posicione as polias na altura escolhida e fique entre elas, com um pe a frente para dar estabilidade.\n2. Segure as manoplas com os bracos abertos e os cotovelos levemente flexionados, tronco levemente inclinado a frente.\n3. Aproxime as maos a frente do corpo em trajetoria de arco, mantendo o angulo dos cotovelos estavel.\n4. Sustente brevemente a aproximacao, sem perder a estabilidade do tronco.\n5. Retorne de forma controlada ate a abertura em que o controle e preservado.",
+      "common_errors": [
+        "Usar o tronco para lancar as manoplas a frente.",
+        "Variar a flexao dos cotovelos, convertendo o movimento em um empurrar.",
+        "Deixar os cabos puxarem os bracos para tras no retorno.",
+        "Trocar a trajetoria a cada repeticao, sem padrao."
+      ],
+      "cautions": [
+        "Mantenha a base dos pes estavel: o tronco acompanha o movimento, mas nao balanca.",
+        "Abra ate a amplitude em que o controle e o conforto do ombro sao preservados.",
+        "A altura das polias muda a enfase; escolha uma e mantenha a mesma trajetoria na serie."
       ]
     },
     {
@@ -469,6 +787,21 @@
         "Dumbbell Fly",
         "Dumbbell Chest Fly",
         "Supino Crucifixo"
+      ],
+      "secondary_muscles": [
+        "ombros"
+      ],
+      "instructions": "1. Deite no banco com os pes apoiados de forma estavel e um haltere em cada mao sobre o peito.\n2. Mantenha as escapulas apoiadas e os cotovelos levemente flexionados.\n3. Abra os bracos para os lados em trajetoria de arco, mantendo o angulo dos cotovelos estavel.\n4. Abra ate a amplitude em que o controle e o conforto do ombro sao preservados.\n5. Retorne aproximando os halteres a frente do peito, sem bate-los.",
+      "common_errors": [
+        "Flexionar e estender os cotovelos, convertendo o crucifixo em supino.",
+        "Abrir alem da amplitude controlada.",
+        "Bater os halteres um no outro no topo.",
+        "Descer os halteres em queda livre."
+      ],
+      "cautions": [
+        "Mantenha o angulo dos cotovelos estavel: o movimento vem dos ombros.",
+        "A abertura vai ate onde o ombro fica confortavel, nao ate os halteres alcancarem o banco.",
+        "Mantenha as escapulas apoiadas durante toda a serie."
       ]
     },
     {
@@ -482,6 +815,23 @@
         "Supino Inclinado com Barra",
         "Incline Bench Press",
         "Barbell Incline Bench Press"
+      ],
+      "secondary_muscles": [
+        "triceps",
+        "ombros"
+      ],
+      "instructions": "1. Ajuste o banco em inclinacao moderada e deite com os pes apoiados de forma estavel.\n2. Mantenha as escapulas retraidas e apoiadas e segure a barra um pouco alem da largura dos ombros.\n3. Retire a barra do suporte e posicione-a sobre a parte alta do peito.\n4. Desca de forma controlada ate tocar levemente o peito alto, sem quicar.\n5. Empurre a barra ate estender os cotovelos, sem hiperextensao nem impacto, e devolva-a ao suporte ao final da serie.",
+      "common_errors": [
+        "Quicar a barra no peito para ganhar impulso.",
+        "Descer a barra na altura do peito medio, como no supino reto.",
+        "Perder a estabilidade do tronco, com extensao lombar exagerada.",
+        "Parar a descida em alturas diferentes a cada repeticao."
+      ],
+      "cautions": [
+        "Mantenha pes, quadril, escapulas e tronco estaveis do inicio ao fim da serie.",
+        "A curvatura natural da lombar e esperada: o que se evita e a extensao exagerada com perda de estabilidade.",
+        "Inclinacoes muito altas transferem parte do esforco para os ombros; ajuste conforme o objetivo do treino.",
+        "Use travas de seguranca ou acompanhamento de um parceiro quando a execucao exigir."
       ]
     },
     {
@@ -523,7 +873,23 @@
       "equipment": "barra",
       "level": "iniciante",
       "is_active": true,
-      "aliases": []
+      "aliases": [],
+      "secondary_muscles": [
+        "ombros",
+        "biceps"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel e a barra a frente das coxas.\n2. Segure a barra em uma largura confortavel, com os bracos estendidos e o tronco ereto.\n3. Eleve a barra proxima ao corpo conduzindo os cotovelos para cima e para os lados.\n4. Suba ate a altura em que os ombros permanecem confortaveis e o movimento controlado.\n5. Desca de forma controlada ate a extensao dos bracos.",
+      "common_errors": [
+        "Usar impulso do tronco e das pernas para elevar a barra.",
+        "Afastar a barra do corpo durante a subida.",
+        "Subir alem da altura em que o ombro fica confortavel.",
+        "Soltar a descida sem controle."
+      ],
+      "cautions": [
+        "A altura da subida e definida pelo conforto do ombro, nao por uma marca fixa.",
+        "Uma pegada mais aberta costuma ser mais confortavel do que uma muito fechada.",
+        "Mantenha o tronco estavel; evite balancar para lancar a barra."
+      ]
     },
     {
       "slug": "desenvolvimento-militar",
@@ -532,7 +898,23 @@
       "equipment": "halteres",
       "level": "intermediario",
       "is_active": true,
-      "aliases": []
+      "aliases": [],
+      "secondary_muscles": [
+        "triceps",
+        "core"
+      ],
+      "instructions": "1. Fique em pe com os pes em base estavel e o tronco ereto, halteres na altura dos ombros.\n2. Mantenha os cotovelos abaixo dos punhos e a pegada confortavel.\n3. Empurre os halteres para cima em trajetoria confortavel e controlada, ate estender os cotovelos sem hiperextensao.\n4. Desca de forma controlada ate os halteres voltarem a altura dos ombros.\n5. Repita mantendo o tronco estavel e, ao terminar, apoie os halteres com controle.",
+      "common_errors": [
+        "Compensar com a lombar, convertendo o movimento em um empurrar inclinado.",
+        "Impulsionar com as pernas quando a execucao prescrita e estrita.",
+        "Perder o dominio da descida dos halteres.",
+        "Subir os halteres em trajetorias muito diferentes entre os lados."
+      ],
+      "cautions": [
+        "Mantenha o tronco estavel; evite compensar com a lombar para vencer a carga.",
+        "Em pe, confirme a base dos pes antes de iniciar a serie.",
+        "Finalize a subida sem hiperextensao dos cotovelos nem impacto."
+      ]
     },
     {
       "slug": "rosca-direta-unilateral",
@@ -541,7 +923,19 @@
       "equipment": "halteres",
       "level": "iniciante",
       "is_active": true,
-      "aliases": []
+      "aliases": [],
+      "instructions": "1. Fique em pe com os pes em base estavel, um haltere na mao que vai trabalhar.\n2. Mantenha o braco estendido ao lado do corpo, com o cotovelo proximo ao tronco.\n3. Flexione o cotovelo elevando o haltere ate a altura em que mantem o controle.\n4. Retorne de forma controlada ate a extensao do cotovelo.\n5. Complete as repeticoes de um lado e repita com o outro braco.",
+      "common_errors": [
+        "Inclinar o tronco para o lado oposto para ajudar na subida.",
+        "Levar o cotovelo a frente, virando o movimento em elevacao de ombro.",
+        "Executar um lado com amplitude diferente do outro.",
+        "Soltar a descida sem controle."
+      ],
+      "cautions": [
+        "Mantenha o tronco estavel; evite inclinar para o lado que trabalha.",
+        "O cotovelo fica proximo ao tronco, sem precisar estar imovel.",
+        "Repita o mesmo padrao de execucao nos dois lados."
+      ]
     },
     {
       "slug": "supino-com-halteres",
@@ -552,6 +946,22 @@
       "is_active": true,
       "aliases": [
         "Supino com Haltere"
+      ],
+      "secondary_muscles": [
+        "triceps",
+        "ombros"
+      ],
+      "instructions": "1. Sente-se no banco com um haltere sobre cada coxa e deite conduzindo os halteres ate a altura do peito.\n2. Apoie os pes de forma estavel e mantenha as escapulas apoiadas no banco.\n3. Empurre os halteres para cima ate estender os cotovelos, sem hiperextensao nem impacto.\n4. Desca de forma controlada ate a altura em que o ombro fica confortavel.\n5. Ao terminar a serie, traga os halteres ao peito e apoie-os com controle.",
+      "common_errors": [
+        "Descer alem da amplitude controlada e perder a estabilidade do ombro.",
+        "Bater um haltere no outro no topo.",
+        "Subir os halteres em trajetorias muito diferentes entre os lados.",
+        "Deixar a descida acontecer em queda livre."
+      ],
+      "cautions": [
+        "A profundidade da descida segue o conforto do ombro, nao a obrigacao de tocar o peito.",
+        "Mantenha pes, quadril e escapulas estaveis durante a serie.",
+        "Os halteres deixam a trajetoria e a pegada mais livres: use a que voce consegue controlar."
       ]
     }
   ]

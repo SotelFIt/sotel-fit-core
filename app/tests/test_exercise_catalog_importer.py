@@ -373,11 +373,13 @@ def test_prod_cenario_flexao_conflict_demais_criados():
     OFICIAL (33) para provar 1 conflict + 32 created, sem skipped_blocked."""
     catalog = imp.load_catalog(CATALOG_PATH)
     fake = FakeApi()
-    # producao: flexao com o alias redundante extra 'Push-Up'
-    fake.insert({"slug": "flexao-de-bracos", "name": "Flexão de Braços",
+    # producao: flexao IGUAL ao catalogo, exceto pelo alias redundante extra 'Push-Up'.
+    # A Knowledge Layer (LIB-012B) e copiada do proprio catalogo para que `aliases`
+    # continue sendo a UNICA divergencia - o que este teste existe para provar.
+    oficial = [e for e in catalog["exercises"] if e["slug"] == "flexao-de-bracos"][0]
+    fake.insert({**oficial,
                  "aliases": ["Flexão", "Push Up", "Push-Up", "Flexão no Solo"],
-                 "primary_muscle": "peitoral", "equipment": "peso corporal",
-                 "level": "iniciante", "is_active": True})
+                 "is_active": True})
     fake.hidden.discard("flexao-de-bracos")  # visivel na listagem inicial
     rep = imp.run_import(_client(fake), catalog, apply=True, base_url="http://mock")
     c = rep["counts"]

@@ -66,10 +66,13 @@ def test_cautions_e_common_errors_dentro_do_padrao(com_conhecimento):
 
 
 def test_secondary_muscles_usa_o_vocabulario_controlado(catalogo, com_conhecimento):
+    """A lista PODE ser vazia: movimentos de isolamento (extensora, roscas, panturrilha,
+    elevacao lateral) nao tem musculo secundario relevante dentro da taxonomia, e
+    inventar um so para preencher o campo violaria a regra de nao inflar."""
     vocabulario = set(catalogo["_meta"]["taxonomia"]["primary_muscle"])
     for e in com_conhecimento:
-        secundarios = e["secondary_muscles"]
-        assert secundarios, f"{e['slug']}: sem musculos secundarios"
+        # o catalogo OMITE o campo quando ele e a lista vazia (convencao do arquivo)
+        secundarios = e.get("secondary_muscles", [])
         fora = set(secundarios) - vocabulario
         assert not fora, f"{e['slug']}: fora da taxonomia {fora}"
         assert len(secundarios) <= 3, f"{e['slug']}: {len(secundarios)} secundarios (inflado)"
