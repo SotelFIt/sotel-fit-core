@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -38,6 +38,9 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
 
     if payload.telefone:
         phone_normalized = normalize_phone(payload.telefone)
+        # REL-V1-004: telefone informado e invalido -> recusar, nao gravar meia identidade.
+        if not phone_normalized:
+            raise HTTPException(status_code=400, detail="telefone invalido")
         phone_whatsapp = normalize_phone_for_whatsapp(payload.telefone)
 
     onboarding = LeadOnboarding(
