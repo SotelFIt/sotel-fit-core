@@ -8,6 +8,10 @@ logger = logging.getLogger(__name__)
 
 def get_or_create_client_from_phone(db: Session, phone: str, name: str = None) -> dict:
     normalized = normalize_phone(phone)
+    # REL-V1-004: sem telefone canonico nao ha identidade. Criar cliente aqui
+    # geraria um registro sem como ser encontrado depois - e sem como saber de quem e.
+    if not normalized:
+        raise ValueError(f"telefone invalido; cliente nao criado (entrada com {len(str(phone or ''))} caracteres)")
 
     row = db.execute(
         text("SELECT id, name, phone, objective, status FROM clients WHERE phone = :p LIMIT 1"),
