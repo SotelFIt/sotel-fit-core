@@ -141,3 +141,24 @@ def test_saida_canonica_dos_validos_nao_mudou(  ):
     }
     for entrada, saida in esperado.items():
         assert normalize_phone(entrada) == saida, entrada
+
+
+# ---------------- REL-V1-004: PATCH de cliente (write path da consolidacao) ----------------
+
+def test_patch_de_cliente_tem_corpo_e_grava():
+    """A funcao existia sem corpo: respondia 200 e nao gravava nada.
+    Sem ela nao ha caminho de API para preservar dados na consolidacao."""
+    import inspect
+    from routers import clients
+    src = inspect.getsource(clients.update_client)
+    assert "UPDATE clients SET" in src, "o PATCH precisa realmente gravar"
+    assert "db.commit()" in src
+
+
+def test_patch_de_cliente_nao_altera_telefone():
+    """BL-PHONE-001: telefone e identidade. Trocar por PATCH seria trocar de pessoa."""
+    import inspect
+    from routers import clients
+    src = inspect.getsource(clients.update_client)
+    assert '"phone"' in src and "422" in src, "phone precisa ser recusado explicitamente"
+    assert "phone" not in {"name", "email", "objective", "status", "age", "weight", "height"}
