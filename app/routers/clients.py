@@ -203,7 +203,40 @@ def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: in
 
 @router.patch("/{client_id}")
 def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), auth_client_id: int = Depends(require_client_access)):
-    allowed = {"name", "email", "objective", "status"}
+    """Edicao parcial do cadastro do cliente.
+
+    REL-V1-004: a funcao existia sem corpo - respondia 200 e nao gravava nada.
+    Implementada aqui porque a consolidacao 35->39 depende dela; o conjunto de
+    campos permitidos ja estava declarado e foi mantido, mais os dados de
+    onboarding que o cliente informa (idade, peso, altura).
+
+    `phone` NAO entra: telefone e identidade (BL-PHONE-001) e nao se edita por
+    aqui - trocar o telefone de um cliente e trocar de quem ele e.
+    """
+    allowed = {"name", "email", "objective", "status", "age", "weight", "height"}
+    campos = {k: v for k, v in (payload or {}).items() if k in allowed}
+    if "phone" in (payload or {}):
+        raise HTTPException(status_code=422, detail="phone e identidade e nao pode ser alterado por aqui")
+    if not campos:
+        raise HTTPException(status_code=400, detail=f"nenhum campo editavel; aceitos: {sorted(allowed)}")
+
+    existe = db.execute(text("SELECT id FROM clients WHERE id = :cid"), {"cid": client_id}).fetchone()
+    if not existe:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+
+    sets = ", ".join(f"{k} = :{k}" for k in campos)
+    db.execute(text(f"UPDATE clients SET {sets}, updated_at = NOW() WHERE id = :cid"),
+               {**campos, "cid": client_id})
+    db.commit()
+
+    row = db.execute(
+        text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid"),
+        {"cid": client_id},
+    ).fetchone()
+    return {"id": row[0], "name": row[1], "email": row[2], "phone": row[3], "objective": row[4],
+            "status": row[5], "age": row[6], "weight": row[7], "height": row[8]}
+
+
 @router.get("/{client_id}/checkins")
 def get_my_checkins(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_client_access)):
     rows = db.execute(
