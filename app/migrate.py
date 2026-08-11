@@ -199,4 +199,81 @@ def run_migrations(engine):
                 except Exception as e:
                     conn.rollback()
                     logger.error(f"Erro no guard de slug de exercises: {e}")
+
+        # --- LIB-013B: regras direcionais de substituicao ---
+        # ADITIVA. A tabela nasce em Base.metadata.create_all (models/exercise_substitution.py);
+        # aqui migram as decisoes ja comprovadas na LIB-013A. Idempotente: ON CONFLICT DO NOTHING
+        # sobre a UNIQUE(source, target). NENHUM DROP, NENHUMA perda de dado.
+        # A coluna antiga exercises.approved_substitutions e PRESERVADA e deixa de ser lida:
+        # vira projecao derivada desta tabela (services/substitution_rules.py).
+        # ROLLBACK: DELETE FROM exercise_substitution_rules WHERE ...  (relacoes) e, se preciso,
+        #           DROP TABLE IF EXISTS exercise_substitution_rules. A coluna legada continua
+        #           intacta com o conteudo anterior, entao o estado antigo e recuperavel.
+        _migrar_regras_de_substituicao(conn)
+
     logger.info("Migrations concluidas.")
+
+
+# Decisoes da LIB-013A (source, target, relation_type, rationale, condition).
+# Nenhuma relacao nova: apenas o que ja foi avaliado e provado naquela missao.
+LIB_013A_RULES = [
+    ("supino-reto", "supino-com-halteres", "direct",
+     "Mesmo padrao motor (empurrar horizontal), mesmo musculo principal e mesma funcao no treino "
+     "(composto de empurrar). Ambos sao peso livre: muda o implemento, nao a classe de estabilidade exigida.",
+     None),
+    ("supino-com-halteres", "supino-reto", "direct",
+     "Simetria verificada caso a caso, nao assumida: nos dois sentidos a demanda de estabilidade e da "
+     "mesma classe e a funcao no treino se mantem.",
+     None),
+    ("agachamento-livre", "leg-press", "acceptable",
+     "Mesma funcao no treino (composto de membros inferiores) e a maquina reduz a demanda de estabilidade, "
+     "o que respeita a hierarquia do Metodo Sotel (seguranca acima de intensidade). Nao e 'direct' porque "
+     "mudam equipamento, padrao especifico e complexidade tecnica.",
+     None),
+    ("leg-press", "agachamento-livre", "contextual",
+     "O sentido inverso nao herda a aprovacao: sair da maquina para o peso livre acrescenta demanda de "
+     "estabilidade, mobilidade e tecnica que a origem nao exigia.",
+     "Somente quando o aluno ja sustenta o padrao de agachamento com controle e coluna neutra na amplitude "
+     "que vai usar; o alvo esta registrado como nivel avancado."),
+    ("supino-maquina", "voador", "rejected",
+     "Musculo principal, equipamento e nivel sao identicos e ainda assim nao se substituem: um e composto "
+     "de empurrar, o outro e isolador de aducao. 'Mesmo musculo' nao e criterio de substituicao.",
+     None),
+    ("voador", "supino-maquina", "rejected",
+     "Avaliado explicitamente tambem neste sentido: trocar um isolador de aducao por um composto de "
+     "empurrar muda a funcao do exercicio dentro do treino.",
+     None),
+]
+
+
+def _migrar_regras_de_substituicao(conn):
+    """Semeia as regras da LIB-013A. Idempotente e nao destrutiva.
+
+    Se a tabela ainda nao existe (create_all nao rodou) ou se algum exercicio do
+    par nao existe, a linha e simplesmente pulada - a migration nunca derruba a
+    startup por causa de dado de dominio.
+    """
+    inseridas = 0
+    for source, target, relation_type, rationale, condition in LIB_013A_RULES:
+        try:
+            row = conn.execute(
+                text("SELECT "
+                     "(SELECT id FROM exercises WHERE slug = :s) AS sid, "
+                     "(SELECT id FROM exercises WHERE slug = :t) AS tid")
+            .bindparams(s=source, t=target)).fetchone()
+            if not row or row[0] is None or row[1] is None:
+                logger.warning(f"LIB-013B: regra {source}->{target} ignorada (exercicio ausente)")
+                continue
+            res = conn.execute(
+                text("INSERT INTO exercise_substitution_rules "
+                     "(source_exercise_id, target_exercise_id, relation_type, rationale, condition, is_active) "
+                     "VALUES (:sid, :tid, :rt, :ra, :cond, TRUE) "
+                     "ON CONFLICT (source_exercise_id, target_exercise_id) DO NOTHING")
+                .bindparams(sid=row[0], tid=row[1], rt=relation_type, ra=rationale, cond=condition))
+            conn.commit()
+            inseridas += res.rowcount or 0
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"LIB-013B: falha ao migrar regra {source}->{target}: {e}")
+    if inseridas:
+        logger.info(f"LIB-013B: {inseridas} regras de substituicao migradas.")

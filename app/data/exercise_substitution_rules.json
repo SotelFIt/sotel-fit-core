@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "missao": "LIB-013B",
+    "count": 6,
+    "descricao": "FONTE CANONICA das regras direcionais de substituicao. Relacoes sao ARESTAS, nao atributos do exercicio - por isso vivem aqui e NAO no exercise_catalog_sprint1.json.",
+    "relation_types": {
+      "direct": "alta equivalencia funcional -> decisao YES",
+      "acceptable": "substitui de forma tecnicamente valida, com diferenca relevante -> decisao YES",
+      "contextual": "vale somente sob a condicao declarada -> decisao DEPENDS (exige `condition`)",
+      "rejected": "par avaliado e NAO aprovado -> decisao NO"
+    },
+    "regras": [
+      "A direcao e source -> target. A relacao inversa NUNCA e inferida.",
+      "Relacao simetrica exige DUAS linhas explicitas; nao existe bidirectional=true.",
+      "Ausencia de linha = NAO AVALIADO. Nunca interpretar como rejected.",
+      "rationale e obrigatorio em todas as linhas; condition e obrigatorio em contextual.",
+      "approved_substitutions (campo antigo) virou PROJECAO derivada de direct+acceptable e deixou de ser fonte da verdade."
+    ],
+    "travado_por": "app/tests/test_substitution_rules.py",
+    "origem": "decisoes ja comprovadas na LIB-013A; nenhuma relacao nova foi criada nesta missao"
+  },
+  "rules": [
+    {
+      "source": "supino-reto",
+      "target": "supino-com-halteres",
+      "relation_type": "direct",
+      "rationale": "Mesmo padrao motor (empurrar horizontal), mesmo musculo principal e mesma funcao no treino (composto de empurrar). Ambos sao peso livre: muda o implemento, nao a classe de estabilidade exigida.",
+      "condition": null,
+      "is_active": true
+    },
+    {
+      "source": "supino-com-halteres",
+      "target": "supino-reto",
+      "relation_type": "direct",
+      "rationale": "Simetria verificada caso a caso, nao assumida: nos dois sentidos a demanda de estabilidade e da mesma classe e a funcao no treino se mantem.",
+      "condition": null,
+      "is_active": true
+    },
+    {
+      "source": "agachamento-livre",
+      "target": "leg-press",
+      "relation_type": "acceptable",
+      "rationale": "Mesma funcao no treino (composto de membros inferiores) e a maquina reduz a demanda de estabilidade, o que respeita a hierarquia do Metodo Sotel (seguranca acima de intensidade). Nao e 'direct' porque mudam equipamento, padrao especifico e complexidade tecnica.",
+      "condition": null,
+      "is_active": true
+    },
+    {
+      "source": "leg-press",
+      "target": "agachamento-livre",
+      "relation_type": "contextual",
+      "rationale": "O sentido inverso nao herda a aprovacao: sair da maquina para o peso livre acrescenta demanda de estabilidade, mobilidade e tecnica que a origem nao exigia.",
+      "condition": "Somente quando o aluno ja sustenta o padrao de agachamento com controle e coluna neutra na amplitude que vai usar; o alvo esta registrado como nivel avancado.",
+      "is_active": true
+    },
+    {
+      "source": "supino-maquina",
+      "target": "voador",
+      "relation_type": "rejected",
+      "rationale": "Musculo principal, equipamento e nivel sao identicos e ainda assim nao se substituem: um e composto de empurrar, o outro e isolador de aducao. 'Mesmo musculo' nao e criterio de substituicao.",
+      "condition": null,
+      "is_active": true
+    },
+    {
+      "source": "voador",
+      "target": "supino-maquina",
+      "relation_type": "rejected",
+      "rationale": "Avaliado explicitamente tambem neste sentido: trocar um isolador de aducao por um composto de empurrar muda a funcao do exercicio dentro do treino.",
+      "condition": null,
+      "is_active": true
+    }
+  ]
+}
