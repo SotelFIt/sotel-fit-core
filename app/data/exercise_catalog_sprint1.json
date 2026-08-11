@@ -41,7 +41,8 @@
       "Producao e catalogo SINCRONIZADOS (LIB-011E, 2026-08-08): importer --dry-run = 33/33 skipped_equal, 0 conflitos.",
       "LIB-012A (2026-08-08): KNOWLEDGE LAYER - piloto de 5 exercicios (supino-reto, remada-sentada, leg-press, desenvolvimento, prancha-frontal) com instructions/cautions/common_errors/secondary_muscles preenchidos. Identidade inalterada. Os outros 28 permanecem vazios ate a LIB-012B. Padrao editorial: instructions = 5 passos numerados; cautions = cuidados do movimento; common_errors = erros observaveis; secondary_muscles = vocabulario de _meta.taxonomia.primary_muscle.",
       "LIB-012A.1 (2026-08-10): refino tecnico do piloto - retiradas as redacoes absolutas antes de escalar o padrao. Curvatura lombar natural deixa de ser erro (so extensao exagerada com perda de estabilidade); 'nao travar' vira 'sem hiperextensao nem impacto'; protracao escapular controlada e permitida na remada; posicao dos pes no leg press e na prancha passa a ser estavel/confortavel, nao unica. Identidade e secondary_muscles inalterados.",
-      "LIB-013A (2026-08-10): SUBSTITUTION MODEL - piloto de 3 relacoes de alta confianca. approved_substitutions guarda SOMENTE slugs: nao ha como persistir grau (equivalente/aceitavel/contextual), contexto ou motivo. Por isso so relacoes APPROVED foram gravadas. O grafo e DIRECIONAL por natureza (cada registro tem sua propria lista) e nao foi espelhado automaticamente. Travado por app/tests/test_substitution_graph.py."
+      "LIB-013A (2026-08-10): SUBSTITUTION MODEL - piloto de 3 relacoes de alta confianca. approved_substitutions guarda SOMENTE slugs: nao ha como persistir grau (equivalente/aceitavel/contextual), contexto ou motivo. Por isso so relacoes APPROVED foram gravadas. O grafo e DIRECIONAL por natureza (cada registro tem sua propria lista) e nao foi espelhado automaticamente. Travado por app/tests/test_substitution_graph.py.",
+      "LIB-013B (2026-08-10): as relacoes de substituicao SAIRAM deste catalogo. Fonte canonica unica passa a ser app/data/exercise_substitution_rules.json (regras direcionais com relation_type/rationale/condition). O campo approved_substitutions da API virou PROJECAO derivada de direct+acceptable e nao e mais escrito."
     ]
   },
   "exercises": [
@@ -191,9 +192,6 @@
         "Os joelhos acompanham a direcao dos pes, qualquer que seja a base escolhida.",
         "Ajuste as travas de seguranca do suporte antes de iniciar a serie.",
         "Distribua o apoio no pe inteiro, sem jogar todo o peso na ponta ou no calcanhar."
-      ],
-      "approved_substitutions": [
-        "leg-press"
       ]
     },
     {
@@ -868,9 +866,6 @@
         "A curvatura natural da lombar e esperada; o que se evita e a extensao exagerada com perda de estabilidade.",
         "Finalize a subida sem hiperextensao dos cotovelos nem impacto na articulacao.",
         "Use travas de seguranca ou acompanhamento de um parceiro quando a execucao exigir."
-      ],
-      "approved_substitutions": [
-        "supino-com-halteres"
       ]
     },
     {
@@ -969,9 +964,6 @@
         "A profundidade da descida segue o conforto do ombro, nao a obrigacao de tocar o peito.",
         "Mantenha pes, quadril e escapulas estaveis durante a serie.",
         "Os halteres deixam a trajetoria e a pegada mais livres: use a que voce consegue controlar."
-      ],
-      "approved_substitutions": [
-        "supino-reto"
       ]
     }
   ]

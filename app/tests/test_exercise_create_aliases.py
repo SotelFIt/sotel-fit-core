@@ -21,6 +21,7 @@ from sqlalchemy.pool import StaticPool
 from core.database import Base, get_db
 from core.security import require_admin
 from models.exercise import Exercise
+from models.exercise_substitution import ExerciseSubstitutionRule
 from routers.exercise import admin_router
 
 REG_ALIASES = ["Supino Inclinado com Barra", "Incline Bench Press", "Barbell Incline Bench Press"]
@@ -28,7 +29,10 @@ REG_ALIASES = ["Supino Inclinado com Barra", "Incline Bench Press", "Barbell Inc
 
 def _engine():
     eng = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
-    Base.metadata.create_all(eng, tables=[Exercise.__table__])
+    # LIB-013B: approved_substitutions virou projecao das regras, entao a tabela de
+    # relacoes precisa existir mesmo num teste que so exercita `aliases`.
+    Base.metadata.create_all(eng, tables=[Exercise.__table__,
+                                          ExerciseSubstitutionRule.__table__])
     return eng
 
 
