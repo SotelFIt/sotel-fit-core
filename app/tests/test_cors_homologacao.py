@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from main import app  # noqa: E402
 
-PREVIEW = "https://sotel-client-8k6idllvi-sotelfits-projects.vercel.app"
+PREVIEW = "https://sotel-client-c6fjnd8kk-sotelfits-projects.vercel.app"
 
 
 def _cors():
@@ -61,9 +61,11 @@ def test_outro_preview_do_cliente_NAO_esta_liberado():
     for vizinha in [
         "https://sotel-client-73jru9m7m-sotelfits-projects.vercel.app",
         "https://sotel-client-gx9xmnn69-sotelfits-projects.vercel.app",
-        "https://sotel-client-8k6idllvi-sotelfits-projects.vercel.app.evil.com",
-        "https://sotel-client-8k6idllvi-sotelfits-projects.vercel.app.br",
-        "http://sotel-client-8k6idllvi-sotelfits-projects.vercel.app",
+        "https://sotel-client-c6fjnd8kk-sotelfits-projects.vercel.app.evil.com",
+        # a origem da homologacao ANTERIOR: foi SUBSTITUIDA, nao acumulada
+        "https://sotel-client-8k6idllvi-sotelfits-projects.vercel.app",
+        "https://sotel-client-c6fjnd8kk-sotelfits-projects.vercel.app.br",
+        "http://sotel-client-c6fjnd8kk-sotelfits-projects.vercel.app",
     ]:
         assert vizinha not in permitidas, f"origem nao autorizada na allowlist: {vizinha}"
         assert not re.fullmatch(regex, vizinha), f"regex do admin aceitou {vizinha}"
