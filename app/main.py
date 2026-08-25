@@ -70,7 +70,24 @@ async def log_requests(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://sotel-admin.vercel.app", "https://sotel-client.vercel.app", "https://frontend-iota-rose-78.vercel.app"],
+    allow_origins=[
+        "https://sotel-admin.vercel.app",
+        "https://sotel-client.vercel.app",
+        "https://frontend-iota-rose-78.vercel.app",
+        # Homologacao visual do Treino — origem EXATA de UM deployment de
+        # preview, nao um padrao. Previews do cliente nao eram aceitos, o
+        # preflight voltava 400 e o navegador bloqueava a chamada; na tela isso
+        # aparecia como "E-mail nao encontrado" para uma conta que existia.
+        #
+        # Por que a origem exata e nao um regex: menor acesso possivel. Um
+        # `sotel-client-.*` liberaria todo deployment de preview, presente e
+        # futuro, de qualquer branch. Aqui vale UM hostname, que deixa de existir
+        # quando a homologacao acabar.
+        #
+        # REMOVER apos o aceite visual do Proprietario.
+        "https://sotel-client-8k6idllvi-sotelfits-projects.vercel.app",
+    ],
+    # Regra do admin INALTERADA.
     allow_origin_regex=r"https://sotel-admin-git-.*-sotelfits-projects\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
