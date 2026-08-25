@@ -151,6 +151,42 @@ def run_migrations(engine):
                 logger.error(f"Erro ao criar tabela: {e}")
 
 
+        # --- WORKOUT-DATA-001: conclusao canonica de treino ---
+        # A tabela nasce via Base.metadata.create_all(); este CREATE IF NOT
+        # EXISTS existe para bases onde o create_all nao alcancou. Aditivo e
+        # idempotente: nao toca em timeline_events nem em dado existente.
+        workout_completions = [
+            """CREATE TABLE IF NOT EXISTS workout_completions (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER NOT NULL,
+                client_plan_id INTEGER NOT NULL DEFAULT 0,
+                workout_key VARCHAR(32) NOT NULL,
+                completed_date DATE NOT NULL,
+                completed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                idempotency_key VARCHAR(128) NOT NULL,
+                timeline_event_id INTEGER,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )""",
+            "ALTER TABLE workout_completions ADD COLUMN IF NOT EXISTS client_plan_id INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE workout_completions ADD COLUMN IF NOT EXISTS timeline_event_id INTEGER",
+            # Marco JA CONCEDIDO. A restricao unica abaixo e a garantia REAL
+            # contra marco duplicado entre conexoes/processos concorrentes.
+            """CREATE TABLE IF NOT EXISTS workout_milestones (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER NOT NULL,
+                milestone INTEGER NOT NULL,
+                workout_completion_id INTEGER,
+                timeline_event_id INTEGER,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )""",
+        ]
+        for sql in workout_completions:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
         # --- INDEX migrations ---
         index_sqls = [
             "CREATE INDEX IF NOT EXISTS idx_timeline_client_id ON timeline_events (client_id)",
@@ -165,6 +201,19 @@ def run_migrations(engine):
             "CREATE INDEX IF NOT EXISTS idx_wa_events_message_sid ON whatsapp_events (message_sid)",
             "CREATE INDEX IF NOT EXISTS idx_wa_events_client_id ON whatsapp_events (client_id)",
             "CREATE INDEX IF NOT EXISTS idx_wa_events_status ON whatsapp_events (status)",
+            # WORKOUT-DATA-001 — as DUAS garantias de unicidade.
+            # (1) a intencao: mesma chave reenviada = uma conclusao so.
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_completion_idem ON workout_completions (idempotency_key)",
+            # (2) a ocorrencia: protege quem PERDEU a chave (storage limpo,
+            #     outro aparelho) de concluir o mesmo treino do mesmo plano
+            #     no mesmo dia duas vezes.
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_completion_ocorrencia ON workout_completions (client_id, client_plan_id, workout_key, completed_date)",
+            "CREATE INDEX IF NOT EXISTS idx_workout_completions_client ON workout_completions (client_id)",
+            "CREATE INDEX IF NOT EXISTS idx_workout_completions_date ON workout_completions (completed_date DESC)",
+            # UM marco por cliente. Duas conclusoes concorrentes podem contar
+            # cinco cada uma; esta constraint deixa apenas uma conceder.
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_milestone_cliente ON workout_milestones (client_id, milestone)",
+            "CREATE INDEX IF NOT EXISTS idx_workout_milestones_client ON workout_milestones (client_id)",
         ]
         for sql in index_sqls:
             try:

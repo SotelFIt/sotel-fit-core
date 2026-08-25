@@ -150,6 +150,12 @@ try:
 except Exception as e:
     logger.error(f"Timeline router nao carregado: {e}")
 try:
+    from routers.workout_completion import router as workout_completion_router
+    app.include_router(workout_completion_router)
+    logger.info("Workout completion router carregado")
+except Exception as e:
+    logger.error(f"Workout completion router nao carregado: {e}")
+try:
     from routers.photos import router as photos_router
     app.include_router(photos_router)
     logger.info("Photos router carregado")
