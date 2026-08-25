@@ -169,6 +169,16 @@ def run_migrations(engine):
             )""",
             "ALTER TABLE workout_completions ADD COLUMN IF NOT EXISTS client_plan_id INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE workout_completions ADD COLUMN IF NOT EXISTS timeline_event_id INTEGER",
+            # Marco JA CONCEDIDO. A restricao unica abaixo e a garantia REAL
+            # contra marco duplicado entre conexoes/processos concorrentes.
+            """CREATE TABLE IF NOT EXISTS workout_milestones (
+                id SERIAL PRIMARY KEY,
+                client_id INTEGER NOT NULL,
+                milestone INTEGER NOT NULL,
+                workout_completion_id INTEGER,
+                timeline_event_id INTEGER,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )""",
         ]
         for sql in workout_completions:
             try:
@@ -200,6 +210,10 @@ def run_migrations(engine):
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_completion_ocorrencia ON workout_completions (client_id, client_plan_id, workout_key, completed_date)",
             "CREATE INDEX IF NOT EXISTS idx_workout_completions_client ON workout_completions (client_id)",
             "CREATE INDEX IF NOT EXISTS idx_workout_completions_date ON workout_completions (completed_date DESC)",
+            # UM marco por cliente. Duas conclusoes concorrentes podem contar
+            # cinco cada uma; esta constraint deixa apenas uma conceder.
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_milestone_cliente ON workout_milestones (client_id, milestone)",
+            "CREATE INDEX IF NOT EXISTS idx_workout_milestones_client ON workout_milestones (client_id)",
         ]
         for sql in index_sqls:
             try:

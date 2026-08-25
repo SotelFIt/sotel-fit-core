@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.security import require_client_access
-from models.workout_completion import MARCOS, WorkoutCompletion
+from models.workout_completion import MARCOS, WorkoutCompletion, WorkoutMilestone
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workout-completions", tags=["workout"])
@@ -130,8 +130,19 @@ def _inserir_evento(db: Session, client_id: int, event_type: str, title: str,
         return None
 
 
-def _existente(db: Session, client_id: int, dados: CompletionIn, dia: date):
-    """Conclusão já registrada para esta intenção — por chave ou por ocorrência."""
+def _existente(db: Session, client_id: int, dados: CompletionIn, dia: date, plano_id: int):
+    """Conclusão já registrada para esta intenção.
+
+    Duas buscas com escopos DIFERENTES, de propósito:
+
+    1. `idempotency_key` é GLOBAL — é a identidade da intenção. A mesma chave
+       reenviada tem de encontrar a conclusão original em qualquer situação.
+
+    2. a busca natural precisa espelhar EXATAMENTE a restrição única, e ela
+       inclui `client_plan_id`. Sem isso, publicar um plano novo e concluir o
+       "Treino A" no mesmo dia seria tratado como duplicata do plano anterior —
+       e o cliente perderia uma conclusão legítima.
+    """
     achado = (
         db.query(WorkoutCompletion)
         .filter(WorkoutCompletion.idempotency_key == dados.idempotency_key)
@@ -142,12 +153,88 @@ def _existente(db: Session, client_id: int, dados: CompletionIn, dia: date):
             db.query(WorkoutCompletion)
             .filter(
                 WorkoutCompletion.client_id == client_id,
+                WorkoutCompletion.client_plan_id == plano_id,
                 WorkoutCompletion.workout_key == dados.workout_key,
                 WorkoutCompletion.completed_date == dia,
             )
             .one_or_none()
         )
     return achado
+
+
+def _serializar_por_cliente(db: Session, client_id: int) -> None:
+    """Serializa o trecho crítico por cliente — só no PostgreSQL.
+
+    `pg_advisory_xact_lock` é por TRANSAÇÃO: solta sozinho no commit ou no
+    rollback, então não há risco de trava órfã. Serializar por cliente faz a
+    contagem de marcos ser exata em produção.
+
+    No SQLite (suíte) não existe equivalente, e é por isso que a proteção real
+    do marco NÃO depende deste lock: ela é a restrição única de
+    `workout_milestones`. O lock reduz contenção e evita marco PERDIDO; a
+    constraint é quem impede marco DUPLICADO.
+    """
+    if db.bind.dialect.name != "postgresql":
+        return
+    try:
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext('sotel_workout_completion'), :cid)"),
+            {"cid": client_id},
+        )
+    except Exception:
+        # Lock indisponível não pode derrubar a conclusão — a constraint segura.
+        logger.warning("advisory lock indisponivel; seguindo com a constraint")
+
+
+def _total_conclusoes(db: Session, client_id: int) -> int:
+    """Conclusões do cliente visíveis nesta transação (inclui a recém-inserida).
+
+    Função própria, e não uma query solta, por duas razões: deixa explícito que o
+    marco conta CONCLUSÕES — nunca `timeline_events`, que era a origem do marco
+    falso — e dá um ponto de costura para a suíte forçar a corrida real, em que
+    duas transações contam o mesmo total.
+    """
+    return db.query(WorkoutCompletion).filter(WorkoutCompletion.client_id == client_id).count()
+
+
+def _conceder_marco(db: Session, client_id: int, marco: int, conclusao_id: int) -> None:
+    """Concede o marco no máximo UMA vez por cliente.
+
+    A garantia é a restrição única de `workout_milestones`, que vale entre
+    conexões e processos. Duas conclusões distintas simultâneas podem contar
+    cinco cada uma — nenhuma enxerga a outra ainda — e ambas chegam aqui. A
+    primeira insere; a segunda leva IntegrityError e desiste do marco.
+
+    O INSERT vive num SAVEPOINT: sem ele, a violação abortaria a transação
+    inteira e o cliente perderia a própria conclusão por causa de um marco que
+    outra requisição já concedeu.
+    """
+    icone, titulo, descricao = MARCOS[marco]
+    try:
+        with db.begin_nested():  # SAVEPOINT
+            db.add(
+                WorkoutMilestone(
+                    client_id=client_id,
+                    milestone=marco,
+                    workout_completion_id=conclusao_id,
+                )
+            )
+            db.flush()
+    except IntegrityError:
+        # Outra conclusão concorrente já concedeu este marco. Não é erro: o
+        # marco é do CLIENTE, não da requisição.
+        logger.info("marco %s do cliente %s ja concedido por outra transacao", marco, client_id)
+        return
+
+    _inserir_evento(
+        db,
+        client_id,
+        "achievement",
+        titulo,
+        descricao,
+        icone,
+        {"workout_completion_id": conclusao_id, "milestone": marco},
+    )
 
 
 @router.post("/{client_id}")
@@ -159,14 +246,18 @@ def concluir_treino(
 ):
     dia = dados.completed_date or date.today()
 
-    ja = _existente(db, client_id, dados, dia)
+    # O plano ativo é resolvido ANTES da busca natural: ela precisa comparar
+    # `client_plan_id`, senão um plano novo publicado hoje teria o mesmo
+    # "Treino A" confundido com o do plano anterior.
+    plano_id = _plano_ativo_id(db, client_id)
+
+    ja = _existente(db, client_id, dados, dia, plano_id)
     if ja is not None:
         # Chave de OUTRO cliente: não confirmar e não vazar a existência dela.
         if ja.client_id != client_id:
             raise HTTPException(status_code=403, detail="Acesso negado")
         return {"created": False, "completion": _serializar(ja)}
 
-    plano_id = _plano_ativo_id(db, client_id)
     conclusao = WorkoutCompletion(
         client_id=client_id,
         client_plan_id=plano_id,
@@ -177,6 +268,10 @@ def concluir_treino(
     )
 
     try:
+        # Em produção serializa por cliente, tornando a contagem exata. Não é a
+        # garantia do marco — ver `_conceder_marco`.
+        _serializar_por_cliente(db, client_id)
+
         db.add(conclusao)
         # flush (não commit): materializa o id e dispara a violação de unicidade
         # AGORA, antes de escrever qualquer evento de Timeline.
@@ -195,22 +290,9 @@ def concluir_treino(
         # MARCO: contado sobre as CONCLUSÕES, dentro da mesma transação. Como a
         # conclusão desta requisição já está no flush, ela entra na conta uma
         # única vez — reenviar não incrementa nada.
-        total = (
-            db.query(WorkoutCompletion)
-            .filter(WorkoutCompletion.client_id == client_id)
-            .count()
-        )
+        total = _total_conclusoes(db, client_id)
         if total in MARCOS:
-            icone, m_titulo, m_desc = MARCOS[total]
-            _inserir_evento(
-                db,
-                client_id,
-                "achievement",
-                m_titulo,
-                m_desc,
-                icone,
-                {"workout_completion_id": conclusao.id, "milestone": total},
-            )
+            _conceder_marco(db, client_id, total, conclusao.id)
 
         db.commit()
     except IntegrityError:
@@ -218,7 +300,7 @@ def concluir_treino(
         # INSERT. Rollback desfaz TUDO (inclusive o evento) e devolvemos a
         # conclusão vencedora — sucesso, nunca erro.
         db.rollback()
-        vencedora = _existente(db, client_id, dados, dia)
+        vencedora = _existente(db, client_id, dados, dia, plano_id)
         if vencedora is None:
             logger.error("IntegrityError sem conclusão correspondente (client=%s)", client_id)
             raise HTTPException(status_code=500, detail="Erro ao registrar conclusão")

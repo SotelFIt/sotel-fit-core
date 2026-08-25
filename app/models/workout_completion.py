@@ -54,8 +54,9 @@ from sqlalchemy import (
 
 from core.database import Base
 
-# Nome da restrição natural — repetido em migrate.py e nos testes.
+# Nomes das restrições — repetidos em migrate.py e nos testes.
 UQ_OCORRENCIA = "uq_workout_completion_ocorrencia"
+UQ_MARCO = "uq_workout_milestone_cliente"
 
 # Marcos de constância. Contados sobre ESTA tabela, nunca sobre timeline_events:
 # é o que impede que um reenvio infle o contador e dispare marco falso.
@@ -106,4 +107,41 @@ class WorkoutCompletion(Base):
             "completed_date",
             name=UQ_OCORRENCIA,
         ),
+    )
+
+
+class WorkoutMilestone(Base):
+    """Marco de constância JÁ CONCEDIDO — um por cliente, por marco.
+
+    Por que uma tabela, e não só a contagem
+    ---------------------------------------
+    Contar conclusões dentro da transação resolve o reenvio, mas NÃO resolve
+    duas conclusões DIFERENTES chegando ao mesmo tempo: com quatro já gravadas,
+    duas transações concorrentes podem contar cinco cada uma — nenhuma enxerga
+    a outra ainda — e ambas criariam o marco de 5.
+
+    A proteção real precisa viver no BANCO, valendo entre conexões e processos.
+    É esta restrição única: as duas tentam inserir `(cliente, 5)`, uma vence e a
+    outra recebe IntegrityError e desiste do marco. Trava em memória não serviria
+    (vários workers), e depender da serialização do SQLite seria acidente, não
+    garantia.
+
+    O `pg_advisory_xact_lock` do router é complementar: em produção ele torna a
+    contagem exata, evitando marco PERDIDO. Quem impede marco DUPLICADO é esta
+    tabela, em qualquer banco.
+    """
+
+    __tablename__ = "workout_milestones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, nullable=False, index=True)
+    # 5, 10, 20, 50 — as chaves de MARCOS
+    milestone = Column(Integer, nullable=False)
+    # conclusão que disparou o marco, para auditoria
+    workout_completion_id = Column(Integer, nullable=True)
+    timeline_event_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("client_id", "milestone", name=UQ_MARCO),
     )

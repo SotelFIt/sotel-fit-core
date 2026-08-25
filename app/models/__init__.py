@@ -14,11 +14,11 @@ from models.client_plan import ClientPlan
 from models.client_diet import ClientDiet
 from models.client_checkin import ClientCheckin
 from models.exercise import Exercise
-from models.workout_completion import WorkoutCompletion
+from models.workout_completion import WorkoutCompletion, WorkoutMilestone
 
 __all__ = [
     'Base', 'Client', 'Onboarding', 'Plan', 'PlanVersion',
     'Diet', 'DietVersion', 'Checkin', 'DecisionLog', 'Subscription',
     'ConversationState', 'LeadOnboarding',
-    'ClientPlan', 'ClientDiet', 'ClientCheckin', 'Exercise', 'WorkoutCompletion'
+    'ClientPlan', 'ClientDiet', 'ClientCheckin', 'Exercise', 'WorkoutCompletion', 'WorkoutMilestone'
 ]
