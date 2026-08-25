@@ -85,7 +85,7 @@ app.add_middleware(
         # quando a homologacao acabar.
         #
         # REMOVER apos o aceite visual do Proprietario.
-        "https://sotel-client-8k6idllvi-sotelfits-projects.vercel.app",
+        "https://sotel-client-c6fjnd8kk-sotelfits-projects.vercel.app",
     ],
     # Regra do admin INALTERADA.
     allow_origin_regex=r"https://sotel-admin-git-.*-sotelfits-projects\.vercel\.app",
