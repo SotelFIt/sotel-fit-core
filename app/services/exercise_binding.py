@@ -14,6 +14,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from models.exercise import Exercise
+
 from services.workout_extract import extract_exercises
 from services.exercise_resolver import build_index, resolve_with_index, normalize_name
 
@@ -29,13 +31,31 @@ def _occurrence_key(norm: str, ordinal: int, context_path: str) -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def build_enrichment(db: Session, published_content: Optional[str]) -> dict:
+def build_enrichment(
+    db: Session,
+    published_content: Optional[str],
+    bindings: Optional[dict] = None,
+) -> dict:
     """Enriquecimento derivado do texto publicado:
     { "exercises": [ {occurrence_key, name_raw, context_path, library_ref, status, match?} ],
       "coverage": {resolved, total} }.
+
+    `bindings` sao os vinculos ESCOLHIDOS por um profissional no administrativo,
+    no formato {occurrence_key: slug}. Eles tem precedencia sobre a resolucao
+    automatica e recebem `status: "manual"`.
+
+    Por que precedencia: a resolucao automatica casa por nome e alias
+    normalizados. Ela acerta muito, mas quando erra, erra em silencio — e hoje
+    57% das ocorrencias dos planos reais nao resolvem para exercicio nenhum.
+    Escolha humana nao pode ser sobrescrita por heuristica na proxima
+    republicacao.
     """
     items = extract_exercises(published_content or "")
     index = build_index(db)
+    bindings = bindings or {}
+    # Só aceita slug que EXISTE. Vinculo apontando para exercicio inexistente e
+    # pior que vinculo nenhum: o cliente pediria uma orientacao fantasma.
+    validos = {r[0] for r in db.query(Exercise.slug).all()} if bindings else set()
 
     exercises = []
     seen = {}
@@ -46,9 +66,26 @@ def build_enrichment(db: Session, published_content: Optional[str]) -> dict:
         ordinal = seen.get((norm, ctx), 0)
         seen[(norm, ctx)] = ordinal + 1
 
+        chave = _occurrence_key(norm, ordinal, ctx)
+        escolhido = bindings.get(chave)
+
+        if escolhido and escolhido in validos:
+            # Escolha humana: vale, e fica marcada como tal.
+            entry = {
+                "occurrence_key": chave,
+                "name_raw": it["name"],
+                "context_path": ctx,
+                "library_ref": escolhido,
+                "status": "manual",
+                "match": "manual",
+            }
+            resolved += 1
+            exercises.append(entry)
+            continue
+
         hit = resolve_with_index(index, it["name"])
         entry = {
-            "occurrence_key": _occurrence_key(norm, ordinal, ctx),
+            "occurrence_key": chave,
             "name_raw": it["name"],
             "context_path": ctx,
             "library_ref": hit["slug"] if hit else None,
