@@ -3,9 +3,9 @@ Schemas de dominio da Biblioteca de Exercicios V1 (LIB-002).
 Validacao dos campos da tabela exercises. Sem endpoints nesta missao.
 """
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # slug URL-safe, um unico segmento: sem '/', sem espacos, so caracteres unreserved.
 # Sem ancoras: a validacao usa fullmatch (ancora inicio E fim de forma exata),
@@ -17,11 +17,138 @@ SLUG_RESERVED = {".", ".."}
 ExerciseLevel = Literal["iniciante", "intermediario", "avancado"]
 
 
+# Formatos aceitos para DEMONSTRACAO. Curtos, sem audio, eficientes em rede
+# movel. `type` deixou de ser string livre: sem restricao, nada impedia gravar
+# "video/quicktime" ou "youtube" e o cliente descobrir isso em producao.
+MEDIA_TYPES = ("video/mp4", "video/webm", "image/webp", "image/gif")
+# Extensao esperada por tipo — a checagem cruzada pega URL trocada.
+MEDIA_EXT = {
+    "video/mp4": (".mp4",),
+    "video/webm": (".webm",),
+    "image/webp": (".webp",),
+    "image/gif": (".gif",),
+}
+POSTER_EXT = (".jpg", ".jpeg", ".png", ".webp")
+
+# Procedencia do arquivo. Obrigatoria: e o que permite responder "de quem e
+# isso?" sem abrir o Cloudinary.
+#
+#   sotel_proprio  gravado pela Sotel. Publicavel.
+#   licenciado     comprado de fornecedor. Publicavel SOMENTE com os dados da
+#                  licenca preenchidos (ver LicencaMedia).
+#   fixture_teste  arquivo sintetico de teste. NUNCA publicavel — existe para
+#                  provar o fluxo tecnico sem acervo real.
+#
+# Nao existe valor para "material de terceiro sem autorizacao": a ausencia e
+# proposital, e um `licenciado` sem licenca cai exatamente nesse caso e e
+# recusado.
+MediaSource = Literal["sotel_proprio", "licenciado", "fixture_teste"]
+
+# Procedencias que podem chegar ao cliente.
+FONTES_PUBLICAVEIS = ("sotel_proprio", "licenciado")
+
+
+class LicencaMedia(BaseModel):
+    """Direitos de uso de midia licenciada. **PRIVADA**.
+
+    Nunca sai na resposta publica do cliente — `_public()` remove este bloco.
+    Guarda a RASTREABILIDADE, nao o documento: `referencia` e o identificador
+    interno do comprovante (numero do pedido, id no arquivo do Proprietario),
+    jamais o recibo, o PDF ou dados de pagamento.
+
+    `produto_url` aponta para a PAGINA do produto no fornecedor, nunca para o
+    arquivo — o arquivo publicado e o que esta no nosso armazenamento.
+    """
+
+    fornecedor: str = Field(min_length=2, max_length=80)
+    produto_url: str = Field(min_length=1, max_length=500)
+    adquirido_em: date
+    referencia: str = Field(min_length=2, max_length=120)
+
+    @field_validator("produto_url")
+    @classmethod
+    def _pagina_do_produto(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v.lower().startswith("https://"):
+            raise ValueError("produto_url deve ser https")
+        return v
+
+    @field_validator("referencia")
+    @classmethod
+    def _referencia_nao_e_o_comprovante(cls, v: str) -> str:
+        v = (v or "").strip()
+        # Guarda contra colar o documento inteiro (ou um link de arquivo) aqui.
+        proibido = (".pdf", ".jpg", ".png", "http://", "https://")
+        if any(p in v.lower() for p in proibido):
+            raise ValueError(
+                "referencia e o identificador interno do comprovante, nao o "
+                "documento nem um link para ele"
+            )
+        return v
+
+
 class ExerciseMedia(BaseModel):
-    """Item de midia futura: {type, url, alt?}."""
-    type: str = Field(min_length=1)
+    """Demonstracao vinculada a um exercicio canonico.
+
+    `poster` existe porque o cliente mostra a imagem ANTES de baixar o video e
+    nos pontos secundarios (proximo exercicio) nunca baixa o video.
+    """
+    type: Literal[MEDIA_TYPES]
     url: str = Field(min_length=1)
+    poster: Optional[str] = None
     alt: Optional[str] = None
+    source: MediaSource
+    # PRIVADO: obrigatorio quando `source == "licenciado"`, proibido nos demais.
+    licenca: Optional[LicencaMedia] = None
+
+    @field_validator("url")
+    @classmethod
+    def _url_https(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v.lower().startswith("https://"):
+            raise ValueError("url da midia deve ser https")
+        return v
+
+    @field_validator("poster")
+    @classmethod
+    def _poster_valido(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or not v.strip():
+            return None
+        v = v.strip()
+        if not v.lower().startswith("https://"):
+            raise ValueError("poster deve ser https")
+        if not any(v.lower().split("?")[0].endswith(e) for e in POSTER_EXT):
+            raise ValueError(f"poster deve terminar em {', '.join(POSTER_EXT)}")
+        return v
+
+    @model_validator(mode="after")
+    def _procedencia_coerente(self):
+        """Licenciado SEM licenca e midia sem procedencia comprovada."""
+        if self.source == "licenciado" and self.licenca is None:
+            raise ValueError(
+                "midia licenciada exige os dados da licenca (fornecedor, "
+                "produto_url, adquirido_em, referencia)"
+            )
+        if self.source != "licenciado" and self.licenca is not None:
+            raise ValueError(
+                f"licenca so faz sentido em midia licenciada, nao em '{self.source}'"
+            )
+        return self
+
+    @property
+    def publicavel(self) -> bool:
+        """Pode chegar ao cliente? Fixture de teste, nunca."""
+        return self.source in FONTES_PUBLICAVEIS
+
+    @model_validator(mode="after")
+    def _extensao_bate_com_tipo(self):
+        esperadas = MEDIA_EXT[self.type]
+        caminho = self.url.lower().split("?")[0]
+        if not any(caminho.endswith(e) for e in esperadas):
+            raise ValueError(
+                f"url nao corresponde a {self.type}: esperado {', '.join(esperadas)}"
+            )
+        return self
 
 
 class ExerciseBase(BaseModel):
