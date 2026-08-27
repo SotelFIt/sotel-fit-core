@@ -15,6 +15,7 @@ Convencao de auth reusada do backend:
     (BLOCKER 1 da auditoria: removido o bypass local {0,2}; sem politica nova.)
 """
 import logging
+import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -25,7 +26,12 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.security import require_admin, verify_dual_auth
 from models.exercise import Exercise
-from schemas.exercise import ExerciseCreate, ExerciseResponse, ExerciseUpdate
+from schemas.exercise import (
+    FONTES_PUBLICAVEIS,
+    ExerciseCreate,
+    ExerciseResponse,
+    ExerciseUpdate,
+)
 from services.exercise_resolver import resolve_exercise
 
 logger = logging.getLogger(__name__)
@@ -60,10 +66,36 @@ def _serialize(ex: Exercise, *, substitutions) -> dict:
     return data
 
 
+def _midia_publica(media: Optional[list]) -> list:
+    """Midia que pode chegar ao CLIENTE, sem os dados privados de direitos.
+
+    Duas coisas acontecem aqui, e as duas importam:
+
+    1. `fixture_teste` e removida. Arquivo sintetico existe para provar o fluxo
+       tecnico; nunca pode aparecer como demonstracao de um exercicio real.
+    2. o bloco `licenca` e removido. Fornecedor, referencia do comprovante e
+       data de aquisicao sao rastreabilidade interna — nao tem por que trafegar
+       para o aparelho de um aluno.
+
+    O cliente continua sabendo que a midia existe e de que TIPO de procedencia
+    ela e (`source`), que e o suficiente para exibir.
+    """
+    limpa = []
+    for m in media or []:
+        if not isinstance(m, dict):
+            continue
+        if m.get("source") not in FONTES_PUBLICAVEIS:
+            continue
+        limpa.append({k: v for k, v in m.items() if k != "licenca"})
+    return limpa
+
+
 def _public(ex: Exercise, active_slugs: set) -> dict:
     """Resposta publica: substituicoes filtradas para SOMENTE as ativas, preservando ordem."""
     subs = [s for s in (ex.approved_substitutions or []) if s in active_slugs]
-    return _serialize(ex, substitutions=subs)
+    data = _serialize(ex, substitutions=subs)
+    data["media"] = _midia_publica(data.get("media"))
+    return data
 
 
 def _admin_view(ex: Exercise) -> dict:
@@ -217,6 +249,35 @@ def create_exercise(
     return _admin_view(ex)
 
 
+def _fixture_permitida() -> bool:
+    """Fixture so entra em teste ou ambiente local, nunca em producao.
+
+    A permissao e OPT-IN por variavel de ambiente: onde ninguem configurou
+    nada — producao inclusive — a resposta e nao.
+    """
+    return os.getenv("SOTEL_ALLOW_FIXTURE_MEDIA", "").strip().lower() == "true"
+
+
+def _recusar_fixture_em_producao(media) -> None:
+    """Barra a publicacao de midia sem procedencia valida.
+
+    O schema ja recusa `licenciado` sem licenca. O que sobra para barrar aqui e
+    a fixture: ela e valida como objeto, mas nao pode virar demonstracao de um
+    exercicio real.
+    """
+    if _fixture_permitida():
+        return
+    for m in media or []:
+        if isinstance(m, dict) and m.get("source") == "fixture_teste":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "midia de fixture nao pode ser publicada. Vincule material "
+                    "proprio ou licenciado com a licenca preenchida."
+                ),
+            )
+
+
 @admin_router.patch("/{slug}", response_model=ExerciseResponse)
 def update_exercise(
     slug: str,
@@ -229,6 +290,9 @@ def update_exercise(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercicio nao encontrado")
 
     data = payload.model_dump(exclude_unset=True)
+
+    if "media" in data:
+        _recusar_fixture_em_producao(data["media"])
 
     # slug e imutavel: aceitar apenas se identico ao do path; qualquer mudanca -> 409.
     if "slug" in data:

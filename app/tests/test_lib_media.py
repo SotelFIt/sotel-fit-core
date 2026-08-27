@@ -82,9 +82,14 @@ def test_nao_existe_origem_para_material_de_terceiro(origem):
         ExerciseMedia(**_media(source=origem))
 
 
-def test_as_duas_origens_validas_sao_proprias_ou_licenciadas():
-    for origem in ("sotel_proprio", "licenciado"):
-        assert ExerciseMedia(**_media(source=origem)).source == origem
+def test_as_procedencias_validas():
+    """Contrato revisado: `licenciado` sozinho nao basta — exige a licenca.
+
+    Antes desta rodada `licenciado` era aceito sem nenhum dado de direito, o
+    que nao provava nada. Ver os testes de procedencia mais abaixo.
+    """
+    assert ExerciseMedia(**_media(source="sotel_proprio")).source == "sotel_proprio"
+    assert ExerciseMedia(**_media(source="fixture_teste")).source == "fixture_teste"
 
 
 # --------------------------------------------------------------- poster
@@ -219,3 +224,166 @@ def test_ocorrencia_nao_resolvida_continua_sinalizada_e_o_treino_segue(db):
     assert len(pendentes) == 1
     # O plano continua com TODAS as ocorrencias — nada some por nao resolver.
     assert enr["coverage"]["total"] == len(enr["exercises"]) == 2
+
+
+# ==================== procedencia: proprio / licenciado / fixture ============
+
+LIC = dict(
+    fornecedor="GymVisual",
+    produto_url="https://www.gymvisual.com/p/cable-seated-row",
+    adquirido_em="2026-09-01",
+    referencia="PED-2026-0001",
+)
+GIF = dict(type="image/gif", url="https://res.cloudinary.com/x/remada-sentada.gif")
+
+
+def test_gif_licenciado_e_aceito_e_publicavel():
+    """O caso real: GIF comprado da GymVisual para `remada-sentada`."""
+    m = ExerciseMedia(**GIF, source="licenciado", licenca=LIC)
+    assert m.publicavel is True
+    assert m.licenca.fornecedor == "GymVisual"
+
+
+def test_licenciado_SEM_licenca_e_midia_sem_procedencia_comprovada():
+    """Era o buraco: `licenciado` sozinho nao prova direito de uso nenhum."""
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**GIF, source="licenciado")
+
+
+def test_licenca_so_faz_sentido_em_midia_licenciada():
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**GIF, source="sotel_proprio", licenca=LIC)
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**GIF, source="fixture_teste", licenca=LIC)
+
+
+def test_fixture_e_valida_como_objeto_mas_NAO_e_publicavel():
+    """Existe para provar o fluxo tecnico sem acervo real — nunca para o cliente."""
+    m = ExerciseMedia(**GIF, source="fixture_teste")
+    assert m.publicavel is False
+
+
+def test_midia_propria_continua_publicavel():
+    assert ExerciseMedia(**GIF, source="sotel_proprio").publicavel is True
+
+
+@pytest.mark.parametrize("campo", ["fornecedor", "produto_url", "adquirido_em", "referencia"])
+def test_licenca_incompleta_e_recusada(campo):
+    parcial = {k: v for k, v in LIC.items() if k != campo}
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**GIF, source="licenciado", licenca=parcial)
+
+
+@pytest.mark.parametrize("ref", ["recibo.pdf", "https://drive.google.com/x", "nota.jpg"])
+def test_referencia_nao_pode_ser_o_documento_nem_link_para_ele(ref):
+    """A referencia e o identificador interno. Documento privado nao vive aqui."""
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**GIF, source="licenciado", licenca={**LIC, "referencia": ref})
+
+
+def test_produto_url_aponta_para_a_pagina_do_produto_em_https():
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**GIF, source="licenciado",
+                      licenca={**LIC, "produto_url": "http://gymvisual.com/p/x"})
+
+
+# ------------------------- resposta publica nao vaza dados privados ---------
+
+def test_resposta_publica_REMOVE_a_licenca():
+    """Fornecedor, comprovante e data de compra nao vao para o aparelho do aluno."""
+    from routers.exercise import _midia_publica
+
+    entrada = [{**GIF, "source": "licenciado", "licenca": LIC}]
+    saida = _midia_publica(entrada)
+    assert len(saida) == 1
+    assert "licenca" not in saida[0]
+    # O que o cliente precisa continua: url, tipo e a natureza da procedencia.
+    assert saida[0]["url"] == GIF["url"]
+    assert saida[0]["source"] == "licenciado"
+
+
+def test_resposta_publica_REMOVE_a_fixture():
+    from routers.exercise import _midia_publica
+
+    assert _midia_publica([{**GIF, "source": "fixture_teste"}]) == []
+
+
+def test_resposta_publica_preserva_midia_propria():
+    from routers.exercise import _midia_publica
+
+    saida = _midia_publica([{**GIF, "source": "sotel_proprio"}])
+    assert len(saida) == 1 and "licenca" not in saida[0]
+
+
+def test_nenhum_dado_de_compra_sobrevive_a_serializacao_publica():
+    """Varredura: nenhum valor da licenca pode aparecer no que sai."""
+    from routers.exercise import _midia_publica
+    import json as _json
+
+    bruto = _json.dumps(_midia_publica([{**GIF, "source": "licenciado", "licenca": LIC}]))
+    for valor in LIC.values():
+        assert str(valor) not in bruto, f"vazou dado privado: {valor}"
+
+
+# ------------------------------- ruido estrutural do plano ------------------
+
+def test_descanso_ja_e_filtrado_pelo_extrator():
+    """Medido: linha de descanso nao chega a virar ocorrencia."""
+    from services.workout_extract import extract_exercises
+
+    plano = (
+        "TREINO A - Segunda\n\nQUADRICEPS\n"
+        "- Agachamento Livre: 4x10\n"
+        "- Descanso: 90s\n"
+        "Descanso entre series: 60s\n"
+    )
+    nomes = [e["name"] for e in extract_exercises(plano)]
+    assert "Agachamento Livre" in nomes
+    assert not any("descanso" in n.lower() for n in nomes)
+
+
+@pytest.mark.parametrize("texto", [
+    "Volta a calma: caminhada bem leve por 5 min",
+    "Volta à calma",
+    "Descanso entre series",
+    "Intervalo entre blocos: 2 min",
+])
+def test_instrucao_de_prescricao_e_classificada_como_ruido(texto):
+    from services.exercise_binding import eh_ruido_estrutural
+
+    assert eh_ruido_estrutural(texto) is True
+
+
+@pytest.mark.parametrize("texto", [
+    "Prancha", "Abdutora", "Peck Deck", "Mesa Flexora", "Stiff com Halteres",
+    "Agachamento Goblet", "Panturrilha Sentada", "Aquecimento Cardio",
+    "Cardio Finalizacao", "Caminhada leve",
+])
+def test_exercicio_legitimo_NUNCA_e_tratado_como_ruido(texto):
+    """A lista curta existe para nao apagar exercicio.
+
+    `Aquecimento Cardio` e `Cardio Finalizacao` sao prescricoes reais: ficam
+    para revisao humana, nao viram ruido por conta propria.
+    """
+    from services.exercise_binding import eh_ruido_estrutural
+
+    assert eh_ruido_estrutural(texto) is False
+
+
+def test_ruido_fica_registrado_e_sai_da_fila_de_revisao(db):
+    """O plano nao perde a linha — ela so deixa de contar como falta de catalogo."""
+    # SEM marcador: com "- " o extrator ja filtra sozinho. O que vaza para a
+    # fila de revisao e a instrucao solta no corpo do bloco.
+    plano = (
+        "TREINO A - Segunda\n\nQUADRICEPS\n"
+        "- Agachamento Livre: 4x10\n"
+        "Volta a calma: caminhada bem leve por 5 min\n"
+    )
+    enr = build_enrichment(db, plano)
+    nomes = {e["name_raw"]: e["status"] for e in enr["exercises"]}
+    assert nomes.get("Agachamento Livre") == "resolved"
+    ruidos = [n for n, st in nomes.items() if st == "ruido_estrutural"]
+    assert ruidos and all("volta a calma" in n.lower() for n in ruidos), nomes
+    # Nao entra no denominador: nao ha exercicio a vincular.
+    assert enr["coverage"]["total"] == 1
+    assert enr["coverage"]["resolved"] == 1
