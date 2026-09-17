@@ -30,6 +30,7 @@ from models.exercise import Exercise
 from schemas.exercise import (
     FONTES_PUBLICAVEIS,
     ExerciseCreate,
+    ExercisePublicResponse,
     ExerciseResponse,
     ExerciseUpdate,
 )
@@ -151,7 +152,7 @@ def _validate_substitutions(db: Session, own_slug: str, subs: Optional[List[str]
 
 # ---------------- leitura autenticada ----------------
 
-@public_router.get("", response_model=List[ExerciseResponse])
+@public_router.get("", response_model=List[ExercisePublicResponse])
 def list_exercises(
     primary_muscle: Optional[str] = Query(None),
     equipment: Optional[str] = Query(None),
@@ -205,7 +206,7 @@ def resolve_exercise_name(
     return hit
 
 
-@public_router.get("/{slug}", response_model=ExerciseResponse)
+@public_router.get("/{slug}", response_model=ExercisePublicResponse)
 def get_exercise(
     slug: str,
     db: Session = Depends(get_db),
@@ -246,7 +247,10 @@ def create_exercise(
         common_errors=list(payload.common_errors),
         cautions=list(payload.cautions),
         approved_substitutions=list(payload.approved_substitutions),
-        media=[m.model_dump() for m in payload.media],
+        # mode="json": a coluna e JSON e o serializer e o json padrao.
+        # `adquirido_em`/`verificado_em` sao `date` — sem isto o gravar
+        # estoura em TypeError e o vinculo de midia licenciada responde 500.
+        media=[m.model_dump(mode="json") for m in payload.media],
         is_active=payload.is_active,
     )
     db.add(ex)
@@ -305,7 +309,9 @@ def update_exercise(
     if not ex:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercicio nao encontrado")
 
-    data = payload.model_dump(exclude_unset=True)
+    # mode="json" pelo mesmo motivo do POST: `media` cai numa coluna JSON e
+    # a licenca carrega datas. `exclude_unset` continua valendo.
+    data = payload.model_dump(exclude_unset=True, mode="json")
 
     if "media" in data:
         _recusar_fixture_em_producao(data["media"])

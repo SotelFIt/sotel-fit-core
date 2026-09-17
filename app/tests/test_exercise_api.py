@@ -452,3 +452,117 @@ def test_b5_substituicoes_ativas_preservadas():
     client.patch("/admin/exercises/puxada", json={"is_active": False}, headers=ADMIN_HEADERS)
     detail = client.get("/exercises/supino-reto", headers=CLIENT_HEADERS).json()
     assert detail["approved_substitutions"] == ["remada"]
+
+
+# ===========================================================================
+# PILOTO YMOVE — cadeira-extensora, fluxo HTTP real.
+#
+# Os testes de unidade chamavam `_midia_publica` direto e passavam. O fluxo
+# REAL (POST -> PATCH -> GET) estava quebrado em DOIS pontos, e so apareceu
+# quando o piloto foi montado ponta a ponta:
+#
+#   1. a licenca carrega `date`; `model_dump()` devolvia objetos `date` que
+#      caiam numa coluna JSON -> TypeError -> PATCH 500. Vincular midia
+#      licenciada era impossivel.
+#   2. `_midia_publica` tira a licenca, mas `ExerciseMedia` EXIGE licenca em
+#      `source == "licenciado"`. O `response_model` rejeitava a propria
+#      resposta -> GET 500. O exercicio inteiro ficava sem orientacao na tela.
+#
+# Metadados abaixo sao os MEDIDOS no arquivo real da YMove.
+# ===========================================================================
+
+_LIC_YMOVE = dict(
+    fornecedor="YMove",
+    produto_url="https://ymove.app/free-exercise-videos",
+    modalidade="gratuita",
+    uso_comercial=True,
+    # Datas distantes de proposito: assim a varredura de vazamento nao se
+    # confunde com `created_at`/`updated_at`.
+    adquirido_em="1999-03-07",
+    verificado_em="1999-03-08",
+)
+_CHECKSUM = "392f8ff03383b9a400a4f447429e11bfe1ff47a764a5f47f4ee200c9a9ccb297"
+_MIDIA_PILOTO = dict(
+    type="video/mp4",
+    url="https://res.cloudinary.com/demo/video/upload/sotelfit/biblioteca/cadeira-extensora.mp4",
+    poster="https://res.cloudinary.com/demo/video/upload/sotelfit/biblioteca/cadeira-extensora.jpg",
+    alt="Demonstracao do exercicio Cadeira Extensora",
+    source="licenciado",
+    width=720,
+    height=1280,
+    duration_s=10.0,
+    bytes=2381770,
+    checksum=_CHECKSUM,
+    licenca=_LIC_YMOVE,
+)
+
+
+def _piloto():
+    """Cria `cadeira-extensora` e vincula a demonstracao licenciada."""
+    r = _create(slug="cadeira-extensora", name="Cadeira Extensora",
+                primary_muscle="quadriceps", equipment="maquina",
+                aliases=["Extensora", "Leg Extension"])
+    assert r.status_code == 201, r.text
+    return client.patch("/admin/exercises/cadeira-extensora",
+                        json={"media": [_MIDIA_PILOTO]}, headers=ADMIN_HEADERS)
+
+
+def test_piloto_vincular_midia_licenciada_grava_sem_estourar():
+    """A licenca tem datas; a coluna e JSON. Sem mode='json' isto e 500."""
+    r = _piloto()
+    assert r.status_code == 200, r.text
+
+
+def test_piloto_admin_recebe_a_licenca_de_volta():
+    """Auditoria: quem vinculou precisa conseguir conferir o que gravou."""
+    lic = _piloto().json()["media"][0]["licenca"]
+    assert lic["fornecedor"] == "YMove"
+    assert lic["modalidade"] == "gratuita"
+    assert lic["referencia"] is None, "biblioteca gratuita nao tem comprovante"
+
+
+def test_piloto_leitura_publica_NAO_quebra_com_midia_licenciada():
+    """O defeito mais grave: tirar a licenca invalidava o proprio contrato e o
+    exercicio inteiro sumia da tela do aluno com 500."""
+    _piloto()
+    r = client.get("/exercises/cadeira-extensora", headers=CLIENT_HEADERS)
+    assert r.status_code == 200, r.text
+    assert len(r.json()["media"]) == 1
+
+
+def test_piloto_resposta_publica_nao_tem_licenca_nem_checksum():
+    _piloto()
+    r = client.get("/exercises/cadeira-extensora", headers=CLIENT_HEADERS)
+    midia = r.json()["media"][0]
+    assert "licenca" not in midia
+    assert "checksum" not in midia
+    # Varredura por VALOR: nenhuma parte do registro privado pode aparecer.
+    for valor in list(_LIC_YMOVE.values()) + [_CHECKSUM]:
+        assert str(valor) not in r.text, f"vazou dado privado: {valor}"
+
+
+def test_piloto_resposta_publica_leva_a_proporcao_do_arquivo():
+    """720x1280: sem isso o cliente desenha a moldura errada."""
+    _piloto()
+    midia = client.get("/exercises/cadeira-extensora",
+                       headers=CLIENT_HEADERS).json()["media"][0]
+    assert (midia["width"], midia["height"]) == (720, 1280)
+    assert midia["duration_s"] == 10.0
+    assert midia["type"] == "video/mp4"
+
+
+def test_piloto_listagem_publica_tambem_nao_vaza():
+    _piloto()
+    r = client.get("/exercises", headers=CLIENT_HEADERS)
+    assert r.status_code == 200
+    for valor in ("YMove", _CHECKSUM):
+        assert valor not in r.text
+
+
+def test_piloto_resolve_pelo_nome_da_ymove():
+    """A ponte entre o plano e a Biblioteca: 'Leg Extension' ja era alias."""
+    _piloto()
+    r = client.get("/exercises/resolve", params={"name": "Leg Extension"},
+                   headers=CLIENT_HEADERS)
+    assert r.status_code == 200
+    assert r.json() == {"slug": "cadeira-extensora", "match": "alias"}

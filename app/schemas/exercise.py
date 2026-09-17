@@ -227,6 +227,34 @@ class ExerciseMedia(BaseModel):
         return self
 
 
+class ExerciseMediaPublica(BaseModel):
+    """A midia como ela chega ao CLIENTE.
+
+    Nao e a mesma coisa que a midia ARMAZENADA. Aqui `licenca` e `checksum`
+    nao sao "removidos": eles simplesmente **nao existem neste contrato**.
+
+    A diferenca e o que corrige um defeito real: `ExerciseMedia` exige licenca
+    quando `source == "licenciado"`. Ao tirar a licenca para responder ao aluno,
+    o objeto violava a propria regra e o `response_model` derrubava a resposta
+    — `GET /exercises/{slug}` respondia **500** para todo exercicio com midia
+    licenciada, deixando o exercicio inteiro sem orientacao na tela de Treino.
+
+    Separar as duas formas resolve na estrutura, nao no remendo: o que e privado
+    nao tem por onde vazar, e o OpenAPI publico deixa de anunciar campo privado.
+    """
+
+    type: Literal[MEDIA_TYPES]
+    url: str
+    poster: Optional[str] = None
+    alt: Optional[str] = None
+    source: MediaSource
+    # A proporcao vai junto: sem ela o cliente desenha a moldura no palpite.
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration_s: Optional[float] = None
+    bytes: Optional[int] = None
+
+
 class ExerciseBase(BaseModel):
     slug: str = Field(min_length=1)
     name: str = Field(min_length=1)
@@ -250,6 +278,13 @@ class ExerciseResponse(ExerciseBase):
 
     class Config:
         from_attributes = True
+
+
+class ExercisePublicResponse(ExerciseResponse):
+    """Resposta das rotas de LEITURA. Identica a administrativa, exceto pela
+    midia: aqui ela e `ExerciseMediaPublica` (sem licenca, sem checksum)."""
+
+    media: List[ExerciseMediaPublica] = Field(default_factory=list)
 
 
 # ---------------- LIB-003 (API) ----------------
