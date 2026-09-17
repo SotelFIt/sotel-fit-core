@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict
 from twilio.rest import Client as TwilioClient
 import os
 import json
@@ -108,6 +108,10 @@ class SaveFullPlanRequest(BaseModel):
     training_content: str = ""
     diet_content: str = ""
     release_to_client: bool = False
+    # ADITIVO e OPCIONAL: {occurrence_key: slug} escolhidos por um profissional.
+    # Ausente => comportamento identico ao de antes (so resolucao automatica),
+    # que e o caso de todo plano ja publicado.
+    exercise_bindings: Optional[Dict[str, str]] = None
 
 class CheckinRequest(BaseModel):
     client_id: int
@@ -480,7 +484,10 @@ def release_plan_by_id(client_id: int, db: Session = Depends(get_db), _: int = D
     try:
         import json as _json
         from services.exercise_binding import build_enrichment, compute_source_hash
-        _enrichment = build_enrichment(db, plan_safe)
+        # Vinculos escolhidos por um profissional no administrativo tem
+        # precedencia sobre a heuristica de nome/alias.
+        _bindings = getattr(payload, 'exercise_bindings', None) or {}
+        _enrichment = build_enrichment(db, plan_safe, bindings=_bindings)
         db.execute(
             text("UPDATE client_plans SET enrichment_json = :ej, enrichment_source_hash = :eh WHERE id = :pid"),
             {"ej": _json.dumps(_enrichment, ensure_ascii=False),
