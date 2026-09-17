@@ -231,10 +231,35 @@ def test_ocorrencia_nao_resolvida_continua_sinalizada_e_o_treino_segue(db):
 LIC = dict(
     fornecedor="GymVisual",
     produto_url="https://www.gymvisual.com/p/cable-seated-row",
+    modalidade="comprada",
+    uso_comercial=True,
     adquirido_em="2026-09-01",
+    verificado_em="2026-09-01",
     referencia="PED-2026-0001",
 )
+# Licenca GRATUITA real: biblioteca liberada pelo fornecedor, sem compra e sem
+# comprovante. Se o contrato exigisse `referencia` aqui, o unico jeito de
+# cadastrar seria inventar um numero de pedido.
+LIC_YMOVE = dict(
+    fornecedor="YMove",
+    produto_url="https://ymove.app/free-exercise-videos",
+    modalidade="gratuita",
+    uso_comercial=True,
+    adquirido_em="2026-09-17",
+    verificado_em="2026-09-17",
+)
 GIF = dict(type="image/gif", url="https://res.cloudinary.com/x/remada-sentada.gif")
+# Identidade tecnica MEDIDA no arquivo real da YMove (Leg Extension):
+# 720x1280, 10.00s, 2 381 770 bytes, sha256 392f8ff0...
+MIDIA_VERTICAL = dict(
+    type="video/mp4",
+    url="https://res.cloudinary.com/x/cadeira-extensora.mp4",
+    width=720,
+    height=1280,
+    duration_s=10.0,
+    bytes=2381770,
+    checksum="392f8ff03383b9a400a4f447429e11bfe1ff47a764a5f47f4ee200c9a9ccb297",
+)
 
 
 def test_gif_licenciado_e_aceito_e_publicavel():
@@ -322,6 +347,93 @@ def test_nenhum_dado_de_compra_sobrevive_a_serializacao_publica():
 
     bruto = _json.dumps(_midia_publica([{**GIF, "source": "licenciado", "licenca": LIC}]))
     for valor in LIC.values():
+        assert str(valor) not in bruto, f"vazou dado privado: {valor}"
+
+
+# ---------------- licenca GRATUITA (YMove) e identidade do arquivo ----------
+
+def test_licenca_GRATUITA_e_aceita_sem_comprovante():
+    """O caso YMove: biblioteca liberada, sem compra. Nao ha numero de pedido —
+    e exigir um obrigaria a inventar o dado que sustenta a auditoria."""
+    m = ExerciseMedia(**MIDIA_VERTICAL, source="licenciado", licenca=LIC_YMOVE)
+    assert m.publicavel is True
+    assert m.licenca.modalidade == "gratuita"
+    assert m.licenca.referencia is None
+
+
+def test_licenca_COMPRADA_sem_referencia_continua_recusada():
+    """A flexibilizacao vale so para a modalidade gratuita."""
+    sem_ref = {k: v for k, v in LIC.items() if k != "referencia"}
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**GIF, source="licenciado", licenca=sem_ref)
+
+
+@pytest.mark.parametrize("campo", ["modalidade", "uso_comercial", "verificado_em"])
+def test_licenca_sem_o_campo_novo_e_recusada(campo):
+    """Nenhum dos tres tem default: ninguem publica por suposicao."""
+    parcial = {k: v for k, v in LIC_YMOVE.items() if k != campo}
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**MIDIA_VERTICAL, source="licenciado", licenca=parcial)
+
+
+def test_licenca_que_NAO_autoriza_uso_comercial_nao_e_publicavel():
+    """Preencher o formulario nao cria direito."""
+    m = ExerciseMedia(**MIDIA_VERTICAL, source="licenciado",
+                      licenca={**LIC_YMOVE, "uso_comercial": False})
+    assert m.publicavel is False
+
+
+def test_midia_sem_uso_comercial_nao_chega_ao_cliente():
+    from routers.exercise import _midia_publica
+
+    entrada = [{**MIDIA_VERTICAL, "source": "licenciado",
+                "licenca": {**LIC_YMOVE, "uso_comercial": False}}]
+    assert _midia_publica(entrada) == []
+
+
+def test_licenciado_com_licenca_corrompida_nao_chega_ao_cliente():
+    """Registro antigo/quebrado: sem bloco de licenca legivel, nao publica."""
+    from routers.exercise import _midia_publica
+
+    assert _midia_publica([{**MIDIA_VERTICAL, "source": "licenciado"}]) == []
+    assert _midia_publica([{**MIDIA_VERTICAL, "source": "licenciado", "licenca": None}]) == []
+
+
+def test_orientacao_e_derivada_do_arquivo_nunca_digitada():
+    """A YMove entrega vertical (720x1280). O cliente precisa saber disso."""
+    assert ExerciseMedia(**MIDIA_VERTICAL, source="sotel_proprio").orientacao == "vertical"
+    assert ExerciseMedia(**{**MIDIA_VERTICAL, "width": 1280, "height": 720},
+                         source="sotel_proprio").orientacao == "horizontal"
+    assert ExerciseMedia(**{**MIDIA_VERTICAL, "width": 800, "height": 800},
+                         source="sotel_proprio").orientacao == "quadrada"
+    assert ExerciseMedia(**GIF, source="sotel_proprio").orientacao is None
+
+
+@pytest.mark.parametrize("ruim", ["abc", "z" * 64, "392F8FF0" * 9])
+def test_checksum_precisa_ser_sha256(ruim):
+    with pytest.raises(ValidationError):
+        ExerciseMedia(**{**MIDIA_VERTICAL, "checksum": ruim}, source="sotel_proprio")
+
+
+def test_resposta_publica_LEVA_a_proporcao_e_REMOVE_o_checksum():
+    """Moldura o cliente precisa; identidade interna do arquivo, nao."""
+    from routers.exercise import _midia_publica
+
+    saida = _midia_publica([{**MIDIA_VERTICAL, "source": "licenciado", "licenca": LIC_YMOVE}])
+    assert len(saida) == 1
+    assert saida[0]["width"] == 720 and saida[0]["height"] == 1280
+    assert "checksum" not in saida[0]
+    assert "licenca" not in saida[0]
+
+
+def test_nenhum_dado_da_licenca_gratuita_sobrevive_a_serializacao_publica():
+    from routers.exercise import _midia_publica
+    import json as _json
+
+    bruto = _json.dumps(
+        _midia_publica([{**MIDIA_VERTICAL, "source": "licenciado", "licenca": LIC_YMOVE}])
+    )
+    for valor in list(LIC_YMOVE.values()) + [MIDIA_VERTICAL["checksum"]]:
         assert str(valor) not in bruto, f"vazou dado privado: {valor}"
 
 

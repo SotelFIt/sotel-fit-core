@@ -14,6 +14,7 @@ Convencao de auth reusada do backend:
   - admin -> mecanismo OFICIAL `core.security.require_admin` (API key -> 0).
     (BLOCKER 1 da auditoria: removido o bypass local {0,2}; sem politica nova.)
 """
+import hashlib
 import logging
 import os
 from typing import List, Optional
@@ -66,6 +67,10 @@ def _serialize(ex: Exercise, *, substitutions) -> dict:
     return data
 
 
+# Campos que NUNCA saem na resposta do cliente.
+PRIVADO_NA_MIDIA = ("licenca", "checksum")
+
+
 def _midia_publica(media: Optional[list]) -> list:
     """Midia que pode chegar ao CLIENTE, sem os dados privados de direitos.
 
@@ -77,8 +82,15 @@ def _midia_publica(media: Optional[list]) -> list:
        data de aquisicao sao rastreabilidade interna — nao tem por que trafegar
        para o aparelho de um aluno.
 
+    3. midia LICENCIADA cujo direito nao autoriza uso comercial e removida.
+       Preencher o formulario nao cria direito: se a licenca registrada diz
+       que nao podemos usar comercialmente, o arquivo nao chega ao aluno.
+    4. o `checksum` e removido. E a identidade interna do arquivo, usada para
+       auditoria de direitos — nao tem funcao nenhuma no aparelho do aluno.
+
     O cliente continua sabendo que a midia existe e de que TIPO de procedencia
-    ela e (`source`), que e o suficiente para exibir.
+    ela e (`source`), alem do tamanho do quadro (`width`/`height`) de que
+    precisa para desenhar a moldura. Isso e o suficiente para exibir.
     """
     limpa = []
     for m in media or []:
@@ -86,7 +98,11 @@ def _midia_publica(media: Optional[list]) -> list:
             continue
         if m.get("source") not in FONTES_PUBLICAVEIS:
             continue
-        limpa.append({k: v for k, v in m.items() if k != "licenca"})
+        if m.get("source") == "licenciado":
+            lic = m.get("licenca")
+            if not isinstance(lic, dict) or lic.get("uso_comercial") is not True:
+                continue
+        limpa.append({k: v for k, v in m.items() if k not in PRIVADO_NA_MIDIA})
     return limpa
 
 
@@ -428,13 +444,21 @@ async def upload_exercise_media(
     elif declarado == "image/webp":
         poster = url
 
+    # Identidade tecnica do arquivo. Vem MEDIDA, nao digitada: largura e altura
+    # decidem a moldura no cliente, e o checksum e o que permite provar, meses
+    # depois, que o arquivo publicado e o mesmo que a licenca cobre.
+    duracao = resultado.get("duration")
     return {
         "type": declarado,
         "url": url,
         "poster": poster,
         "source": source,
         "alt": f"Demonstração do exercício {ex.name}",
+        "width": resultado.get("width"),
+        "height": resultado.get("height"),
+        "duration_s": float(duracao) if duracao else None,
         "bytes": len(conteudo),
+        "checksum": hashlib.sha256(conteudo).hexdigest(),
     }
 
 

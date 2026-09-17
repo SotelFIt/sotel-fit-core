@@ -44,6 +44,15 @@ POSTER_EXT = (".jpg", ".jpeg", ".png", ".webp")
 # recusado.
 MediaSource = Literal["sotel_proprio", "licenciado", "fixture_teste"]
 
+# Como o direito de uso foi obtido.
+#
+#   comprada  aquisicao paga. Tem comprovante e, portanto, `referencia`.
+#   gratuita  biblioteca liberada pelo fornecedor. NAO tem comprovante: exigir
+#             um numero de pedido aqui obrigaria a inventar um, e um dado
+#             inventado destroi exatamente a auditoria que este bloco existe
+#             para sustentar. A identidade do arquivo e o `checksum`.
+ModalidadeLicenca = Literal["comprada", "gratuita"]
+
 # Procedencias que podem chegar ao cliente.
 FONTES_PUBLICAVEIS = ("sotel_proprio", "licenciado")
 
@@ -62,8 +71,18 @@ class LicencaMedia(BaseModel):
 
     fornecedor: str = Field(min_length=2, max_length=80)
     produto_url: str = Field(min_length=1, max_length=500)
+    modalidade: ModalidadeLicenca
+    # A pagina de origem precisa AUTORIZAR uso comercial. Sem default de
+    # proposito: `True` publicaria por suposicao, `False` bloquearia em
+    # silencio. Quem cadastra declara.
+    uso_comercial: bool
     adquirido_em: date
-    referencia: str = Field(min_length=2, max_length=120)
+    # Quando os termos foram lidos. Termos de biblioteca gratuita mudam sem
+    # aviso; esta data diz de quando e a NOSSA leitura, e nada mais.
+    verificado_em: date
+    # Obrigatoria na compra (numero do pedido). Na biblioteca gratuita nao
+    # existe comprovante — ver ModalidadeLicenca.
+    referencia: Optional[str] = Field(default=None, min_length=2, max_length=120)
 
     @field_validator("produto_url")
     @classmethod
@@ -75,8 +94,10 @@ class LicencaMedia(BaseModel):
 
     @field_validator("referencia")
     @classmethod
-    def _referencia_nao_e_o_comprovante(cls, v: str) -> str:
-        v = (v or "").strip()
+    def _referencia_nao_e_o_comprovante(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
         # Guarda contra colar o documento inteiro (ou um link de arquivo) aqui.
         proibido = (".pdf", ".jpg", ".png", "http://", "https://")
         if any(p in v.lower() for p in proibido):
@@ -85,6 +106,16 @@ class LicencaMedia(BaseModel):
                 "documento nem um link para ele"
             )
         return v
+
+    @model_validator(mode="after")
+    def _compra_tem_comprovante(self):
+        """Compra sem referencia e compra que ninguem consegue auditar."""
+        if self.modalidade == "comprada" and not self.referencia:
+            raise ValueError(
+                "licenca comprada exige `referencia` (identificador interno do "
+                "comprovante)"
+            )
+        return self
 
 
 class ExerciseMedia(BaseModel):
@@ -100,6 +131,21 @@ class ExerciseMedia(BaseModel):
     source: MediaSource
     # PRIVADO: obrigatorio quando `source == "licenciado"`, proibido nos demais.
     licenca: Optional[LicencaMedia] = None
+
+    # ---- identidade tecnica do arquivo ----------------------------------
+    # Opcionais porque registros vinculados antes desta medicao continuam
+    # validos. Preenchidos automaticamente pelo upload: ninguem digita isto.
+    #
+    # `width`/`height` nao sao enfeite: a demonstracao da YMove e VERTICAL
+    # (720x1280) e a do acervo proprio pode ser horizontal. Sem a proporcao o
+    # cliente desenha a moldura errada e sobra barra vazia dos dois lados.
+    width: Optional[int] = Field(default=None, gt=0)
+    height: Optional[int] = Field(default=None, gt=0)
+    duration_s: Optional[float] = Field(default=None, gt=0)
+    bytes: Optional[int] = Field(default=None, gt=0)
+    # sha256 do arquivo publicado. E a identidade do arquivo — e, na licenca
+    # gratuita, o unico "comprovante" que existe. PRIVADO: nao vai ao cliente.
+    checksum: Optional[str] = None
 
     @field_validator("url")
     @classmethod
@@ -135,10 +181,40 @@ class ExerciseMedia(BaseModel):
             )
         return self
 
+    @field_validator("checksum")
+    @classmethod
+    def _checksum_sha256(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or not v.strip():
+            return None
+        v = v.strip().lower()
+        if len(v) != 64 or any(c not in "0123456789abcdef" for c in v):
+            raise ValueError("checksum deve ser sha256 em hexadecimal (64 caracteres)")
+        return v
+
+    @property
+    def orientacao(self) -> Optional[str]:
+        """`vertical`, `horizontal` ou `quadrada` — derivada, nunca digitada."""
+        if not self.width or not self.height:
+            return None
+        if self.height > self.width:
+            return "vertical"
+        if self.width > self.height:
+            return "horizontal"
+        return "quadrada"
+
     @property
     def publicavel(self) -> bool:
-        """Pode chegar ao cliente? Fixture de teste, nunca."""
-        return self.source in FONTES_PUBLICAVEIS
+        """Pode chegar ao cliente?
+
+        Fixture de teste, nunca. Licenciada, somente se a licenca declarar uso
+        comercial: material cujo direito nao autoriza o nosso uso nao vira
+        demonstracao so porque alguem preencheu o formulario.
+        """
+        if self.source not in FONTES_PUBLICAVEIS:
+            return False
+        if self.source == "licenciado":
+            return bool(self.licenca and self.licenca.uso_comercial)
+        return True
 
     @model_validator(mode="after")
     def _extensao_bate_com_tipo(self):
