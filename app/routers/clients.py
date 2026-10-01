@@ -1,4 +1,6 @@
 # clients router v2 - usa client_plans e client_diets
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -6,7 +8,16 @@ from pydantic import BaseModel
 from typing import Optional
 from core.database import get_db
 from core.security import verify_dual_auth, verify_jwt_only, require_client_access, require_admin
-from services.client_service import get_or_create_client_from_phone, normalize_phone
+from services.client_service import (
+    ConversaDeOutraPessoa,
+    TelefoneDuplicado,
+    TelefoneInvalido,
+    get_or_create_client_from_phone,
+    normalize_phone,
+    trocar_telefone,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -132,12 +143,12 @@ def create_client(payload: CreateClientRequest, db: Session = Depends(get_db), a
 def list_clients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), auth_client_id: int = Depends(verify_dual_auth)):
     if auth_client_id == 0:
         rows = db.execute(
-            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE status != 'inactive' ORDER BY created_at DESC LIMIT :limit OFFSET :skip"),
+            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE status != 'inactive' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT :limit OFFSET :skip"),
             {"limit": min(limit, 500), "skip": skip}
         ).fetchall()
     else:
         rows = db.execute(
-            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid LIMIT 1"),
+            text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid AND deleted_at IS NULL LIMIT 1"),
             {"cid": auth_client_id}
         ).fetchall()
     return [
@@ -192,7 +203,7 @@ def get_my_diet(client_id: int, db: Session = Depends(get_db), _: int = Depends(
 @router.get("/{client_id}")
 def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: int = Depends(require_client_access)):
     row = db.execute(
-        text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid LIMIT 1"),
+        text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid AND deleted_at IS NULL LIMIT 1"),
         {"cid": client_id}
     ).fetchone()
     if not row:
@@ -214,8 +225,12 @@ def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), 
     veio no payload e tocado — inclusive o que vive FORA desta tabela, como a
     anamnese (`lead_onboardings`/`onboarding`), que esta rota nunca alcanca.
 
-    `phone` NAO entra: telefone e identidade (BL-PHONE-001) e nao se edita por
-    aqui - trocar o telefone de um cliente e trocar de quem ele e.
+    `phone` AGORA entra, e nao e um campo como os outros. BL-PHONE-001 proibia
+    edita-lo; a regra foi revogada pelo Proprietario porque numero errado
+    precisa ser corrigido. O motivo da proibicao continua valendo, entao a
+    troca passa por `trocar_telefone`, que leva os vinculos operacionais junto
+    (conversa de WhatsApp e onboarding) na MESMA transacao. Se qualquer etapa
+    falhar, nada e gravado.
 
     Somente ADMIN. Antes era `require_client_access`, que deixava o proprio
     cliente editar o proprio `status` — ou seja, promover-se a `active` sem
@@ -224,12 +239,14 @@ def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), 
     """
     allowed = {"name", "email", "objective", "status", "age", "weight", "height"}
     campos = {k: v for k, v in (payload or {}).items() if k in allowed}
-    if "phone" in (payload or {}):
-        raise HTTPException(status_code=422, detail="phone e identidade e nao pode ser alterado por aqui")
-    if not campos:
+    trocar = "phone" in (payload or {})
+    if not campos and not trocar:
         raise HTTPException(status_code=400, detail=f"nenhum campo editavel; aceitos: {sorted(allowed)}")
 
-    existe = db.execute(text("SELECT id FROM clients WHERE id = :cid"), {"cid": client_id}).fetchone()
+    existe = db.execute(
+        text("SELECT id FROM clients WHERE id = :cid AND deleted_at IS NULL"),
+        {"cid": client_id},
+    ).fetchone()
     if not existe:
         raise HTTPException(status_code=404, detail="Cliente nao encontrado")
 
@@ -249,12 +266,41 @@ def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), 
                 detail=f"e-mail ja usado pelo cliente {dono[0]} — e por ele que o aluno entra no app",
             )
 
-    sets = ", ".join(f"{k} = :{k}" for k in campos)
-    # CURRENT_TIMESTAMP no lugar de NOW(): mesmo resultado no PostgreSQL de
-    # producao e valido tambem em SQLite, o que torna esta rota testavel.
-    db.execute(text(f"UPDATE clients SET {sets}, updated_at = CURRENT_TIMESTAMP WHERE id = :cid"),
-               {**campos, "cid": client_id})
-    db.commit()
+    try:
+        if trocar:
+            trocar_telefone(db, client_id, payload.get("phone"))
+        if campos:
+            sets = ", ".join(f"{k} = :{k}" for k in campos)
+            # CURRENT_TIMESTAMP no lugar de NOW(): mesmo resultado no
+            # PostgreSQL de producao e valido tambem em SQLite, o que torna
+            # esta rota testavel.
+            db.execute(
+                text(f"UPDATE clients SET {sets}, updated_at = CURRENT_TIMESTAMP WHERE id = :cid"),
+                {**campos, "cid": client_id},
+            )
+        # Um unico commit para tudo: cadastro e vinculos entram juntos ou nao
+        # entram. Qualquer excecao acima cai no rollback abaixo.
+        db.commit()
+    except TelefoneInvalido as e:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(e))
+    except TelefoneDuplicado as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=f"telefone ja usado pelo cliente {e.client_id} — e por ele que o "
+                   "WhatsApp e o onboarding encontram o aluno",
+        )
+    except ConversaDeOutraPessoa as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("falha ao atualizar cliente %s", client_id)
+        raise HTTPException(status_code=500, detail="nao foi possivel salvar as alteracoes")
 
     row = db.execute(
         text("SELECT id, name, email, phone, objective, status, age, weight, height FROM clients WHERE id = :cid"),
@@ -374,3 +420,44 @@ Retorne APENAS o JSON, sem markdown, sem texto adicional."""
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
+
+@router.delete("/{client_id}")
+def delete_client(client_id: int, db: Session = Depends(get_db), _admin: int = Depends(require_admin)):
+    """Exclusao LOGICA do aluno. Somente admin.
+
+    O que acontece: o aluno sai da lista e perde o acesso — inclusive numa
+    sessao ja aberta, porque `require_client_access` passa a recusa-lo, e nao
+    volta por pagamento, WhatsApp ou onboarding, porque
+    `get_or_create_client_from_phone` recusa telefone de cadastro excluido.
+
+    O que NAO acontece: nada e apagado. Plano, dieta, avaliacoes, check-ins,
+    timeline e o proprio cadastro continuam no banco. `deleted_at` e coluna
+    propria justamente para nao se confundir com `status`, que fala de
+    assinatura e suspensao.
+
+    O que esta rota explicitamente NAO faz: mexer em cobranca. Assinatura ativa
+    no Stripe continua ativa; cancelar e decisao separada, tomada no Stripe.
+    """
+    row = db.execute(
+        text("SELECT id, name, deleted_at FROM clients WHERE id = :cid"),
+        {"cid": client_id},
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+    if row[2] is not None:
+        # Idempotente: repetir a exclusao nao e erro nem reescreve a data.
+        return {"id": row[0], "name": row[1], "deleted": True, "ja_estava_excluido": True}
+
+    try:
+        db.execute(
+            text("UPDATE clients SET deleted_at = CURRENT_TIMESTAMP WHERE id = :cid"),
+            {"cid": client_id},
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("falha ao excluir cliente %s", client_id)
+        raise HTTPException(status_code=500, detail="nao foi possivel excluir o aluno")
+
+    logger.info("cliente excluido (logico) client_id=%s", client_id)
+    return {"id": row[0], "name": row[1], "deleted": True, "ja_estava_excluido": False}

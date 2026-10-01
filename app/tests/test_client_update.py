@@ -147,13 +147,19 @@ def test_varios_campos_de_uma_vez():
 
 # ------------------------------------------------------------------ telefone
 
-def test_telefone_e_recusado_e_nada_e_gravado():
-    """BL-PHONE-001: telefone e identidade. WhatsApp, onboarding e ativacao de
-    lead encontram o cliente por ele."""
+def test_telefone_INVALIDO_e_recusado_e_nada_e_gravado():
+    """O telefone passou a ser editavel: BL-PHONE-001 foi revogada pelo
+    Proprietario nesta parte. O que NAO mudou e que entrada invalida nunca vira
+    identidade — e, quando ela e recusada, o resto do payload tambem nao entra.
+
+    A troca valida (com migracao dos vinculos operacionais) e coberta em
+    `test_client_phone_and_delete.py`, que monta as tabelas de conversa e
+    onboarding necessarias para exercita-la.
+    """
     antes = _ler()
     r = client.patch(
         "/clients/1",
-        json={"name": "Nome Novo", "phone": "+5511900000000"},
+        json={"name": "Nome Novo", "phone": "nao e um telefone"},
         headers=ADMIN,
     )
     assert r.status_code == 422

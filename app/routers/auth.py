@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from core.database import get_db
 from core.security import (
+    cliente_excluido,
     verify_refresh_token,
     create_token_pair,
     verify_dual_auth,
@@ -27,7 +28,15 @@ def refresh_token(client_id: int = Depends(verify_refresh_token)):
 
 
 @router.post("/verify", status_code=200)
-def verify_token_endpoint(auth_client_id: int = Depends(verify_dual_auth)):
+def verify_token_endpoint(
+    db: Session = Depends(get_db),
+    auth_client_id: int = Depends(verify_dual_auth),
+):
+    # E por aqui que o painel do aluno confere a sessao ao abrir. Recusar o
+    # excluido aqui faz a sessao ja aberta cair no login na proxima montagem,
+    # em vez de ficar numa tela que so recebe erro.
+    if auth_client_id != 0 and cliente_excluido(db, auth_client_id):
+        raise HTTPException(status_code=401, detail="Cadastro inativo")
     role = "admin" if auth_client_id == 0 else "client"
     return {"client_id": auth_client_id, "valid": True, "role": role}
 
@@ -37,7 +46,7 @@ def get_current_user(db: Session = Depends(get_db), auth_client_id: int = Depend
     if auth_client_id == 0:
         return {"message": "Admin user"}
     row = db.execute(
-        text("SELECT id, name, email, phone, objective, status FROM clients WHERE id = :cid LIMIT 1"),
+        text("SELECT id, name, email, phone, objective, status FROM clients WHERE id = :cid AND deleted_at IS NULL LIMIT 1"),
         {"cid": auth_client_id}
     ).fetchone()
     if not row:
@@ -56,8 +65,11 @@ def login(request: Request, payload: dict, db: Session = Depends(get_db)):
     client_ip = request.client.host if request.client else "unknown"
     logger.info(f"Login attempt from {client_ip} for email={email}")
 
+    # `deleted_at IS NULL`: aluno excluido nao entra. Mesma resposta de e-mail
+    # inexistente, de proposito — a tela de login nao e lugar de informar que
+    # existe um cadastro e ele foi removido.
     row = db.execute(
-        text("SELECT id, name, email, objective FROM clients WHERE email = :email LIMIT 1"),
+        text("SELECT id, name, email, objective FROM clients WHERE email = :email AND deleted_at IS NULL LIMIT 1"),
         {"email": email}
     ).fetchone()
     if not row:

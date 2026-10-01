@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 import jwt
 from fastapi import HTTPException, status, Header, Depends
+from sqlalchemy.orm import Session
+
+from core.database import get_db
 from pydantic import BaseModel
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -114,12 +117,41 @@ def verify_dual_auth(
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
 
 
-def require_client_access(client_id: int, auth_client_id: int = Depends(verify_dual_auth)) -> int:
+def cliente_excluido(db, client_id: int) -> bool:
+    """O cadastro foi excluido pelo profissional?
+
+    Consulta direta porque isto roda no caminho de autorizacao, antes de
+    qualquer ORM. Coluna ausente (banco antigo, antes da migration) e tratada
+    como "nao excluido": a ausencia da coluna nao pode trancar ninguem.
+    """
+    from sqlalchemy import text as _text
+    try:
+        linha = db.execute(
+            _text("SELECT deleted_at FROM clients WHERE id = :cid"), {"cid": client_id}
+        ).fetchone()
+    except Exception:
+        db.rollback()
+        return False
+    return bool(linha and linha[0] is not None)
+
+
+def require_client_access(
+    client_id: int,
+    auth_client_id: int = Depends(verify_dual_auth),
+    db: Session = Depends(get_db),
+) -> int:
     """Autorização de POSSE para rotas /.../{client_id}: só o próprio cliente (JWT com
     sub==client_id) ou admin/Landbot (API key -> 0). Fecha IDOR sem duplicar lógica nem
-    tocar o contrato (só acrescenta 401 sem auth / 403 para outro cliente)."""
+    tocar o contrato (só acrescenta 401 sem auth / 403 para outro cliente).
+
+    Aluno EXCLUIDO perde o acesso AQUI, e nao no login: e isto que derruba uma
+    sessao que ja estava aberta. O token continua com assinatura valida — o que
+    mudou foi o cadastro, e o token nao sabe disso sozinho.
+    """
     if auth_client_id != 0 and auth_client_id != client_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado")
+    if auth_client_id != 0 and cliente_excluido(db, auth_client_id):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Cadastro inativo")
     return auth_client_id
 
 
