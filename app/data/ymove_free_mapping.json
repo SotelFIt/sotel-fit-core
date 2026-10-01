@@ -1,0 +1,298 @@
+{
+ "_meta": {
+  "proposito": "Mapeamento YMove (MIDIA) -> Biblioteca Sotel (IDENTIDADE). A Biblioteca continua sendo a fonte unica de id, nome, aliases, grupo muscular, equipamento, execucao, respiracao, erros, restricoes, substituicoes, publicacao e versao. A YMove nao gera, altera nem substitui prescricao.",
+  "licenca": {
+   "fornecedor": "YMove",
+   "pagina_de_origem": "https://ymove.app/free-exercise-videos",
+   "modalidade": "biblioteca gratuita",
+   "uso_comercial": true,
+   "arquivos": "MP4 720p vertical, download direto, sem cadastro",
+   "atribuicao_obrigatoria": false,
+   "revenda_ou_redistribuicao_isolada": "PROIBIDA pelo fornecedor",
+   "verificado_em": "2026-09-17",
+   "evidencia": "Termos lidos na propria pagina em 2026-09-17: uso comercial permitido, atribuicao apreciada mas nao obrigatoria, proibido revender ou redistribuir os clipes como biblioteca/produto isolado.",
+   "identificacao_do_arquivo": "checksum sha256 por midia, gravado em ExerciseMedia.checksum. Na modalidade gratuita nao existe comprovante de compra: o checksum E a identidade do arquivo licenciado.",
+   "restricao_operacional": "Consequencia direta da proibicao de redistribuicao isolada: a Sotel nao expoe endpoint, pagina ou download que entregue o acervo como colecao. A midia aparece SOMENTE vinculada a um exercicio, dentro do treino do aluno."
+  },
+  "verificado_em": "2026-09-17",
+  "total_videos": 25,
+  "regra": "Nenhum exercicio e criado por existir video. 'exata' foi resolvida pelo resolvedor oficial; 'provavel_revisar' e proposta tecnica que exige aprovacao humana; 'sem_correspondencia' NAO autoriza cadastro automatico."
+ },
+ "itens": [
+  {
+   "ymove_id": "65e95132-e6bb-41e8-af7d-0eda931a1693",
+   "ymove_title": "Barbell Back Squat",
+   "muscle": "quads",
+   "equipment": "barbell",
+   "video_url": "https://ymove.app/api/free/fd0eaa34-d14b-4421-b41c-1669f93253b3",
+   "thumbnail_url": "https://ymove.app/api/free/fd0eaa34-d14b-4421-b41c-1669f93253b3?type=thumbnail",
+   "sotel_slug": "agachamento-livre",
+   "classificacao": "provavel_revisar",
+   "nota": "Back squat com barra = Agachamento Livre. Exige aprovar o alias."
+  },
+  {
+   "ymove_id": "69b5e89d-e2d4-4e9a-8ab7-4c28cff1f3e1",
+   "ymove_title": "Barbell Bench Press",
+   "muscle": "chest",
+   "equipment": "barbell",
+   "video_url": "https://ymove.app/api/free/dd7e706c-2086-4f4b-867f-d7fece2f720d",
+   "thumbnail_url": "https://ymove.app/api/free/dd7e706c-2086-4f4b-867f-d7fece2f720d?type=thumbnail",
+   "sotel_slug": "supino-reto",
+   "classificacao": "exata",
+   "nota": "Resolvida pelo resolvedor oficial (alias)."
+  },
+  {
+   "ymove_id": "7d31d648-432b-4edd-97bc-afc2a3e9e59a",
+   "ymove_title": "Barbell Deadlift",
+   "muscle": "full_body",
+   "equipment": "barbell",
+   "video_url": "https://ymove.app/api/free/b59952ca-1551-4c07-835d-ab78bfe9953c",
+   "thumbnail_url": "https://ymove.app/api/free/b59952ca-1551-4c07-835d-ab78bfe9953c?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Levantamento terra nao existe na Biblioteca. Nao cadastrar por existir video."
+  },
+  {
+   "ymove_id": "44a83578-5681-4a1a-99c3-f8742857bf66",
+   "ymove_title": "Dumbbell Lateral Raise",
+   "muscle": "shoulders",
+   "equipment": "dumbbell",
+   "video_url": "https://ymove.app/api/free/a16f0235-20eb-4306-b9cc-c01ae51b3b9b",
+   "thumbnail_url": "https://ymove.app/api/free/a16f0235-20eb-4306-b9cc-c01ae51b3b9b?type=thumbnail",
+   "sotel_slug": "elevacao-lateral",
+   "classificacao": "exata",
+   "nota": "Resolvida pelo resolvedor oficial (alias)."
+  },
+  {
+   "ymove_id": "3901065d-a926-4d63-9306-0f14eb731d7c",
+   "ymove_title": "Hammer Curls",
+   "muscle": "biceps",
+   "equipment": "dumbbell",
+   "video_url": "https://ymove.app/api/free/b11e6c6f-b2e8-44ca-95dc-adf0dcd34426",
+   "thumbnail_url": "https://ymove.app/api/free/b11e6c6f-b2e8-44ca-95dc-adf0dcd34426?type=thumbnail",
+   "sotel_slug": "rosca-martelo",
+   "classificacao": "provavel_revisar",
+   "nota": "Equivalencia direta; falta o alias em ingles."
+  },
+  {
+   "ymove_id": "c76f5f15-aa4e-4a92-a321-520fd6396bc1",
+   "ymove_title": "Single Arm Dumbbell Row - Legs apart",
+   "muscle": "back",
+   "equipment": "dumbbell",
+   "video_url": "https://ymove.app/api/free/d3fece95-c7e2-4794-ba8f-65a5b3e30a28",
+   "thumbnail_url": "https://ymove.app/api/free/d3fece95-c7e2-4794-ba8f-65a5b3e30a28?type=thumbnail",
+   "sotel_slug": "remada-unilateral",
+   "classificacao": "provavel_revisar",
+   "nota": "Remada unilateral com halter; variacao de base aberta."
+  },
+  {
+   "ymove_id": "ff6872ae-e894-4e72-b5f8-59a55b576a6f",
+   "ymove_title": "Dumbbell Goblet Squat",
+   "muscle": "quads",
+   "equipment": "dumbbell",
+   "video_url": "https://ymove.app/api/free/a2a797d0-f6f6-436e-8616-6c1d93e73d67",
+   "thumbnail_url": "https://ymove.app/api/free/a2a797d0-f6f6-436e-8616-6c1d93e73d67?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Agachamento Goblet nao existe na Biblioteca (aparece como pendencia real nos planos)."
+  },
+  {
+   "ymove_id": "3bbed598-16f4-4683-a751-10cc264b4bd6",
+   "ymove_title": "Kettlebell swing",
+   "muscle": "core",
+   "equipment": "kettlebell",
+   "video_url": "https://ymove.app/api/free/13263f92-5fe2-4d92-bec0-808f8b315620",
+   "thumbnail_url": "https://ymove.app/api/free/13263f92-5fe2-4d92-bec0-808f8b315620?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Nao existe na Biblioteca."
+  },
+  {
+   "ymove_id": "06c9467f-8dea-4817-8386-36c9fe17fdd4",
+   "ymove_title": "Kettlebell Push Press",
+   "muscle": "shoulders",
+   "equipment": "kettlebell",
+   "video_url": "https://ymove.app/api/free/3880aaa4-e1c0-4153-95d0-da44ea01e099",
+   "thumbnail_url": "https://ymove.app/api/free/3880aaa4-e1c0-4153-95d0-da44ea01e099?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Nao existe na Biblioteca."
+  },
+  {
+   "ymove_id": "9ceef8b2-b197-445b-a1fb-d3e3856c7181",
+   "ymove_title": "Kettlebell Romanian Deadlift",
+   "muscle": "hamstrings",
+   "equipment": "kettlebell",
+   "video_url": "https://ymove.app/api/free/e7175536-9d7d-4f5d-8d49-26c3411eac80",
+   "thumbnail_url": "https://ymove.app/api/free/e7175536-9d7d-4f5d-8d49-26c3411eac80?type=thumbnail",
+   "sotel_slug": "stiff",
+   "classificacao": "provavel_revisar",
+   "nota": "RDL com kettlebell aproxima do Stiff; implemento diferente do prescrito."
+  },
+  {
+   "ymove_id": "54df7bb8-18f9-4b69-8561-f369f06632ee",
+   "ymove_title": "Goblet Squat with Kettlebell",
+   "muscle": "quads",
+   "equipment": "kettlebell",
+   "video_url": "https://ymove.app/api/free/198d4a7d-bc23-41f8-ad67-4fe9ab876b89",
+   "thumbnail_url": "https://ymove.app/api/free/198d4a7d-bc23-41f8-ad67-4fe9ab876b89?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "duplicado",
+   "nota": "Mesmo movimento de 'Dumbbell Goblet Squat', so muda o implemento."
+  },
+  {
+   "ymove_id": "1dfe9e16-f3bf-45c3-9536-b818c03d8bb8",
+   "ymove_title": "Lat Pulldown with V-Grip",
+   "muscle": "back",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/9302ad5d-b97a-4b27-afae-611b6ce70a06",
+   "thumbnail_url": "https://ymove.app/api/free/9302ad5d-b97a-4b27-afae-611b6ce70a06?type=thumbnail",
+   "sotel_slug": "puxada-frontal",
+   "classificacao": "provavel_revisar",
+   "nota": "Puxada com triangulo; a Biblioteca descreve pegada pronada aberta."
+  },
+  {
+   "ymove_id": "5025051b-e58e-42aa-ae78-5a9b11ef129c",
+   "ymove_title": "Seated Cable Row Neutral Grip",
+   "muscle": "back",
+   "equipment": "cable",
+   "video_url": "https://ymove.app/api/free/499ccaa4-719d-40bd-b441-511291482471",
+   "thumbnail_url": "https://ymove.app/api/free/499ccaa4-719d-40bd-b441-511291482471?type=thumbnail",
+   "sotel_slug": "remada-sentada",
+   "classificacao": "provavel_revisar",
+   "nota": "Equivalencia direta; falta o alias em ingles."
+  },
+  {
+   "ymove_id": "371215cb-72ef-4039-8192-472234289504",
+   "ymove_title": "Pec Deck Fly",
+   "muscle": "chest",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/4d197e26-766c-4c5c-b937-9918e56c5b9b",
+   "thumbnail_url": "https://ymove.app/api/free/4d197e26-766c-4c5c-b937-9918e56c5b9b?type=thumbnail",
+   "sotel_slug": "voador",
+   "classificacao": "provavel_revisar",
+   "nota": "Peck Deck = Voador. Tambem cobre pendencia real dos planos."
+  },
+  {
+   "ymove_id": "00a92c05-9865-489d-8495-a8f72af802a6",
+   "ymove_title": "Incline Machine Press",
+   "muscle": "chest",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/35a53872-f47c-4ec6-9bdd-888eb1705572",
+   "thumbnail_url": "https://ymove.app/api/free/35a53872-f47c-4ec6-9bdd-888eb1705572?type=thumbnail",
+   "sotel_slug": "supino-inclinado",
+   "classificacao": "provavel_revisar",
+   "nota": "Biblioteca nao fixa implemento; o video e maquina."
+  },
+  {
+   "ymove_id": "207924a2-ae75-4371-be43-49c3cc62b4e1",
+   "ymove_title": "Cable Tricep Pushdown",
+   "muscle": "triceps",
+   "equipment": "cable",
+   "video_url": "https://ymove.app/api/free/9a550e2c-c55e-495d-b59e-b676c3d48a41",
+   "thumbnail_url": "https://ymove.app/api/free/9a550e2c-c55e-495d-b59e-b676c3d48a41?type=thumbnail",
+   "sotel_slug": "triceps-corda",
+   "classificacao": "provavel_revisar",
+   "nota": "Video nao confirma pegada de corda; conferir antes de vincular."
+  },
+  {
+   "ymove_id": "26098d10-600c-4876-ac19-e9fcac2ef835",
+   "ymove_title": "Overhead Cable Rope Extension",
+   "muscle": "triceps",
+   "equipment": "cable",
+   "video_url": "https://ymove.app/api/free/c57e3719-a853-453f-b04a-da0c9475d6e7",
+   "thumbnail_url": "https://ymove.app/api/free/c57e3719-a853-453f-b04a-da0c9475d6e7?type=thumbnail",
+   "sotel_slug": "triceps-frances",
+   "classificacao": "provavel_revisar",
+   "nota": "Extensao acima da cabeca = frances; implemento polia."
+  },
+  {
+   "ymove_id": "2dbfdf97-301b-423d-a27c-7485137e50f4",
+   "ymove_title": "Machine Bicep Curl",
+   "muscle": "biceps",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/6622f4ed-5af3-4275-af0e-7dc23dd8ff78",
+   "thumbnail_url": "https://ymove.app/api/free/6622f4ed-5af3-4275-af0e-7dc23dd8ff78?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Rosca Scott/maquina nao existe na Biblioteca."
+  },
+  {
+   "ymove_id": "0087bb08-f325-4401-9b37-66dd93871570",
+   "ymove_title": "High Cable Curl",
+   "muscle": "biceps",
+   "equipment": "cable",
+   "video_url": "https://ymove.app/api/free/770e5cb2-882b-413a-8071-941acd8e4064",
+   "thumbnail_url": "https://ymove.app/api/free/770e5cb2-882b-413a-8071-941acd8e4064?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Nao existe na Biblioteca."
+  },
+  {
+   "ymove_id": "3941270c-ad35-40bf-9906-e9c6d24ba777",
+   "ymove_title": "Leg Extension",
+   "muscle": "quads",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/3d0e78d0-1125-4d25-8bd4-9ca7ba3799e8",
+   "thumbnail_url": "https://ymove.app/api/free/3d0e78d0-1125-4d25-8bd4-9ca7ba3799e8?type=thumbnail",
+   "sotel_slug": "cadeira-extensora",
+   "classificacao": "exata",
+   "nota": "Resolvida pelo resolvedor oficial (alias)."
+  },
+  {
+   "ymove_id": "24b76364-0eec-4035-b3e0-b7451a94db9f",
+   "ymove_title": "Hack Squat",
+   "muscle": "quads",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/800cc264-d388-4200-8568-8f1df46e9be9",
+   "thumbnail_url": "https://ymove.app/api/free/800cc264-d388-4200-8568-8f1df46e9be9?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Nao existe na Biblioteca."
+  },
+  {
+   "ymove_id": "23b96196-f154-4450-a2cd-fdc35af2e60c",
+   "ymove_title": "Lying Leg Curl",
+   "muscle": "hamstrings",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/34a512bf-baa1-48ac-a5b9-132073166018",
+   "thumbnail_url": "https://ymove.app/api/free/34a512bf-baa1-48ac-a5b9-132073166018?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Mesa Flexora (deitado) nao existe; Cadeira Flexora e outro exercicio."
+  },
+  {
+   "ymove_id": "395b4957-7a05-4f56-a32b-bdf62c47eb49",
+   "ymove_title": "Glute Kickback Machine",
+   "muscle": "glutes",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/5611abf4-57f7-4153-b29d-a17cd7e2907d",
+   "thumbnail_url": "https://ymove.app/api/free/5611abf4-57f7-4153-b29d-a17cd7e2907d?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Gluteo Maquina nao existe na Biblioteca."
+  },
+  {
+   "ymove_id": "23781248-d4d6-418e-a5a0-932abb0ca32b",
+   "ymove_title": "Machine Reverse Fly",
+   "muscle": "shoulders",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/31fa8cba-bf48-4c16-9cf9-6a3627ee9bea",
+   "thumbnail_url": "https://ymove.app/api/free/31fa8cba-bf48-4c16-9cf9-6a3627ee9bea?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Crucifixo Invertido Maquina nao existe na Biblioteca."
+  },
+  {
+   "ymove_id": "23d6cf5e-2f9a-4f78-a962-d22e6fe36aa9",
+   "ymove_title": "Cable Woodchop (High to Low)",
+   "muscle": "core",
+   "equipment": "machine",
+   "video_url": "https://ymove.app/api/free/e1f80c59-7160-4df2-babb-0aa0eeb54fea",
+   "thumbnail_url": "https://ymove.app/api/free/e1f80c59-7160-4df2-babb-0aa0eeb54fea?type=thumbnail",
+   "sotel_slug": null,
+   "classificacao": "sem_correspondencia",
+   "nota": "Nao existe na Biblioteca."
+  }
+ ]
+}

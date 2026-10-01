@@ -260,9 +260,13 @@ def test_schema_valida_payload_completo():
         secondary_muscles=['Gluteos'], equipment='Barra', level='intermediario',
         instructions='Desca controlado.', common_errors=['Joelho para dentro'],
         cautions=['Hernia lombar'], approved_substitutions=['leg-press'],
-        media=[{'type': 'video', 'url': 'https://x/y.mp4'}],
+        # LIB-MEDIA: `type` deixou de ser string livre ('video' nao existe mais)
+        # e `source` passou a ser obrigatoria, para que toda demonstracao tenha
+        # origem e direito de uso rastreaveis.
+        media=[{'type': 'video/mp4', 'url': 'https://x/y.mp4', 'source': 'sotel_proprio'}],
     )
     assert e.media[0].alt is None
+    assert e.media[0].source == 'sotel_proprio'
     assert e.is_active is True
 
 

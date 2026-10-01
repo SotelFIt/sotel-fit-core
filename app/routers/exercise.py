@@ -14,18 +14,26 @@ Convencao de auth reusada do backend:
   - admin -> mecanismo OFICIAL `core.security.require_admin` (API key -> 0).
     (BLOCKER 1 da auditoria: removido o bypass local {0,2}; sem politica nova.)
 """
+import hashlib
 import logging
+import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.security import require_admin, verify_dual_auth
 from models.exercise import Exercise
-from schemas.exercise import ExerciseCreate, ExerciseResponse, ExerciseUpdate
+from schemas.exercise import (
+    FONTES_PUBLICAVEIS,
+    ExerciseCreate,
+    ExercisePublicResponse,
+    ExerciseResponse,
+    ExerciseUpdate,
+)
 from services.exercise_resolver import resolve_exercise
 
 logger = logging.getLogger(__name__)
@@ -60,10 +68,51 @@ def _serialize(ex: Exercise, *, substitutions) -> dict:
     return data
 
 
+# Campos que NUNCA saem na resposta do cliente.
+PRIVADO_NA_MIDIA = ("licenca", "checksum")
+
+
+def _midia_publica(media: Optional[list]) -> list:
+    """Midia que pode chegar ao CLIENTE, sem os dados privados de direitos.
+
+    Duas coisas acontecem aqui, e as duas importam:
+
+    1. `fixture_teste` e removida. Arquivo sintetico existe para provar o fluxo
+       tecnico; nunca pode aparecer como demonstracao de um exercicio real.
+    2. o bloco `licenca` e removido. Fornecedor, referencia do comprovante e
+       data de aquisicao sao rastreabilidade interna — nao tem por que trafegar
+       para o aparelho de um aluno.
+
+    3. midia LICENCIADA cujo direito nao autoriza uso comercial e removida.
+       Preencher o formulario nao cria direito: se a licenca registrada diz
+       que nao podemos usar comercialmente, o arquivo nao chega ao aluno.
+    4. o `checksum` e removido. E a identidade interna do arquivo, usada para
+       auditoria de direitos — nao tem funcao nenhuma no aparelho do aluno.
+
+    O cliente continua sabendo que a midia existe e de que TIPO de procedencia
+    ela e (`source`), alem do tamanho do quadro (`width`/`height`) de que
+    precisa para desenhar a moldura. Isso e o suficiente para exibir.
+    """
+    limpa = []
+    for m in media or []:
+        if not isinstance(m, dict):
+            continue
+        if m.get("source") not in FONTES_PUBLICAVEIS:
+            continue
+        if m.get("source") == "licenciado":
+            lic = m.get("licenca")
+            if not isinstance(lic, dict) or lic.get("uso_comercial") is not True:
+                continue
+        limpa.append({k: v for k, v in m.items() if k not in PRIVADO_NA_MIDIA})
+    return limpa
+
+
 def _public(ex: Exercise, active_slugs: set) -> dict:
     """Resposta publica: substituicoes filtradas para SOMENTE as ativas, preservando ordem."""
     subs = [s for s in (ex.approved_substitutions or []) if s in active_slugs]
-    return _serialize(ex, substitutions=subs)
+    data = _serialize(ex, substitutions=subs)
+    data["media"] = _midia_publica(data.get("media"))
+    return data
 
 
 def _admin_view(ex: Exercise) -> dict:
@@ -103,7 +152,7 @@ def _validate_substitutions(db: Session, own_slug: str, subs: Optional[List[str]
 
 # ---------------- leitura autenticada ----------------
 
-@public_router.get("", response_model=List[ExerciseResponse])
+@public_router.get("", response_model=List[ExercisePublicResponse])
 def list_exercises(
     primary_muscle: Optional[str] = Query(None),
     equipment: Optional[str] = Query(None),
@@ -157,7 +206,7 @@ def resolve_exercise_name(
     return hit
 
 
-@public_router.get("/{slug}", response_model=ExerciseResponse)
+@public_router.get("/{slug}", response_model=ExercisePublicResponse)
 def get_exercise(
     slug: str,
     db: Session = Depends(get_db),
@@ -198,7 +247,10 @@ def create_exercise(
         common_errors=list(payload.common_errors),
         cautions=list(payload.cautions),
         approved_substitutions=list(payload.approved_substitutions),
-        media=[m.model_dump() for m in payload.media],
+        # mode="json": a coluna e JSON e o serializer e o json padrao.
+        # `adquirido_em`/`verificado_em` sao `date` — sem isto o gravar
+        # estoura em TypeError e o vinculo de midia licenciada responde 500.
+        media=[m.model_dump(mode="json") for m in payload.media],
         is_active=payload.is_active,
     )
     db.add(ex)
@@ -217,6 +269,35 @@ def create_exercise(
     return _admin_view(ex)
 
 
+def _fixture_permitida() -> bool:
+    """Fixture so entra em teste ou ambiente local, nunca em producao.
+
+    A permissao e OPT-IN por variavel de ambiente: onde ninguem configurou
+    nada — producao inclusive — a resposta e nao.
+    """
+    return os.getenv("SOTEL_ALLOW_FIXTURE_MEDIA", "").strip().lower() == "true"
+
+
+def _recusar_fixture_em_producao(media) -> None:
+    """Barra a publicacao de midia sem procedencia valida.
+
+    O schema ja recusa `licenciado` sem licenca. O que sobra para barrar aqui e
+    a fixture: ela e valida como objeto, mas nao pode virar demonstracao de um
+    exercicio real.
+    """
+    if _fixture_permitida():
+        return
+    for m in media or []:
+        if isinstance(m, dict) and m.get("source") == "fixture_teste":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "midia de fixture nao pode ser publicada. Vincule material "
+                    "proprio ou licenciado com a licenca preenchida."
+                ),
+            )
+
+
 @admin_router.patch("/{slug}", response_model=ExerciseResponse)
 def update_exercise(
     slug: str,
@@ -228,7 +309,12 @@ def update_exercise(
     if not ex:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercicio nao encontrado")
 
-    data = payload.model_dump(exclude_unset=True)
+    # mode="json" pelo mesmo motivo do POST: `media` cai numa coluna JSON e
+    # a licenca carrega datas. `exclude_unset` continua valendo.
+    data = payload.model_dump(exclude_unset=True, mode="json")
+
+    if "media" in data:
+        _recusar_fixture_em_producao(data["media"])
 
     # slug e imutavel: aceitar apenas se identico ao do path; qualquer mudanca -> 409.
     if "slug" in data:
@@ -255,3 +341,191 @@ def update_exercise(
     db.refresh(ex)
     logger.info(f"Exercicio atualizado: slug={ex.slug} campos={list(data.keys())}")
     return _admin_view(ex)
+
+
+# --------------------------------------------------------------------------
+# LIB-MEDIA — upload da demonstracao do exercicio.
+#
+# Reaproveita o Cloudinary que o projeto JA usa para as fotos de avaliacao
+# corporal (`routers/photos.py`), com as mesmas variaveis de ambiente. Nenhum
+# provedor novo foi introduzido.
+#
+# O upload NAO grava no exercicio: devolve a URL e o poster para o
+# administrativo revisar e so entao vincular via PATCH. Assim o profissional ve
+# a demonstracao antes de ela existir para o cliente.
+# --------------------------------------------------------------------------
+
+# Curta de proposito: demonstracao, nao aula. Arquivo grande no meio do treino
+# e pior que arquivo nenhum.
+MEDIA_MAX_BYTES = 8 * 1024 * 1024
+MEDIA_CONTENT_TYPES = {
+    "video/mp4": "video",
+    "video/webm": "video",
+    "image/webp": "image",
+    "image/gif": "image",
+}
+
+
+@admin_router.post("/{slug}/media/upload", status_code=status.HTTP_201_CREATED)
+async def upload_exercise_media(
+    slug: str,
+    file: UploadFile = File(...),
+    source: str = Form("sotel_proprio"),
+    db: Session = Depends(get_db),
+    _admin: int = Depends(require_admin),
+):
+    """Envia a demonstracao e devolve `{type, url, poster, source}`.
+
+    Nao vincula sozinho: quem vincula e o PATCH, depois da conferencia humana.
+    """
+    ex = db.query(Exercise).filter(Exercise.slug == slug).first()
+    if not ex:
+        raise HTTPException(status_code=404, detail=f"exercicio nao encontrado: {slug}")
+
+    if source not in ("sotel_proprio", "licenciado"):
+        raise HTTPException(
+            status_code=400,
+            detail="origem deve ser 'sotel_proprio' ou 'licenciado' — material de "
+                   "terceiro sem autorizacao nao entra na Biblioteca",
+        )
+
+    declarado = (file.content_type or "").split(";")[0].strip().lower()
+    if declarado not in MEDIA_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"formato nao aceito: {declarado or 'desconhecido'}. "
+                   f"Aceitos: {', '.join(sorted(MEDIA_CONTENT_TYPES))}",
+        )
+
+    conteudo = await file.read()
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="arquivo vazio")
+    if len(conteudo) > MEDIA_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"arquivo muito grande ({len(conteudo)//1024//1024}MB). "
+                   f"Maximo {MEDIA_MAX_BYTES//1024//1024}MB para demonstracao.",
+        )
+
+    import os
+    try:
+        import cloudinary
+        import cloudinary.uploader
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Cloudinary nao instalado")
+
+    if not os.getenv("CLOUDINARY_CLOUD_NAME"):
+        raise HTTPException(status_code=503, detail="armazenamento de midia nao configurado")
+
+    cloudinary.config(
+        cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+        api_key=os.getenv("CLOUDINARY_API_KEY"),
+        api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+        secure=True,
+    )
+    tipo_recurso = MEDIA_CONTENT_TYPES[declarado]
+    try:
+        resultado = cloudinary.uploader.upload(
+            conteudo,
+            folder="sotelfit/biblioteca",
+            # public_id pelo SLUG: a midia fica endereçavel pelo exercicio
+            # canonico, nao por um id solto que ninguem consegue auditar depois.
+            public_id=slug,
+            overwrite=True,
+            resource_type=tipo_recurso,
+        )
+    except Exception as e:
+        logger.error("falha no upload de midia (%s): %s", slug, e)
+        raise HTTPException(status_code=502, detail="falha ao enviar a midia")
+
+    url = resultado.get("secure_url")
+    if not url:
+        raise HTTPException(status_code=502, detail="armazenamento nao devolveu URL")
+
+    # Poster: para video o Cloudinary deriva um quadro; para imagem animada o
+    # proprio arquivo serve de cartaz.
+    poster = None
+    if tipo_recurso == "video":
+        poster = url.rsplit(".", 1)[0] + ".jpg"
+    elif declarado == "image/webp":
+        poster = url
+
+    # Identidade tecnica do arquivo. Vem MEDIDA, nao digitada: largura e altura
+    # decidem a moldura no cliente, e o checksum e o que permite provar, meses
+    # depois, que o arquivo publicado e o mesmo que a licenca cobre.
+    duracao = resultado.get("duration")
+    return {
+        "type": declarado,
+        "url": url,
+        "poster": poster,
+        "source": source,
+        "alt": f"Demonstração do exercício {ex.name}",
+        "width": resultado.get("width"),
+        "height": resultado.get("height"),
+        "duration_s": float(duracao) if duracao else None,
+        "bytes": len(conteudo),
+        "checksum": hashlib.sha256(conteudo).hexdigest(),
+    }
+
+
+@admin_router.get("/-/ocorrencias-pendentes")
+def ocorrencias_pendentes(
+    client_id: Optional[int] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+    _admin: int = Depends(require_admin),
+):
+    """Ocorrencias de planos ativos que NAO tem exercicio canonico.
+
+    Existe porque a resolucao automatica falha em silencio: hoje, nos planos
+    reais, mais da metade das ocorrencias nao casa com nenhum exercicio. Sem
+    esta lista ninguem sabe o que revisar — o cliente simplesmente nao recebe
+    orientacao naquele exercicio, e nada avisa.
+
+    NAO corrige nada sozinho. Devolve o que precisa de decisao humana.
+    """
+    import json as _json
+
+    sql = (
+        "SELECT id, client_id, enrichment_json FROM client_plans "
+        "WHERE status = 'active' AND enrichment_json IS NOT NULL"
+    )
+    params = {}
+    if client_id is not None:
+        sql += " AND client_id = :cid"
+        params["cid"] = client_id
+
+    pendentes = []
+    total_ocorrencias = 0
+    planos_sem_enriquecimento = db.execute(
+        text(
+            "SELECT COUNT(*) FROM client_plans WHERE status = 'active' "
+            "AND enrichment_json IS NULL"
+            + (" AND client_id = :cid" if client_id is not None else "")
+        ),
+        params,
+    ).scalar() or 0
+
+    for pid, cid, bruto in db.execute(text(sql), params).fetchall():
+        try:
+            dados = _json.loads(bruto)
+        except Exception:
+            continue
+        for ex in dados.get("exercises", []):
+            total_ocorrencias += 1
+            if ex.get("status") == "unresolved" or not ex.get("library_ref"):
+                pendentes.append({
+                    "plan_id": pid,
+                    "client_id": cid,
+                    "occurrence_key": ex.get("occurrence_key"),
+                    "name_raw": ex.get("name_raw"),
+                    "context_path": ex.get("context_path"),
+                })
+
+    return {
+        "pendentes": pendentes[:limit],
+        "total_pendentes": len(pendentes),
+        "total_ocorrencias": total_ocorrencias,
+        # Planos que nem chegaram a ser enriquecidos: dependem so do texto.
+        "planos_sem_enriquecimento": planos_sem_enriquecimento,
+    }

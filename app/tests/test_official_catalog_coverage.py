@@ -16,7 +16,10 @@ POR QUE OS NUMEROS MUDARAM (nao houve regressao de codigo):
   LIB-011B(oficial)-> 12:9/15   19:8/19  23:10/21  24:7/11   36:12/20  SOTEL:13/28  = 59/114 (52%)
   LIB-011C         -> 12:10/15  19:9/19  23:10/21  24:8/11   36:13/20  SOTEL:15/28  = 65/114 (57%)
   LIB-011D         -> 12:10/15  19:9/19  23:10/21  24:9/11   36:14/20  SOTEL:15/28  = 67/114 (59%)
-  LIB-011E(atual)  -> 70/114 (61%)
+  LIB-011E         -> 70/114 (61%)
+  LIB-MEDIA(atual) -> 70/113 (62%) — o denominador caiu 1 porque a instrucao
+                      'Descanso completo | Opcional: alongamento estatico' do
+                      plano 19 deixou de ser tratada como exercicio.
 
   LIB-011E (2026-08-08): criou 3 canonicos PROPRIOS (supino-com-halteres,
   desenvolvimento-militar, rosca-direta-unilateral) apos auditoria de identidade.
@@ -99,7 +102,11 @@ def test_cobertura_esperada_por_plano_real():
     plans = _plans()
     esperado = {
         '12': (11, 15),
-        '19': (10, 19),
+        # LIB-MEDIA: 19 -> 18. Uma ocorrencia do plano 19 era a instrucao
+        # 'Descanso completo | Opcional: alongamento estatico 15', que passou
+        # a ser classificada como ruido estrutural. Ela continua registrada no
+        # enriquecimento; so deixou de contar como exercicio a catalogar.
+        '19': (10, 18),
         '23': (10, 21),
         '24': (10, 11),
         '36': (14, 20),
@@ -118,7 +125,9 @@ def test_cobertura_total_consolidada():
     for k in plans:
         cov = build_enrichment(db, plans[k])['coverage']
         r += cov['resolved']; t += cov['total']
-    assert (r, t) == (70, 114), f"cobertura consolidada {r}/{t} != 70/114"
+    # 114 -> 113 pelo mesmo motivo do plano 19: uma instrucao de descanso
+    # deixou de ser contada como exercicio. O numerador nao muda.
+    assert (r, t) == (70, 113), f"cobertura consolidada {r}/{t} != 70/113"
 
 
 def test_alias_resolve_variacao_conhecida():
