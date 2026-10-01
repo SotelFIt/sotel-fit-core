@@ -202,7 +202,7 @@ def get_client(client_id: int, db: Session = Depends(get_db), auth_client_id: in
 
 
 @router.patch("/{client_id}")
-def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), auth_client_id: int = Depends(require_client_access)):
+def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), _admin: int = Depends(require_admin)):
     """Edicao parcial do cadastro do cliente.
 
     REL-V1-004: a funcao existia sem corpo - respondia 200 e nao gravava nada.
@@ -210,8 +210,17 @@ def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), 
     campos permitidos ja estava declarado e foi mantido, mais os dados de
     onboarding que o cliente informa (idade, peso, altura).
 
+    PARCIAL de verdade: so os campos enviados entram no UPDATE. Nada que nao
+    veio no payload e tocado — inclusive o que vive FORA desta tabela, como a
+    anamnese (`lead_onboardings`/`onboarding`), que esta rota nunca alcanca.
+
     `phone` NAO entra: telefone e identidade (BL-PHONE-001) e nao se edita por
     aqui - trocar o telefone de um cliente e trocar de quem ele e.
+
+    Somente ADMIN. Antes era `require_client_access`, que deixava o proprio
+    cliente editar o proprio `status` — ou seja, promover-se a `active` sem
+    passar por pagamento. Nenhum consumidor legitimo perdeu acesso: o unico
+    chamador desta rota em todo o workspace e o painel administrativo.
     """
     allowed = {"name", "email", "objective", "status", "age", "weight", "height"}
     campos = {k: v for k, v in (payload or {}).items() if k in allowed}
@@ -224,8 +233,26 @@ def update_client(client_id: int, payload: dict, db: Session = Depends(get_db), 
     if not existe:
         raise HTTPException(status_code=404, detail="Cliente nao encontrado")
 
+    # E-mail e a chave de login (`/auth/login` casa por email e pega o PRIMEIRO
+    # resultado). A coluna nao tem unique, entao dois clientes com o mesmo
+    # e-mail significam: um nunca mais entra, e o outro pode cair na conta
+    # errada. A duplicidade e barrada aqui, antes de gravar.
+    if "email" in campos and campos["email"]:
+        campos["email"] = str(campos["email"]).strip()
+        dono = db.execute(
+            text("SELECT id FROM clients WHERE lower(email) = lower(:e) AND id <> :cid LIMIT 1"),
+            {"e": campos["email"], "cid": client_id},
+        ).fetchone()
+        if dono:
+            raise HTTPException(
+                status_code=409,
+                detail=f"e-mail ja usado pelo cliente {dono[0]} — e por ele que o aluno entra no app",
+            )
+
     sets = ", ".join(f"{k} = :{k}" for k in campos)
-    db.execute(text(f"UPDATE clients SET {sets}, updated_at = NOW() WHERE id = :cid"),
+    # CURRENT_TIMESTAMP no lugar de NOW(): mesmo resultado no PostgreSQL de
+    # producao e valido tambem em SQLite, o que torna esta rota testavel.
+    db.execute(text(f"UPDATE clients SET {sets}, updated_at = CURRENT_TIMESTAMP WHERE id = :cid"),
                {**campos, "cid": client_id})
     db.commit()
 
