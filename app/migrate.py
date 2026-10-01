@@ -33,6 +33,11 @@ def run_migrations(engine):
             "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_checkin_reminder_sent TIMESTAMP DEFAULT NULL",
             "DROP INDEX IF EXISTS ix_clients_email",
             "ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_workout_reminder_sent TIMESTAMP DEFAULT NULL",
+            # Exclusao LOGICA do aluno. Coluna propria de proposito: `status`
+            # ja carrega lead/active/inactive (assinatura e suspensao), e
+            # misturar "excluido" ali tornaria impossivel distinguir quem o
+            # profissional removeu de quem apenas esta com a assinatura parada.
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP DEFAULT NULL",
             # Subscriptions
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS notes VARCHAR",
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS manual_payment_method VARCHAR",

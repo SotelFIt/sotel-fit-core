@@ -18,6 +18,11 @@ class Client(Base):
     weight = Column(Float, nullable=True)
     height = Column(Float, nullable=True)
     goal = Column(String, nullable=True)
+    # Exclusao LOGICA. Nulo = aluno ativo na lista. Preenchido = removido pelo
+    # profissional: some da lista e perde acesso, mas plano, avaliacoes,
+    # check-ins e timeline continuam inteiros. Nao se confunde com `status`,
+    # que fala de assinatura.
+    deleted_at = Column(DateTime, nullable=True, default=None)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     plans = relationship(
