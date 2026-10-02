@@ -5,10 +5,15 @@ O fornecedor e SIMULADO aqui (nao ha credencial neste ambiente), mas o contrato
 simulado foi tirado do openapi.json oficial, nao de suposicao:
 
   - `videoUrl`/`videoHlsUrl` sao pre-assinadas e expiram em 48h;
-  - `excludeVideos=1` e browse mode e NAO consome cota mensal;
-  - a cobranca e por EXERCICIO DISTINTO em 30 dias (`monthlyExercisesUsed`),
-    nao por segundo assistido;
-  - `thumbnailUrl` e estatico, nao expira e vem tambem em browse mode.
+  - `excludeVideos=1` e browse mode e NAO consome cota;
+  - o consumo tem DUAS dimensoes: minutos de video
+    (`minutesUsed`/`minutesLimit`) e exercicios distintos em 30 dias
+    (`monthlyExercisesUsed`/`monthlyExerciseLimit`, que pode vir "unlimited");
+  - `thumbnailUrl` e estatico e nao expira, mas PODE NAO VIR em browse mode:
+    "on Scale they are also returned without a video (...); on the capped
+    plans they are not";
+  - cota de exercicios estourada chega como 200 com `_warning`, sem os campos
+    de video — nao como erro HTTP.
 
 O que estes testes protegem, em uma frase cada:
   1. URL assinada nunca e persistida;
@@ -92,6 +97,14 @@ class FornecedorSimulado:
         self.chamadas = []
         self.erro = None
         self.status = 200
+        # Plano COM capa em browse mode (equivalente a Scale). Os testes que
+        # exercitam o plano com limite de exercicios desligam isto.
+        self.capa_em_browse = True
+        # Cota de exercicios distintos estourada: o fornecedor responde 200,
+        # remove os campos de video e explica em `_warning`.
+        self.cota_estourada = False
+        # `monthlyExerciseLimit` vem como a string "unlimited" em plano anual.
+        self.limite_de_exercicios = 50
 
     def get(self, url, params=None, headers=None, timeout=None):
         self.chamadas.append({"url": url, "params": dict(params or {}),
@@ -99,35 +112,58 @@ class FornecedorSimulado:
         if self.erro:
             raise self.erro
         if self.status != 200:
-            return RespostaFalsa({"error": "..."}, self.status)
+            return RespostaFalsa({"error": "...", "retryAfterMs": 3000}, self.status)
 
         if url.endswith("/usage"):
             return RespostaFalsa({"data": {
                 "plan": "starter", "status": "active",
                 "minutesUsed": 12, "minutesLimit": 600, "minutesRemaining": 588,
-                "monthlyExercisesUsed": 3, "monthlyExerciseLimit": 50,
+                "percentUsed": 2,
+                "monthlyExercisesUsed": 3,
+                "monthlyExerciseLimit": self.limite_de_exercicios,
                 "rateLimit": 60, "trialEndsAt": None,
+                "whiteVideoAccess": True, "premiumVideoAccess": False,
+                "postureAnalyses": {"used": 1, "included": 10},
             }})
 
         navegando = str((params or {}).get("excludeVideos")) in ("1", "True", "true")
         exercicio = {
             "id": YM_ID, "slug": "leg-extension", "title": "Leg Extension",
             "muscleGroup": "quads", "equipment": "machine", "difficulty": "beginner",
-            "hasVideo": True, "videoDurationSecs": 11,
-            "thumbnailUrl": THUMB,
-            "videos": [{"tag": "gym", "orientation": "PORTRAIT", "isPrimary": True,
-                        "thumbnailUrl": THUMB}],
+            "hasVideo": True, "hasVideoWhite": True, "hasVideoGym": False,
+            "videoDurationSecs": 11,
+            # Enum do contrato e minusculo.
+            "videos": [{"tag": "gym", "orientation": "portrait", "isPrimary": True}],
         }
+        # A capa acompanha o VIDEO. Em browse mode ela so vem nos planos sem
+        # limite de exercicios — por isso ela e colocada aqui, condicionalmente,
+        # e nao no literal acima.
+        if not navegando or self.capa_em_browse:
+            exercicio["thumbnailUrl"] = THUMB
+            exercicio["videos"][0]["thumbnailUrl"] = THUMB
+
+        corpo_extra = {}
         if not navegando:
-            # Browse mode NAO devolve estas; o contrato e explicito.
-            exercicio["videoUrl"] = URL_ASSINADA
-            exercicio["videos"][0]["videoUrl"] = URL_ASSINADA
+            if self.cota_estourada:
+                # Contrato do MonthlyCapWarning: os campos de video sao
+                # REMOVIDOS e o motivo vem no aviso. Status continua 200.
+                corpo_extra["_warning"] = {
+                    "message": "monthly exercise cap exceeded",
+                    "reason": "monthly_exercise_cap",
+                    "monthlyExercisesUsed": 50, "monthlyExerciseLimit": 50,
+                    "upgradeUrl": "https://ymove.app/upgrade",
+                }
+            else:
+                # Browse mode NAO devolve estas; o contrato e explicito.
+                exercicio["videoUrl"] = URL_ASSINADA
+                exercicio["videos"][0]["videoUrl"] = URL_ASSINADA
 
         if "/exercises/" in url:
-            return RespostaFalsa({"data": exercicio})
+            return RespostaFalsa({"data": exercicio, **corpo_extra})
         return RespostaFalsa({"data": [exercicio],
                               "pagination": {"page": 1, "pageSize": 20,
-                                             "total": 1, "totalPages": 1}})
+                                             "total": 1, "totalPages": 1},
+                              **corpo_extra})
 
     # --- leitura dos registros -------------------------------------------
     @property
@@ -197,7 +233,7 @@ def _vincular():
         "/admin/exercises/cadeira-extensora/ymove",
         json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
               "title": "Leg Extension", "variant": "gym", "thumbnail_url": THUMB,
-              "orientation": "PORTRAIT", "duration_secs": 11},
+              "orientation": "portrait", "duration_secs": 11},
         headers=ADMIN,
     )
 
@@ -458,3 +494,168 @@ def test_sem_credencial_a_integracao_fica_indisponivel_sem_quebrar(monkeypatch):
     assert client.get("/admin/exercises/ymove/uso", headers=ADMIN).status_code == 503
     # E o exercicio continua abrindo normalmente.
     assert client.get("/exercises/cadeira-extensora", headers=ALUNO).status_code == 200
+
+
+# =========================================================================
+# PREMISSAS CORRIGIDAS CONTRA O openapi.json (v2.5.0)
+#
+# Duas coisas que a primeira versao desta integracao assumiu errado, e que o
+# contrato do fornecedor contradiz textualmente. Cada uma custa de um jeito
+# diferente se voltar: a primeira esconde exercicios vinculaveis da tela do
+# admin; a segunda mostra ao Proprietario metade do consumo que ele paga.
+# =========================================================================
+
+# ------------------------------------------- 1) capa pode faltar em browse
+
+def test_busca_funciona_sem_capa_no_plano_com_limite(_base):
+    """Contrato do objeto Thumbnails: "on the capped plans they are not"
+    devolvidas em browse mode. A busca NAO pode depender da figura."""
+    _base.capa_em_browse = False
+    r = client.get("/admin/exercises/ymove/buscar?q=leg", headers=ADMIN)
+    assert r.status_code == 200, r.text
+    item = r.json()["itens"][0]
+    assert item["thumbnail_url"] is None, "o simulado precisa estar sem capa aqui"
+    # O que sustenta a decisao humana continua inteiro sem a imagem:
+    assert item["title"] == "Leg Extension"
+    assert item["equipment"] == "machine"
+    assert item["muscle_group"] == "quads"
+    assert item["variantes"][0]["tag"] == "gym"
+    assert not _base.pediu_video, "faltar capa nao autoriza pedir video"
+
+
+def test_vinculo_sem_capa_e_salvo(_base):
+    """Exigir thumbnail recusaria um vinculo correto no plano com limite."""
+    r = client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
+              "title": "Leg Extension", "variant": "gym", "duration_secs": 11},
+        headers=ADMIN,
+    )
+    assert r.status_code == 200, r.text
+    guardado = _guardado()
+    assert guardado["exercise_id"] == YM_ID
+    assert "thumbnail_url" not in guardado or guardado["thumbnail_url"] is None
+
+
+def test_treino_abre_e_demonstra_sem_capa(_base):
+    """Sem capa o aluno perde a previa, nao a demonstracao."""
+    _base.capa_em_browse = False
+    client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
+              "variant": "gym"},
+        headers=ADMIN,
+    )
+    assert client.get("/exercises/cadeira-extensora", headers=ALUNO).status_code == 200
+
+    r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    assert r.status_code == 200, r.text
+    assert r.json()["url"] == URL_ASSINADA, "o video nao depende da capa"
+
+
+def test_nenhuma_chamada_pede_video_para_conseguir_capa(_base):
+    """A tentacao obvia: "sem capa, pede o video que ele traz a capa".
+    Isso consome cota por exercicio que ninguem assistiu."""
+    _base.capa_em_browse = False
+    client.get("/admin/exercises/ymove/buscar?q=leg", headers=ADMIN)
+    client.get("/admin/exercises/ymove/buscar?q=cadeira", headers=ADMIN)
+    assert not _base.pediu_video
+    assert all(str(c["params"].get("excludeVideos")) == "1"
+               for c in _base.chamadas if "/exercises" in c["url"])
+
+
+# --------------------------------------- 2) consumo tem DUAS dimensoes
+
+def test_uso_apresenta_minutos_E_exercicios_distintos(_base):
+    """As duas dimensoes que o fornecedor publica, lado a lado.
+
+    Mostrar so uma delas daria ao Proprietario a impressao de folga que ele
+    pode nao ter: da para estar longe do limite de exercicios distintos e
+    perto do limite de minutos, que e o que a pagina de precos vende.
+    """
+    d = client.get("/admin/exercises/ymove/uso", headers=ADMIN).json()
+
+    # dimensao 1 - minutos
+    assert d["minutos_usados"] == 12
+    assert d["minutos_limite"] == 600
+    assert d["minutos_restantes"] == 588
+    assert d["minutos_percentual"] == 2
+
+    # dimensao 2 - exercicios distintos
+    assert d["exercicios_distintos_no_mes"] == 3
+    assert d["exercicios_limite"] == 50
+    assert d["exercicios_restantes"] == 47
+    assert d["exercicios_ilimitados"] is False
+
+    assert d["requisicoes_por_minuto"] == 60
+
+
+def test_limite_unlimited_nao_vira_numero_inventado(_base):
+    """`monthlyExerciseLimit` vem como a string "unlimited" em plano anual.
+    Subtrair de uma palavra ou tratar como 0 produziria numero falso."""
+    _base.limite_de_exercicios = "unlimited"
+    d = client.get("/admin/exercises/ymove/uso", headers=ADMIN).json()
+    assert d["exercicios_limite"] == "unlimited"
+    assert d["exercicios_ilimitados"] is True
+    assert d["exercicios_restantes"] is None
+    # Minutos continuam medidos mesmo com exercicios ilimitados.
+    assert d["minutos_limite"] == 600
+
+
+def test_uso_nao_inventa_numero_que_o_fornecedor_nao_mandou(_base):
+    """Nenhum campo e preenchido por estimativa nossa."""
+    d = client.get("/admin/exercises/ymove/uso", headers=ADMIN).json()
+    assert d["plano"] == "starter"
+    assert d["video_sem_marca"] is False, "plano starter tem marca Your Move"
+    assert d["video_fundo_branco"] is True
+    assert d["fim_do_teste"] is None
+
+
+# ------------------------- cota estourada chega como 200, nao como erro HTTP
+
+def test_cota_estourada_nao_e_confundida_com_ausencia_de_video(_base):
+    """O fornecedor responde 200 e REMOVE os campos de video, explicando em
+    `_warning`. Sem ler o aviso, a tela diria ao aluno que o exercicio nao tem
+    demonstracao — quando o problema e da conta, e tem solucao."""
+    _vincular()
+    _base.cota_estourada = True
+    r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    assert r.status_code == 429, f"deu {r.status_code}: {r.text}"
+    assert "404" not in str(r.status_code)
+    assert "limite" in r.json()["detail"].lower()
+
+
+def test_cota_estourada_nao_apaga_o_vinculo_nem_o_exercicio(_base):
+    """Limite e do mes, nao do cadastro: nada e desfeito por causa dele."""
+    _vincular()
+    _base.cota_estourada = True
+    client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+
+    assert _guardado()["exercise_id"] == YM_ID, "o vinculo nao pode ser perdido"
+    r = client.get("/exercises/cadeira-extensora", headers=ALUNO)
+    assert r.status_code == 200, "o treino continua aberto com a cota estourada"
+
+
+def test_sem_video_de_verdade_continua_sendo_404(_base):
+    """O contrario do teste acima: quando NAO ha aviso de cota e tambem nao ha
+    video, a resposta honesta e 404 — nao 429. Sem esta, bastaria mapear tudo
+    para 429 e a distincao morreria."""
+    _vincular()
+    sem_video = {"id": YM_ID, "slug": "leg-extension", "title": "Leg Extension",
+                 "muscleGroup": "quads", "equipment": "machine",
+                 "hasVideo": False, "videos": []}
+    _base_get = _base.get
+
+    def get(url, **kw):
+        _base_get(url, **kw)
+        if "/exercises/" in url:
+            return RespostaFalsa({"data": sem_video})
+        return RespostaFalsa({"data": [sem_video], "pagination": {}})
+
+    import services.ymove as _ym
+    _ym.requests.get = get
+    try:
+        r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    finally:
+        _ym.requests.get = _base_get
+    assert r.status_code == 404, f"deu {r.status_code}: {r.text}"

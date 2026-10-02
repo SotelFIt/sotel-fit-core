@@ -37,7 +37,12 @@ class ExternalDemo(BaseModel):
     que o aluno aperta "Ver execucao".
 
     `thumbnail_url` entra porque o contrato diz que ele e estatico e nao expira
-    — e e ele que da previa ao aluno sem consumir cota.
+    — quando ele existe, e ele que da previa ao aluno sem consumir cota.
+
+    E OPCIONAL de proposito. Nos planos com limite de exercicios o fornecedor
+    nao devolve thumbnail em browse mode ("on the capped plans they are not"),
+    entao exigir capa aqui impediria de salvar um vinculo correto. Vinculo sem
+    capa e vinculo valido: o aluno ve o botao de execucao sem previa.
     """
 
     provider: Literal["ymove"]

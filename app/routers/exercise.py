@@ -306,6 +306,10 @@ def buscar_no_ymove(
     Semelhanca de nome SUGERE; nao decide. Por isso a resposta traz
     equipamento, grupo muscular e variantes - sem eles nao da para distinguir
     execucoes parecidas, e vincular errado ensina o movimento errado.
+
+    Os candidatos podem vir SEM capa: nos planos com limite de exercicios o
+    fornecedor nao devolve thumbnail em browse mode. A falta de capa nao
+    bloqueia a busca nem o vinculo, e nao se pede video para obter uma.
     """
     if not ymove.configurado():
         raise HTTPException(status_code=503, detail="integracao de video nao configurada")
@@ -319,9 +323,17 @@ def buscar_no_ymove(
 def uso_do_ymove(_admin: int = Depends(require_admin)):
     """Consumo real da conta no fornecedor. So admin - nunca na tela do aluno.
 
-    A unidade de cobranca e EXERCICIO DISTINTO em 30 dias
-    (`monthlyExercisesUsed`), nao segundo assistido: repetir o mesmo exercicio
-    no mesmo mes nao soma de novo; abrir um exercicio novo soma.
+    O fornecedor mede DUAS coisas ao mesmo tempo, e as duas aparecem aqui
+    exatamente como ele as devolve:
+
+      - MINUTOS de video no mes (`minutesUsed`/`minutesLimit`) - a dimensao que
+        a pagina de precos vende por plano;
+      - EXERCICIOS DISTINTOS em 30 dias (`monthlyExercisesUsed` /
+        `monthlyExerciseLimit`, que pode vir como "unlimited").
+
+    Nenhum numero e estimado aqui. Quanto cada demonstracao custa em minutos e
+    contabilidade do fornecedor: nao afirmamos proporcao entre o tempo que o
+    aluno assistiu e o que foi cobrado.
     """
     if not ymove.configurado():
         raise HTTPException(status_code=503, detail="integracao de video nao configurada")
