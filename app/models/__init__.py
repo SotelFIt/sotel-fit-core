@@ -15,10 +15,11 @@ from models.client_diet import ClientDiet
 from models.client_checkin import ClientCheckin
 from models.exercise import Exercise
 from models.workout_completion import WorkoutCompletion, WorkoutMilestone
+from models.exercise_set_log import ExerciseSetLog
 
 __all__ = [
     'Base', 'Client', 'Onboarding', 'Plan', 'PlanVersion',
     'Diet', 'DietVersion', 'Checkin', 'DecisionLog', 'Subscription',
     'ConversationState', 'LeadOnboarding',
-    'ClientPlan', 'ClientDiet', 'ClientCheckin', 'Exercise', 'WorkoutCompletion', 'WorkoutMilestone'
+    'ClientPlan', 'ClientDiet', 'ClientCheckin', 'Exercise', 'WorkoutCompletion', 'WorkoutMilestone', 'ExerciseSetLog'
 ]
