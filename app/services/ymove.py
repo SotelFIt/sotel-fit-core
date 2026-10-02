@@ -212,28 +212,53 @@ def url_de_video(identificador: str, variante: Optional[str] = None) -> dict:
 
     Chamada so quando o aluno pede a demonstracao — nunca ao abrir lista,
     nunca ao abrir o treino.
+
+    VARIANTE VINCULADA E VINCULATIVA. Se o treinador escolheu "fundo branco",
+    o aluno ve fundo branco ou nao ve nada. Nao ha queda para a variante
+    principal: as variantes sao filmagens diferentes do mesmo movimento, com
+    cenario e enquadramento proprios, e foi exatamente entre elas que uma
+    pessoa decidiu. Substituir em silencio entregaria outro video sob um
+    vinculo que ninguem reviu — e ninguem ficaria sabendo.
     """
     bruto = _chamar(f"/exercises/{identificador}")
     dados = bruto.get("data") or {}
-
-    escolhido = None
     videos = dados.get("videos") or []
-    if variante:
-        escolhido = next((v for v in videos if v.get("tag") == variante), None)
-    if escolhido is None:
-        escolhido = next((v for v in videos if v.get("isPrimary")), None)
-    if escolhido is None and videos:
-        escolhido = videos[0]
 
-    url = (escolhido or {}).get("videoUrl") or dados.get("videoUrl")
+    if variante:
+        # So a variante pedida. `next(...)` sem alternativa, de proposito.
+        escolhido = next((v for v in videos if v.get("tag") == variante), None)
+        # O campo de topo e o video PRINCIPAL. Com variante pedida ele nao
+        # serve de substituto — seria a mesma troca silenciosa por outra porta.
+        url = (escolhido or {}).get("videoUrl")
+    else:
+        # Sem variante vinculada nao ha escolha humana a respeitar: vale a
+        # principal, e o primeiro video como ultimo recurso.
+        escolhido = next((v for v in videos if v.get("isPrimary")), None)
+        if escolhido is None and videos:
+            escolhido = videos[0]
+        url = (escolhido or {}).get("videoUrl") or dados.get("videoUrl")
+
     if not url:
-        # A ORDEM importa: cota estourada chega como 200 sem video. Checar o
-        # aviso ANTES de concluir "nao tem video" e a diferenca entre dizer ao
-        # aluno "este exercicio nao tem demonstracao" (falso) e dizer ao admin
-        # "a cota do mes acabou" (verdadeiro, e acionavel).
+        # A ORDEM importa: cota estourada chega como 200 sem video, e nesse
+        # caso o fornecedor remove os campos de video de TODAS as variantes.
+        # Checar o aviso ANTES de concluir qualquer coisa sobre a variante e o
+        # que impede "cota acabou" de ser relatado como "variante sumiu".
         if _cota_de_exercicios_estourada(bruto):
             raise YMoveLimiteAtingido(
                 "cota mensal de exercicios distintos do fornecedor atingida"
+            )
+        if variante:
+            # Registrado em log porque e a unica forma de alguem descobrir:
+            # para o aluno isto parece simplesmente nao haver demonstracao, e
+            # quem precisa agir e o treinador, revendo o vinculo.
+            logger.warning(
+                "variante vinculada indisponivel no fornecedor: exercicio=%s variante=%s "
+                "(variantes oferecidas: %s)",
+                identificador, variante,
+                [v.get("tag") for v in videos] or "nenhuma",
+            )
+            raise YMoveNaoEncontrado(
+                "a variante vinculada nao esta disponivel no fornecedor"
             )
         raise YMoveNaoEncontrado("o fornecedor nao tem video para este exercicio")
 

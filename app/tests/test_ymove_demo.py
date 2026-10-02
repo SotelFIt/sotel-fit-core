@@ -144,14 +144,21 @@ class FornecedorSimulado:
             "hasVideo": True, "hasVideoWhite": True, "hasVideoGym": False,
             "videoDurationSecs": 11,
             # Enum do contrato e minusculo.
-            "videos": [{"tag": "gym", "orientation": "portrait", "isPrimary": True}],
+            # DUAS variantes, como no catalogo real: e entre elas que o
+            # treinador escolhe, e e por existirem duas que a queda silenciosa
+            # para a principal e perigosa.
+            "videos": [
+                {"tag": "gym", "orientation": "portrait", "isPrimary": True},
+                {"tag": "fundo-branco", "orientation": "portrait", "isPrimary": False},
+            ],
         }
         # A capa acompanha o VIDEO. Em browse mode ela so vem nos planos sem
         # limite de exercicios — por isso ela e colocada aqui, condicionalmente,
         # e nao no literal acima.
         if not navegando or self.capa_em_browse:
             exercicio["thumbnailUrl"] = THUMB
-            exercicio["videos"][0]["thumbnailUrl"] = THUMB
+            for _v in exercicio["videos"]:
+                _v["thumbnailUrl"] = THUMB
 
         corpo_extra = {}
         if not navegando:
@@ -167,7 +174,8 @@ class FornecedorSimulado:
             else:
                 # Browse mode NAO devolve estas; o contrato e explicito.
                 exercicio["videoUrl"] = URL_ASSINADA
-                exercicio["videos"][0]["videoUrl"] = URL_ASSINADA
+                for _v in exercicio["videos"]:
+                    _v["videoUrl"] = URL_ASSINADA
 
         if "/exercises/" in url:
             return RespostaFalsa({"data": exercicio, **corpo_extra})
@@ -670,3 +678,142 @@ def test_sem_video_de_verdade_continua_sendo_404(_base):
     finally:
         _ym.requests.get = _base_get
     assert r.status_code == 404, f"deu {r.status_code}: {r.text}"
+
+
+# =========================================================================
+# VARIANTE VINCULADA E VINCULATIVA
+#
+# As variantes sao filmagens diferentes do MESMO movimento: "academia" e
+# "fundo branco" tem cenario, enquadramento e as vezes orientacao propria. O
+# treinador escolhe entre elas na tela de vinculo, com as duas a vista.
+#
+# Entregar outra em silencio desfaz essa escolha sem avisar ninguem: o vinculo
+# continua dizendo uma coisa e o aluno assiste outra. Estes testes existem para
+# que essa queda nunca volte por conveniencia.
+# =========================================================================
+
+def _so_academia(_base):
+    """O fornecedor passa a oferecer SO a variante de academia."""
+    original = _base.get
+
+    def get(url, params=None, headers=None, timeout=None):
+        r = original(url, params=params, headers=headers, timeout=timeout)
+        corpo = r.json()
+        dados = corpo.get("data")
+        alvo = dados if isinstance(dados, dict) else (dados or [{}])[0]
+        alvo["videos"] = [v for v in alvo.get("videos", []) if v.get("tag") == "gym"]
+        return RespostaFalsa(corpo, r.status_code)
+
+    return get
+
+
+def test_variante_vinculada_ausente_NAO_cai_para_outra(_base, monkeypatch):
+    """O caso que o Proprietario pediu para cobrir: a variante escolhida sumiu
+    e OUTRA esta disponivel. A resposta e indisponibilidade, nao a outra."""
+    client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
+              "title": "Leg Extension", "variant": "fundo-branco"},
+        headers=ADMIN,
+    )
+    monkeypatch.setattr(ymove.requests, "get", _so_academia(_base))
+
+    r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    assert r.status_code == 404, f"deu {r.status_code}: {r.text}"
+    assert URL_ASSINADA not in r.text, "entregou o video da OUTRA variante"
+
+
+def test_variante_ausente_nao_altera_o_vinculo(_base, monkeypatch):
+    """Indisponibilidade e do momento. O vinculo que um humano aprovou nao e
+    desfeito por causa dela — quem revisa o vinculo e o treinador."""
+    client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
+              "variant": "fundo-branco"},
+        headers=ADMIN,
+    )
+    monkeypatch.setattr(ymove.requests, "get", _so_academia(_base))
+    client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+
+    assert _guardado()["variant"] == "fundo-branco", "o vinculo foi alterado"
+
+
+def test_variante_ausente_nao_derruba_a_prescricao(_base, monkeypatch):
+    client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
+              "variant": "fundo-branco"},
+        headers=ADMIN,
+    )
+    monkeypatch.setattr(ymove.requests, "get", _so_academia(_base))
+    client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+
+    r = client.get("/exercises/cadeira-extensora", headers=ALUNO)
+    assert r.status_code == 200, "o exercicio parou de abrir"
+
+
+def test_variante_vinculada_presente_e_a_que_toca(_base):
+    """O outro lado da mesma regra: pedida a que existe, e ela que vem."""
+    _vincular()  # variant = "gym"
+    r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    assert r.status_code == 200, r.text
+    assert r.json()["url"] == URL_ASSINADA
+
+
+def test_sem_variante_vinculada_a_principal_continua_valendo(_base):
+    """Sem escolha humana registrada nao ha o que respeitar: a principal serve.
+    Sem esta, a correcao viraria "exige variante para tudo"."""
+    client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension"},
+        headers=ADMIN,
+    )
+    r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    assert r.status_code == 200, r.text
+    assert r.json()["url"] == URL_ASSINADA
+
+
+def test_variante_ausente_E_cota_estourada_relata_a_COTA(_base, monkeypatch):
+    """A distincao que custa: com a cota estourada o fornecedor remove os
+    campos de video de TODAS as variantes. Se a checagem da variante viesse
+    primeiro, "cota acabou" seria relatado como "variante sumiu" — e o
+    treinador iria procurar o vinculo errado em vez de olhar a conta."""
+    client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
+              "variant": "fundo-branco"},
+        headers=ADMIN,
+    )
+    _base.cota_estourada = True
+    monkeypatch.setattr(ymove.requests, "get", _so_academia(_base))
+
+    r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    assert r.status_code == 429, f"deu {r.status_code}: {r.text}"
+
+
+def test_variante_sem_url_e_tratada_como_ausente(_base, monkeypatch):
+    """A variante existe na lista mas vem sem `videoUrl`. Sem cota estourada,
+    isso e indisponibilidade dela — e nao autoriza pegar a do vizinho."""
+    original = _base.get
+
+    def get(url, params=None, headers=None, timeout=None):
+        r = original(url, params=params, headers=headers, timeout=timeout)
+        corpo = r.json()
+        dados = corpo.get("data")
+        alvo = dados if isinstance(dados, dict) else (dados or [{}])[0]
+        for v in alvo.get("videos", []):
+            if v.get("tag") == "fundo-branco":
+                v.pop("videoUrl", None)
+        return RespostaFalsa(corpo, r.status_code)
+
+    client.put(
+        "/admin/exercises/cadeira-extensora/ymove",
+        json={"provider": "ymove", "exercise_id": YM_ID, "slug": "leg-extension",
+              "variant": "fundo-branco"},
+        headers=ADMIN,
+    )
+    monkeypatch.setattr(ymove.requests, "get", get)
+
+    r = client.get("/exercises/cadeira-extensora/demo", headers=ALUNO)
+    assert r.status_code == 404
+    assert URL_ASSINADA not in r.text, "usou o video de outra variante"
