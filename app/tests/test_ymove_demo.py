@@ -46,12 +46,23 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from core.database import Base, get_db
+import core.security as seguranca
 from core.security import create_access_token
 from models.exercise import Exercise
 from main import app
 from services import ymove
 
-ADMIN = {"x-api-key": os.environ["LANDBOT_SECRET_TOKEN"]}
+# Token lido do MODULO, nao do ambiente.
+#
+# `core/security.py` captura LANDBOT_SECRET_TOKEN uma vez, no import, numa
+# constante de modulo — e e com ela que a comparacao acontece. No ambiente,
+# porem, o valor muda: `conftest.py` ATRIBUI um valor e `test_full_flow.py`
+# atribui outro, enquanto este modulo usa `setdefault`, que entao nao faz nada.
+# Resultado: isolado o modulo passa, e na suite completa o header levava um
+# token e o app comparava com outro — 401 em tudo que e rota de admin.
+#
+# Ler do modulo torna o teste indiferente a ordem de import, que e a causa.
+ADMIN = {"x-api-key": seguranca.LANDBOT_SECRET_TOKEN}
 ALUNO = {"Authorization": f"Bearer {create_access_token(1)}"}
 OUTRO_ALUNO = {"Authorization": f"Bearer {create_access_token(2)}"}
 
