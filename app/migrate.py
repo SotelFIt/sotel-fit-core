@@ -38,6 +38,11 @@ def run_migrations(engine):
             # misturar "excluido" ali tornaria impossivel distinguir quem o
             # profissional removeu de quem apenas esta com a assinatura parada.
             "ALTER TABLE clients ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP DEFAULT NULL",
+            # Vinculo com a demonstracao do fornecedor (YMove). Coluna propria,
+            # separada de `media`: `media` guarda o acervo HOSPEDADO por nos;
+            # aqui mora apenas uma REFERENCIA estavel ao catalogo de terceiro.
+            # Nenhuma URL assinada entra — elas expiram em 48h.
+            "ALTER TABLE exercises ADD COLUMN IF NOT EXISTS external_demo JSON DEFAULT NULL",
             # Subscriptions
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS notes VARCHAR",
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS manual_payment_method VARCHAR",

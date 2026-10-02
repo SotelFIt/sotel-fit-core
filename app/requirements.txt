@@ -19,3 +19,6 @@ anthropic
 psutil>=5.9.0
 
 cloudinary
+
+# Cliente HTTP da Exercise API da YMove (app/services/ymove.py).
+requests
