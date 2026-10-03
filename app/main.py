@@ -173,6 +173,12 @@ try:
 except Exception as e:
     logger.error(f"Workout completion router nao carregado: {e}")
 try:
+    from routers.exercise_set_log import router as exercise_set_log_router
+    app.include_router(exercise_set_log_router)
+    logger.info("Exercise set log router carregado")
+except Exception as e:
+    logger.error(f"Exercise set log router nao carregado: {e}")
+try:
     from routers.photos import router as photos_router
     app.include_router(photos_router)
     logger.info("Photos router carregado")

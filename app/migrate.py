@@ -38,6 +38,11 @@ def run_migrations(engine):
             # misturar "excluido" ali tornaria impossivel distinguir quem o
             # profissional removeu de quem apenas esta com a assinatura parada.
             "ALTER TABLE clients ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP DEFAULT NULL",
+            # Vinculo com a demonstracao do fornecedor (YMove). Coluna propria,
+            # separada de `media`: `media` guarda o acervo HOSPEDADO por nos;
+            # aqui mora apenas uma REFERENCIA estavel ao catalogo de terceiro.
+            # Nenhuma URL assinada entra — elas expiram em 48h.
+            "ALTER TABLE exercises ADD COLUMN IF NOT EXISTS external_demo JSON DEFAULT NULL",
             # Subscriptions
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS notes VARCHAR",
             "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS manual_payment_method VARCHAR",
@@ -219,6 +224,15 @@ def run_migrations(engine):
             # cinco cada uma; esta constraint deixa apenas uma conceder.
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_milestone_cliente ON workout_milestones (client_id, milestone)",
             "CREATE INDEX IF NOT EXISTS idx_workout_milestones_client ON workout_milestones (client_id)",
+            # WORKOUT-CARGA-001 — uma linha por serie, por dia, por versao do
+            # plano. Regravar a mesma serie no mesmo dia e CORRECAO (o aluno
+            # errou o numero ou subiu a carga na segunda tentativa), entao a
+            # rota atualiza; esta constraint e o que impede virar duas linhas.
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_exercise_set_log_serie ON exercise_set_logs (client_id, client_plan_id, workout_key, occurrence_key, set_index, performed_date)",
+            "CREATE INDEX IF NOT EXISTS idx_exercise_set_logs_client ON exercise_set_logs (client_id)",
+            # A carga ANTERIOR e a leitura mais frequente: "deste aluno, desta
+            # ocorrencia, a mais recente antes de hoje".
+            "CREATE INDEX IF NOT EXISTS idx_exercise_set_logs_anterior ON exercise_set_logs (client_id, occurrence_key, performed_date DESC)",
         ]
         for sql in index_sqls:
             try:

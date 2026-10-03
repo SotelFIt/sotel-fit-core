@@ -46,6 +46,10 @@ class Exercise(Base):
     approved_substitutions = Column(JSON, nullable=False, default=list, server_default=text("'[]'"))
     # lista de objetos {type, url, alt?} - midia futura; nasce vazia
     media = Column(JSON, nullable=False, default=list, server_default=text("'[]'"))
+    # Demonstracao vinda de fornecedor externo (YMove). REFERENCIA, nao midia:
+    # guarda id/slug/titulo do catalogo de la e o thumbnail ESTATICO. A URL do
+    # video e assinada e expira em 48h — e buscada na hora, nunca persistida.
+    external_demo = Column(JSON, nullable=True, default=None)
     is_active = Column(Boolean, nullable=False, default=True, server_default=true())
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

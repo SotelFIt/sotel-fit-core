@@ -5,7 +5,7 @@ Validacao dos campos da tabela exercises. Sem endpoints nesta missao.
 import re
 from datetime import datetime
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # slug URL-safe, um unico segmento: sem '/', sem espacos, so caracteres unreserved.
 # Sem ancoras: a validacao usa fullmatch (ancora inicio E fim de forma exata),
@@ -24,6 +24,71 @@ class ExerciseMedia(BaseModel):
     alt: Optional[str] = None
 
 
+class ExternalDemo(BaseModel):
+    """Referencia ESTAVEL a uma demonstracao de fornecedor externo.
+
+    Extensao explicita do contrato de midia, nao afrouxamento dele: `media[]`
+    continua sendo o acervo que NOS hospedamos, com as validacoes que ja tem.
+    Aqui mora outra coisa — um ponteiro para o catalogo de terceiro.
+
+    O que NAO entra aqui, por contrato do fornecedor: `videoUrl` e
+    `videoHlsUrl`. Sao pre-assinadas e expiram em 48h; persistir qualquer uma
+    criaria um link que quebra sozinho em dois dias. A URL e pedida na hora em
+    que o aluno aperta "Ver execucao".
+
+    `thumbnail_url` entra porque o contrato diz que ele e estatico e nao expira
+    — quando ele existe, e ele que da previa ao aluno sem consumir cota.
+
+    E OPCIONAL de proposito. Nos planos com limite de exercicios o fornecedor
+    nao devolve thumbnail em browse mode ("on the capped plans they are not"),
+    entao exigir capa aqui impediria de salvar um vinculo correto. Vinculo sem
+    capa e vinculo valido: o aluno ve o botao de execucao sem previa.
+    """
+
+    provider: Literal["ymove"]
+    exercise_id: str = Field(min_length=1, max_length=120)
+    slug: Optional[str] = Field(default=None, max_length=200)
+    title: Optional[str] = Field(default=None, max_length=300)
+    # Variante de demonstracao (tag do fornecedor), quando houver mais de uma.
+    variant: Optional[str] = Field(default=None, max_length=60)
+    thumbnail_url: Optional[str] = None
+    orientation: Optional[str] = Field(default=None, max_length=20)
+    duration_secs: Optional[int] = Field(default=None, ge=0)
+    linked_at: Optional[datetime] = None
+
+    @field_validator("thumbnail_url")
+    @classmethod
+    def _thumb_https_do_fornecedor(cls, v: Optional[str]) -> Optional[str]:
+        """So https, e so do dominio do fornecedor.
+
+        Aceitar URL arbitraria transformaria este campo num proxy aberto para
+        qualquer endereco — exatamente o que nao pode existir aqui.
+        """
+        if v is None or not v.strip():
+            return None
+        v = v.strip()
+        if not v.lower().startswith("https://"):
+            raise ValueError("thumbnail_url deve ser https")
+        host = v.split("/")[2].lower() if len(v.split("/")) > 2 else ""
+        if not (host == "ymove.app" or host.endswith(".ymove.app")):
+            raise ValueError("thumbnail_url deve vir do dominio do fornecedor")
+        return v
+
+    @model_validator(mode="after")
+    def _sem_url_assinada(self):
+        """Guarda contra o erro que o contrato do fornecedor torna caro.
+
+        Se algum dia alguem colar aqui uma URL de video, ela expira em 48h e o
+        aluno fica com um link morto. O campo nem existe — esta checagem pega a
+        tentativa de disfarca-la no thumbnail.
+        """
+        suspeito = (self.thumbnail_url or "").lower()
+        for marca in ("x-amz-signature", "x-amz-expires", "signature=", "expires=", "token="):
+            if marca in suspeito:
+                raise ValueError("thumbnail_url nao pode ser uma URL assinada (expira)")
+        return self
+
+
 class ExerciseBase(BaseModel):
     slug: str = Field(min_length=1)
     name: str = Field(min_length=1)
@@ -37,6 +102,7 @@ class ExerciseBase(BaseModel):
     cautions: List[str] = Field(default_factory=list)
     approved_substitutions: List[str] = Field(default_factory=list)
     media: List[ExerciseMedia] = Field(default_factory=list)
+    external_demo: Optional[ExternalDemo] = None
     is_active: bool = True
 
 
