@@ -20,6 +20,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -91,10 +92,28 @@ class SerieEntrada(BaseModel):
         return _peso(v)
 
 
+class PlanoIndisponivel(RuntimeError):
+    """A CONSULTA do plano ativo falhou.
+
+    Diferente de "este aluno não tem plano ativo", que é situação legítima.
+    """
+
+
 def _plano_ativo(db: Session, client_id: int) -> int:
     """Versão do plano publicado agora. 0 quando não há.
 
     Resolvido no servidor, nunca enviado pelo cliente.
+
+    `0` significa **aluno sem plano ativo** — situação normal e documentada,
+    a mesma convenção de `workout_completions`, onde NULL furaria a chave
+    natural porque não compara igual em SQL.
+
+    O que `0` NÃO pode significar é "a consulta falhou". Antes, qualquer
+    exceção aqui virava `0`, e as duas coisas ficavam indistinguíveis. Com o
+    banco oscilando, a carga era gravada sob a versão 0 em vez da versão que o
+    aluno está treinando — e sumia da tela na leitura seguinte, porque a
+    listagem filtra pela versão vigente. O aluno via o campo esvaziar sozinho
+    e nada no servidor explicava por quê.
     """
     try:
         linha = db.execute(
@@ -102,10 +121,21 @@ def _plano_ativo(db: Session, client_id: int) -> int:
                  "AND status = 'active' ORDER BY created_at DESC LIMIT 1"),
             {"cid": client_id},
         ).fetchone()
-    except Exception:
+    except Exception as e:
         db.rollback()
-        return 0
+        logger.warning("falha ao resolver o plano ativo do cliente %s: %s",
+                       client_id, type(e).__name__)
+        raise PlanoIndisponivel("não foi possível resolver o plano ativo")
     return int(linha[0]) if linha and linha[0] is not None else 0
+
+
+# Sem saber a que versão do plano a carga pertence, não se grava nem se lista:
+# responder vazio seria indistinguível de "nada registrado", e a tela limparia
+# os campos do aluno achando que não havia nada.
+INDISPONIVEL = HTTPException(
+    status_code=503,
+    detail="não foi possível consultar seu plano agora. Tente de novo em instantes.",
+)
 
 
 def _saida(r: ExerciseSetLog) -> dict:
@@ -134,31 +164,60 @@ def gravar_serie(
     série do mesmo exercício no mesmo dia é uma linha só. Mandar duas vezes
     corrige; não duplica. Isso também torna o reenvio após falha de rede
     seguro, sem precisar de chave de idempotência separada.
+
+    DUAS REQUISIÇÕES CRIANDO A MESMA SÉRIE
+    --------------------------------------
+    Acontece de verdade: duas abas, ou um toque duplo com a rede lenta. A
+    restrição única do banco arbitra e uma das duas recebe `IntegrityError`.
+
+    A versão anterior tratava isso relendo a linha que ficou e devolvendo-a
+    como sucesso. O resultado era uma **confirmação falsa**: quem mandou
+    34,5 kg e perdeu a corrida recebia `200` com os 30 kg da outra aba, via
+    "Carga salva" na tela, e ia embora achando que havia registrado 34,5.
+
+    Agora quem perde a corrida **aplica o próprio valor** sobre a linha que
+    venceu. É o que PUT significa — "deixe esta série com este valor" — e é o
+    que o aluno pediu ao digitar. A resposta é lida da linha depois do commit,
+    então ela descreve o que está no banco, e não o que se esperava que
+    estivesse.
+
+    Só o conflito de unicidade entra nesse caminho. Qualquer outra falha de
+    banco vira erro: antes, `except Exception` fazia com que um disco cheio ou
+    uma conexão perdida também encontrasse a linha antiga na releitura e
+    respondesse `200`, relatando como gravado algo que nunca foi.
     """
-    plano = _plano_ativo(db, client_id)
+    try:
+        plano = _plano_ativo(db, client_id)
+    except PlanoIndisponivel:
+        raise INDISPONIVEL
 
-    existente = (
-        db.query(ExerciseSetLog)
-        .filter(
-            ExerciseSetLog.client_id == client_id,
-            ExerciseSetLog.client_plan_id == plano,
-            ExerciseSetLog.workout_key == entrada.workout_key,
-            ExerciseSetLog.occurrence_key == entrada.occurrence_key,
-            ExerciseSetLog.set_index == entrada.set_index,
-            ExerciseSetLog.performed_date == entrada.performed_date,
+    def _existente():
+        return (
+            db.query(ExerciseSetLog)
+            .filter(
+                ExerciseSetLog.client_id == client_id,
+                ExerciseSetLog.client_plan_id == plano,
+                ExerciseSetLog.workout_key == entrada.workout_key,
+                ExerciseSetLog.occurrence_key == entrada.occurrence_key,
+                ExerciseSetLog.set_index == entrada.set_index,
+                ExerciseSetLog.performed_date == entrada.performed_date,
+            )
+            .first()
         )
-        .first()
-    )
 
-    if existente:
-        existente.weight_kg = entrada.weight_kg
-        existente.reps_done = entrada.reps_done
+    def _aplicar(registro: ExerciseSetLog) -> ExerciseSetLog:
+        registro.weight_kg = entrada.weight_kg
+        registro.reps_done = entrada.reps_done
         # O nome é atualizado junto: se o treinador reescreveu a prescrição
         # hoje, o registro de hoje acompanha o nome de hoje.
-        existente.exercise_name = entrada.exercise_name
-        existente.library_ref = entrada.library_ref
-        existente.updated_at = datetime.utcnow()
-        registro = existente
+        registro.exercise_name = entrada.exercise_name
+        registro.library_ref = entrada.library_ref
+        registro.updated_at = datetime.utcnow()
+        return registro
+
+    existente = _existente()
+    if existente:
+        registro = _aplicar(existente)
     else:
         registro = ExerciseSetLog(
             client_id=client_id,
@@ -177,27 +236,39 @@ def gravar_serie(
 
     try:
         db.commit()
-    except Exception:
-        # Corrida: duas abas gravando a mesma série ao mesmo tempo. A restrição
-        # única no banco arbitra, e quem perder relê o que ficou — o resultado
-        # é o mesmo registro, não um erro na cara do aluno no meio do treino.
+    except IntegrityError:
+        # Perdemos a corrida. A linha existe; aplicamos NOSSO valor sobre ela.
         db.rollback()
-        registro = (
-            db.query(ExerciseSetLog)
-            .filter(
-                ExerciseSetLog.client_id == client_id,
-                ExerciseSetLog.client_plan_id == plano,
-                ExerciseSetLog.workout_key == entrada.workout_key,
-                ExerciseSetLog.occurrence_key == entrada.occurrence_key,
-                ExerciseSetLog.set_index == entrada.set_index,
-                ExerciseSetLog.performed_date == entrada.performed_date,
+        vencedora = _existente()
+        if vencedora is None:
+            # Conflito sem linha correspondente: não é a corrida que
+            # conhecemos. Não há o que confirmar.
+            logger.warning("conflito sem linha correspondente ao gravar carga "
+                           "cliente=%s serie=%s", client_id, entrada.set_index)
+            raise HTTPException(
+                status_code=409,
+                detail="não foi possível gravar a carga. Tente de novo.",
             )
-            .first()
-        )
-        if registro is None:
-            raise HTTPException(status_code=500, detail="não foi possível gravar a carga")
-        return _saida(registro)
+        registro = _aplicar(vencedora)
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.warning("falha ao reaplicar a carga apos corrida cliente=%s",
+                           client_id)
+            raise HTTPException(
+                status_code=409,
+                detail="não foi possível gravar a carga. Tente de novo.",
+            )
+    except Exception as e:
+        # Falha que NÃO é conflito de unicidade. Nunca vira sucesso.
+        db.rollback()
+        logger.error("falha ao gravar carga cliente=%s: %s", client_id,
+                     type(e).__name__)
+        raise HTTPException(status_code=500, detail="não foi possível gravar a carga")
 
+    # Lido do banco DEPOIS do commit: a resposta descreve o que ficou
+    # persistido, não o que se esperava que estivesse.
     db.refresh(registro)
     return _saida(registro)
 
@@ -215,7 +286,10 @@ def listar_series(
     Filtra pela versão ATIVA do plano: carga de um plano que já foi substituído
     não deve reaparecer preenchida numa prescrição diferente.
     """
-    plano = _plano_ativo(db, client_id)
+    try:
+        plano = _plano_ativo(db, client_id)
+    except PlanoIndisponivel:
+        raise INDISPONIVEL
     q = db.query(ExerciseSetLog).filter(
         ExerciseSetLog.client_id == client_id,
         ExerciseSetLog.client_plan_id == plano,
