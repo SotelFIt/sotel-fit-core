@@ -6,6 +6,12 @@ class LeadOnboarding(Base):
     __tablename__ = "lead_onboardings"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Cadastro a que estas respostas pertencem, quando a pessoa chegou
+    # identificada (link do admin com token assinado, ou sessao do Stripe).
+    #
+    # Nulo nas linhas antigas e no onboarding publico anonimo. NAO e preenchido
+    # por aproximacao: ou a identidade foi provada na requisicao, ou fica nulo.
+    client_id = Column(Integer, nullable=True, index=True)
     phone = Column(String, nullable=True, index=True)
     nome = Column(String, nullable=True)
     email = Column(String, nullable=True)

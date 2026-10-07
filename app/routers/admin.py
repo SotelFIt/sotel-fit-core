@@ -25,6 +25,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 ONBOARDING_LINK = "https://sotel-client.vercel.app/onboarding"
 APP_LINK = "https://sotel-client.vercel.app"
+# Mesma origem do app do cliente usada pelo magic link em auth.py.
+CLIENT_APP_URL_ADMIN = os.getenv("CLIENT_APP_URL", APP_LINK)
 
 ADMIN_CLIENT_IDS = {0, 2}
 
@@ -45,7 +47,7 @@ def get_twilio_from() -> str:
     return os.getenv("TWILIO_FROM_NUMBER") or os.getenv("TWILIO_WHATSAPP_FROM") or "whatsapp:+14155238886"
 
 
-def _send_template_tracked(db: Session, client_id: int, phone: str, name: str, content_sid: str, context: str):
+def _send_template_tracked(db: Session, client_id: int, phone: str, name: str, content_sid: str, context: str, link: str = None):
     """Envia WhatsApp via template aprovado COM rastreio: status_callback + whatsapp_events + SID.
 
     Templates aprovados entregam fora da janela de 24h. Mantem todo o rastreamento do PR #4
@@ -59,7 +61,7 @@ def _send_template_tracked(db: Session, client_id: int, phone: str, name: str, c
             from_=get_twilio_from(),
             to=to,
             content_sid=content_sid,
-            content_variables=json.dumps({"1": name or "aluno", "2": APP_LINK}),
+            content_variables=json.dumps({"1": name or "aluno", "2": link or APP_LINK}),
             status_callback=callback,
         )
         db.execute(
@@ -832,8 +834,60 @@ def get_client_onboarding(client_id: int, db: Session = Depends(get_db), _: int 
     }
 
 
+@router.post("/twilio/resend-onboarding/{client_id}")
+def resend_onboarding_identificado(client_id: int, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    """Envia o onboarding com um link que IDENTIFICA o cadastro.
+
+    O link antigo era o mesmo para todo mundo: quem o abrisse chegava ao
+    formulario sem sessao, e a unica coisa que ligava as respostas ao cadastro
+    era o telefone digitado. Telefone divergente criava um segundo cadastro em
+    silencio; telefone em branco nao ligava nada — e nos dois casos a pessoa
+    voltava ao formulario ao reabrir o app.
+
+    Reusa o token assinado que ja existe (`type='magic'`, com expiracao, so
+    admin emite) e o endereco `/acesso#t=`, onde o token vai no FRAGMENT e
+    nunca em query — nao vaza em log de proxy nem em Referer. Quem decide de
+    quem e a sessao e o servidor, ao validar a assinatura; a URL nao manda.
+    """
+    linha = db.execute(
+        text("SELECT id, name, phone FROM clients WHERE id = :cid LIMIT 1"),
+        {"cid": client_id},
+    ).fetchone()
+    if not linha:
+        raise HTTPException(status_code=404, detail="Cliente nao encontrado")
+    _, nome, telefone = linha
+    if not telefone:
+        raise HTTPException(status_code=400, detail="Cliente sem telefone")
+
+    state = db.query(ConversationState).filter(ConversationState.phone == telefone).first()
+    if not state:
+        state = ConversationState(phone=telefone, step="active_client",
+                                  status="onboarding_pending", onboarding_link_sent=False)
+        db.add(state)
+    state.onboarding_link_sent = False
+    state.step = "active_client"
+    state.status = "onboarding_pending"
+    db.commit()
+
+    from core.security import create_magic_token
+    link = f"{CLIENT_APP_URL_ADMIN}/acesso#t={create_magic_token(client_id)}"
+    resultado = _send_template_tracked(
+        db, client_id, telefone, nome,
+        os.getenv("TWILIO_TEMPLATE_ONBOARDING"), "resend_onboarding", link=link,
+    )
+    if resultado.get("accepted"):
+        state.onboarding_link_sent = True
+        db.commit()
+    return resultado
+
+
 @router.post("/twilio/resend-onboarding")
 def resend_onboarding(payload: ActivateLeadRequest, db: Session = Depends(get_db), _: int = Depends(require_admin)):
+    """Caminho ANTIGO, por telefone, preservado para leads sem cadastro.
+
+    Continua enviando o link generico: nao ha cadastro a identificar. Para
+    alguem ja cadastrado, use `/twilio/resend-onboarding/{client_id}`.
+    """
     state = db.query(ConversationState).filter(ConversationState.phone == payload.phone).first()
     if not state:
         state = ConversationState(phone=payload.phone, step="active_client", status="onboarding_pending", onboarding_link_sent=False)

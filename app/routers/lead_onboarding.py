@@ -3,12 +3,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
 from typing import Optional
+import logging
 import os
 from twilio.rest import Client as TwilioClient
 from core.database import get_db
+from core.security import identidade_opcional
 from core.phone import normalize_phone, normalize_phone_for_whatsapp
 from models.lead_onboarding import LeadOnboarding
 from models.conversation_state import ConversationState
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/onboarding", tags=["Onboarding"])
 
@@ -32,7 +36,41 @@ class LeadOnboardingRequest(BaseModel):
 
 
 @router.post("/lead")
-def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends(get_db)):
+def create_lead_onboarding(
+    payload: LeadOnboardingRequest,
+    db: Session = Depends(get_db),
+    identidade: Optional[int] = Depends(identidade_opcional),
+):
+    """Conclusao do onboarding.
+
+    QUEM SAO ESTAS RESPOSTAS
+    -----------------------
+    Antes, a unica coisa que ligava as respostas a um cadastro era o telefone
+    DIGITADO no formulario. Isso quebrava de tres jeitos, todos reproduzidos em
+    PostgreSQL:
+
+      - telefone divergente: a pessoa recebia sucesso e um SEGUNDO cadastro era
+        criado em silencio, enquanto o cadastro original continuava "em
+        onboarding" e devolvia a pessoa ao formulario ao reabrir o app;
+      - telefone em branco: sucesso, respostas gravadas soltas, nenhum cadastro
+        tocado — e a mesma volta ao formulario;
+      - telefone invalido: 400, e as respostas se perdiam.
+
+    Agora, quando a requisicao chega com SESSAO VALIDA, as respostas pertencem
+    a quem a sessao diz — e so a ele. O telefone deixa de decidir identidade e
+    volta a ser o que sempre foi: um dado do formulario.
+
+    `client_id` nunca e lido do corpo. Ele vem da assinatura do token, que o
+    navegador nao sabe forjar. Aceita-lo do corpo deixaria qualquer um gravar o
+    onboarding de outra pessoa.
+
+    O CAMINHO ANONIMO CONTINUA
+    --------------------------
+    Quem chega sem sessao (lead publico) segue atendido pelo casamento por
+    telefone, como antes. O que mudou e que telefone ausente passou a ser
+    recusado nesse caminho: sem sessao e sem telefone nao ha como ligar nada a
+    ninguem, e responder "sucesso" era a origem do problema.
+    """
     phone_normalized = None
     phone_whatsapp = None
 
@@ -43,7 +81,31 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             raise HTTPException(status_code=400, detail="telefone invalido")
         phone_whatsapp = normalize_phone_for_whatsapp(payload.telefone)
 
+    # ------------------------------------------------------------- identidade
+    cliente_alvo = None
+    if identidade:
+        linha = db.execute(
+            text("SELECT id, phone FROM clients WHERE id = :cid LIMIT 1"),
+            {"cid": identidade},
+        ).fetchone()
+        if linha:
+            cliente_alvo = int(linha[0])
+            # O telefone do CADASTRO manda no vinculo operacional (WhatsApp,
+            # estado de conversa). Editar o campo do formulario nao pode mudar
+            # de quem e o onboarding nem para onde vai a mensagem.
+            if linha[1]:
+                phone_whatsapp = normalize_phone_for_whatsapp(linha[1]) or phone_whatsapp
+
+    if cliente_alvo is None and not phone_normalized:
+        # Sem sessao e sem telefone: nao ha a quem ligar estas respostas.
+        # Responder sucesso aqui era exatamente o defeito relatado.
+        raise HTTPException(
+            status_code=400,
+            detail="informe o WhatsApp para concluir o cadastro",
+        )
+
     onboarding = LeadOnboarding(
+        client_id=cliente_alvo,
         phone=phone_normalized,
         nome=payload.nome,
         email=payload.email,
@@ -71,7 +133,15 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
             state.status = "onboarding_completed"
             state.step = "onboarding_completed"
 
-    if phone_normalized:
+    if cliente_alvo is not None:
+        # Identificado: atualiza ESTE cadastro. Nenhum outro e criado nem
+        # procurado por telefone — era dai que vinha a duplicata silenciosa.
+        db.execute(
+            text("UPDATE clients SET status = 'waiting_plan', objective = COALESCE(:obj, objective) WHERE id = :cid"),
+            {"obj": payload.objetivo, "cid": cliente_alvo},
+        )
+    elif phone_normalized:
+        # Lead publico, sem sessao: comportamento anterior preservado.
         existing = db.execute(
             text("SELECT id FROM clients WHERE phone = :p LIMIT 1"),
             {"p": phone_normalized}
@@ -87,8 +157,21 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
                 {"obj": payload.objetivo, "p": phone_normalized}
             )
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # Sem persistencia nao ha conclusao. Responder "ok" aqui seria a mesma
+        # confirmacao falsa que esta correcao existe para eliminar.
+        db.rollback()
+        logger.error("falha ao gravar a conclusao do onboarding")
+        raise HTTPException(
+            status_code=500,
+            detail="nao foi possivel concluir agora. Suas respostas nao foram perdidas; tente de novo.",
+        )
 
+    # So agora o sucesso e verdade: a linha existe e, se havia identidade, ela
+    # esta ligada ao cadastro certo.
+    db.refresh(onboarding)
 
     if phone_whatsapp:
         try:
@@ -101,7 +184,15 @@ def create_lead_onboarding(payload: LeadOnboardingRequest, db: Session = Depends
         except Exception:
             pass
 
-    return {"status": "ok", "message": "Onboarding recebido com sucesso", "onboarding_completed": True, "next_step": "waiting_plan"}
+    return {
+        "status": "ok",
+        "message": "Onboarding recebido com sucesso",
+        "onboarding_completed": True,
+        "next_step": "waiting_plan",
+        "client_id": onboarding.client_id,
+    }
+
+
 @router.get("/status/{client_id}")
 def get_onboarding_status(client_id: int, db: Session = Depends(get_db)):
     onboarding_completed = False
@@ -120,11 +211,29 @@ def get_onboarding_status(client_id: int, db: Session = Depends(get_db)):
 
     record = None
 
-    if phone:
+    # VINCULO EXPLICITO primeiro: quando a pessoa chegou identificada, as
+    # respostas tem o `client_id` gravado e nao ha nada a adivinhar. E o unico
+    # caminho que sobrevive a ela editar o telefone no formulario.
+    record = db.execute(
+        text("SELECT id FROM lead_onboardings WHERE client_id = :cid LIMIT 1"),
+        {"cid": client_id},
+    ).fetchone()
+
+    # Sem vinculo explicito, o casamento por telefone continua valendo — e o
+    # que mantem de pe as linhas anteriores a esta correcao. Compara valores
+    # EXATOS em variantes de formato; nada de aproximacao por nome.
+    #
+    # `client_id IS NULL` e o que impede o roubo por digitacao: uma resposta que
+    # JA TEM dono pertence a ele, mesmo que o telefone digitado no formulario
+    # seja o de outra pessoa. Sem esse filtro, bastava alguem digitar o numero
+    # alheio para concluir o onboarding de quem nunca preencheu nada.
+    if not record and phone:
         phone_clean = phone.replace("whatsapp:", "").replace("+", "")
         record = db.execute(
             text("""SELECT id FROM lead_onboardings
-                WHERE phone = :p1 OR phone = :p2 OR phone = :p3 OR phone = :p4 LIMIT 1"""),
+                WHERE client_id IS NULL
+                  AND (phone = :p1 OR phone = :p2 OR phone = :p3 OR phone = :p4)
+                LIMIT 1"""),
             {"p1": phone, "p2": phone.replace("whatsapp:", ""),
              "p3": f"+{phone_clean}", "p4": phone_clean}
         ).fetchone()

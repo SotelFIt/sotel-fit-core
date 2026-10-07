@@ -57,6 +57,10 @@ def run_migrations(engine):
             # LIB-005 Parte B: enriquecimento paralelo do plano (NAO altera published_content).
             # Serializado como JSON em TEXT (portavel); idempotencia via source_hash.
             "ALTER TABLE client_plans ADD COLUMN IF NOT EXISTS enrichment_json TEXT",
+            # ONBOARDING-IDENTIDADE: a que cadastro estas respostas pertencem.
+            # Aditiva e nula por padrao — as linhas historicas continuam como
+            # estao, e nenhuma e associada por aproximacao de nome ou telefone.
+            "ALTER TABLE lead_onboardings ADD COLUMN IF NOT EXISTS client_id INTEGER",
             "ALTER TABLE client_plans ADD COLUMN IF NOT EXISTS enrichment_source_hash TEXT",
         ]
 
@@ -201,6 +205,7 @@ def run_migrations(engine):
             "CREATE INDEX IF NOT EXISTS idx_checkins_created_at ON client_checkins (created_at DESC)",
             "CREATE INDEX IF NOT EXISTS idx_plans_client_id ON client_plans (client_id)",
             "CREATE INDEX IF NOT EXISTS idx_diets_client_id ON client_diets (client_id)",
+            "CREATE INDEX IF NOT EXISTS idx_lead_onboardings_client ON lead_onboardings (client_id)",
             "CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients (phone)",
             "CREATE INDEX IF NOT EXISTS idx_clients_status ON clients (status)",
             "CREATE INDEX IF NOT EXISTS idx_wa_events_message_sid ON whatsapp_events (message_sid)",

@@ -117,6 +117,41 @@ def verify_dual_auth(
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
 
 
+def identidade_opcional(
+    authorization: Optional[str] = Header(None),
+    x_access_token: Optional[str] = Header(None),
+) -> Optional[int]:
+    """Quem esta chamando, QUANDO ha sessao valida. `None` quando nao ha.
+
+    Serve para rotas que atendem dois publicos no mesmo endereco: alguem com
+    sessao (veio por link identificado ou pelo Stripe) e alguem anonimo.
+    `verify_dual_auth` nao serve porque ele RECUSA quem nao tem token, e aqui a
+    ausencia de token e um caso legitimo, nao um erro.
+
+    Duas recusas deliberadas:
+
+      - a API key de admin NAO e aceita. Isto resolve "qual aluno e este", e
+        admin nao e aluno nenhum. Aceita-la abriria a porta para gravar o
+        onboarding de outra pessoa com credencial de servico.
+      - token invalido ou expirado devolve `None`, nao erro. Quem decide o que
+        fazer com a ausencia de identidade e a rota, que pode ter um caminho
+        anonimo legitimo.
+    """
+    if authorization:
+        try:
+            esquema, _, credencial = authorization.partition(" ")
+            if esquema.lower() == "bearer":
+                return verify_token(credencial, token_type="access")
+        except HTTPException:
+            return None
+    if x_access_token:
+        try:
+            return verify_token(x_access_token, token_type="access")
+        except HTTPException:
+            return None
+    return None
+
+
 def cliente_excluido(db, client_id: int) -> bool:
     """O cadastro foi excluido pelo profissional?
 
