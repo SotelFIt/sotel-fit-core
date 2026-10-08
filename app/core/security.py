@@ -117,6 +117,47 @@ def verify_dual_auth(
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
 
 
+def identidade_opcional(
+    authorization: Optional[str] = Header(None),
+    x_access_token: Optional[str] = Header(None),
+) -> Optional[int]:
+    """Quem esta chamando, QUANDO ha sessao valida. `None` quando nao ha.
+
+    Serve para rotas que atendem dois publicos no mesmo endereco: alguem com
+    sessao (veio por link identificado ou pelo Stripe) e alguem anonimo.
+    `verify_dual_auth` nao serve porque ele RECUSA quem nao tem token, e aqui a
+    ausencia de token e um caso legitimo, nao um erro.
+
+    AUSENCIA e uma coisa; CREDENCIAL RUIM e outra.
+
+      - nenhuma credencial -> `None`. O chamador pode seguir pelo caminho
+        publico, que e legitimo.
+      - credencial APRESENTADA e invalida, expirada ou de tipo errado -> 401.
+        Degradar para anonimo seria pior do que recusar: quem mandou um token
+        esta afirmando uma identidade, e tratar a afirmacao falha como "sem
+        identidade" faria a requisicao seguir por um caminho que a pessoa nao
+        pediu — gravando respostas e mexendo em cadastro sob outro criterio.
+
+    A API key de admin NAO e aceita como identidade. Isto resolve "qual aluno
+    e este", e admin nao e aluno nenhum; aceita-la abriria a porta para gravar
+    o onboarding de outra pessoa com credencial de servico. Quando ela vem
+    sozinha, a resposta e `None` — nao e credencial de aluno invalida, e sim
+    uma credencial de outro tipo, que esta rota simplesmente nao usa.
+    """
+    if authorization:
+        esquema, _, credencial = authorization.partition(" ")
+        if esquema.lower() == "bearer":
+            # Deixa a excecao subir: token apresentado e recusado e 401.
+            return verify_token(credencial, token_type="access")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Esquema de autenticacao nao suportado",
+        )
+    if x_access_token:
+        return verify_token(x_access_token, token_type="access")
+    return None
+
+
 def cliente_excluido(db, client_id: int) -> bool:
     """O cadastro foi excluido pelo profissional?
 
