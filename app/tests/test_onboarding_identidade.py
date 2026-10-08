@@ -34,7 +34,7 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -58,6 +58,16 @@ OUTRO_FONE = "+5511988887777"
 engine = create_engine("sqlite:///:memory:",
                        connect_args={"check_same_thread": False},
                        poolclass=StaticPool)
+
+
+# Varias consultas do produto usam `NOW()`, que e do Postgres. Em vez de
+# reescrever o SQL de producao so para o teste rodar — o que mediria um codigo
+# diferente do que esta no ar —, a funcao e registrada aqui. O SQL exercitado e
+# exatamente o mesmo.
+@event.listens_for(engine, "connect")
+def _registra_now(dbapi_conn, _):
+    dbapi_conn.create_function(
+        "NOW", 0, lambda: __import__("datetime").datetime.utcnow().isoformat(sep=" "))
 Sessao = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -90,6 +100,18 @@ def _base():
             " client_id INTEGER, content TEXT, status TEXT, published_content TEXT,"
             " created_at TIMESTAMP)")
         c.exec_driver_sql("DELETE FROM client_plans")
+        # O caminho de envio grava rastreio e auditoria. Em producao estas
+        # tabelas existem; sem elas o teste mediria um erro de ambiente.
+        c.exec_driver_sql(
+            "CREATE TABLE IF NOT EXISTS whatsapp_events (id INTEGER PRIMARY KEY,"
+            " client_id INTEGER, message_sid TEXT, status TEXT, error_code TEXT,"
+            " to_phone TEXT, context TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)")
+        c.exec_driver_sql(
+            "CREATE TABLE IF NOT EXISTS admin_audit_log (id INTEGER PRIMARY KEY,"
+            " action TEXT, admin_id INTEGER, client_id INTEGER, details TEXT,"
+            " created_at TIMESTAMP)")
+        c.exec_driver_sql("DELETE FROM whatsapp_events")
+        c.exec_driver_sql("DELETE FROM admin_audit_log")
         cols = [r[1] for r in c.exec_driver_sql("PRAGMA table_info(clients)")]
         if "updated_at" not in cols:
             c.exec_driver_sql("ALTER TABLE clients ADD COLUMN updated_at TIMESTAMP")
@@ -204,22 +226,80 @@ def test_SEM_sessao_e_sem_telefone_e_recusado():
     assert leads() == [], "recusou e mesmo assim gravou"
 
 
-def test_token_INVALIDO_cai_no_caminho_anonimo_sem_quebrar():
-    """Token corrompido nao e erro de autenticacao nesta rota — e ausencia de
-    identidade. Com telefone valido, o lead publico continua funcionando."""
+def test_token_INVALIDO_e_RECUSADO_nao_vira_anonimo():
+    """Credencial apresentada e recusada e 401, nao "sem identidade".
+
+    Degradar para anonimo e pior do que recusar: quem mandou um token esta
+    afirmando uma identidade, e tratar a afirmacao falha como ausencia faria a
+    requisicao seguir por um caminho que a pessoa nao pediu.
+    """
     r = concluir(headers={"Authorization": "Bearer nao.e.um.token"},
                  telefone=ALUNA_FONE)
-    assert r.status_code == 200, r.text
-    # Sem identidade provada, o vinculo explicito NAO e inventado.
-    assert [l[1] for l in leads()] == [None]
-    # Mas o casamento por telefone (caminho antigo) segue valendo.
-    assert status(ALUNA)["onboarding_completed"] is True
+    assert r.status_code == 401, f"deu {r.status_code}: {r.text}"
+    assert leads() == [], "recusou e mesmo assim gravou"
+    assert dict((c[0], c[2]) for c in clientes())[ALUNA] == "onboarding",         "status do cadastro foi alterado por uma credencial recusada"
 
 
-def test_token_invalido_SEM_telefone_e_recusado():
-    r = concluir(headers={"Authorization": "Bearer nao.e.um.token"})
-    assert r.status_code == 400
+def test_token_invalido_com_telefone_de_OUTRO_cadastro_nao_conclui_o_dele():
+    """O caminho por telefone nao pode ser alcancado por quem apresentou
+    credencial ruim — nem com o numero de outra pessoa."""
+    r = concluir(headers={"Authorization": "Bearer nao.e.um.token"},
+                 telefone=OUTRO_FONE)
+    assert r.status_code == 401
     assert leads() == []
+    assert status(OUTRO)["onboarding_completed"] is False
+    assert dict((c[0], c[2]) for c in clientes())[OUTRO] == "onboarding"
+
+
+def test_token_EXPIRADO_e_recusado():
+    import time
+    import jwt
+    from core.security import SECRET_KEY, ALGORITHM
+    agora = int(time.time())
+    expirado = jwt.encode(
+        {"sub": ALUNA, "iat": agora - 7200, "exp": agora - 3600, "type": "access"},
+        SECRET_KEY, algorithm=ALGORITHM)
+    r = concluir(headers={"Authorization": f"Bearer {expirado}"}, telefone=ALUNA_FONE)
+    assert r.status_code == 401, f"deu {r.status_code}: {r.text}"
+    assert leads() == []
+
+
+def test_esquema_de_autenticacao_desconhecido_e_recusado():
+    r = concluir(headers={"Authorization": "Basic YWJjOjEyMw=="}, telefone=ALUNA_FONE)
+    assert r.status_code == 401
+    assert leads() == []
+
+
+def test_SEM_credencial_segue_pelo_caminho_publico():
+    """A contrapartida: ausencia de credencial continua valendo. Sem esta, a
+    correcao viraria "so entra quem tem sessao" e quebraria o lead publico.
+
+    Usa um telefone JA cadastrado de proposito: o caminho publico com telefone
+    novo insere cliente com `NOW()`, que e funcao do Postgres e nao existe no
+    SQLite. Esse ramo e exercitado na revalidacao em PostgreSQL.
+    """
+    r = concluir(telefone=OUTRO_FONE)
+    assert r.status_code == 200, r.text
+    assert [l[1] for l in leads()] == [None], "inventou vinculo sem identidade provada"
+    # E o caminho antigo segue funcionando para quem nao tem sessao.
+    assert status(OUTRO)["onboarding_completed"] is True
+
+
+def test_sessao_de_cadastro_INEXISTENTE_nao_cai_no_caminho_por_telefone():
+    r = concluir(headers=sessao(999999), telefone=ALUNA_FONE)
+    assert r.status_code == 401, f"deu {r.status_code}: {r.text}"
+    assert leads() == [], "gravou sob um cadastro que nao existe"
+    assert status(ALUNA)["onboarding_completed"] is False
+
+
+def test_sessao_de_cadastro_EXCLUIDO_nao_cai_no_caminho_por_telefone():
+    """O token continua com assinatura valida; o que mudou foi o cadastro."""
+    with engine.begin() as c:
+        c.exec_driver_sql(
+            f"UPDATE clients SET deleted_at = CURRENT_TIMESTAMP WHERE id = {ALUNA}")
+    r = concluir(headers=sessao(ALUNA), telefone=ALUNA_FONE)
+    assert r.status_code == 401, f"deu {r.status_code}: {r.text}"
+    assert leads() == [], "cadastro excluido concluiu onboarding"
 
 
 def test_token_MAGICO_nao_serve_como_sessao_de_dados():
@@ -227,7 +307,10 @@ def test_token_MAGICO_nao_serve_como_sessao_de_dados():
     /auth/magic-link/exchange, e NAO para falar direto com as rotas de dados.
     Sem isso, o link enviado por WhatsApp viraria credencial permanente."""
     r = concluir(headers={"Authorization": f"Bearer {create_magic_token(ALUNA)}"})
-    assert r.status_code == 400, "um token magico passou como sessao"
+    # 401: o token foi APRESENTADO e e do tipo errado. Antes isto caia no
+    # caminho anonimo e devolvia 400 por falta de telefone — a recusa era por
+    # acidente, nao por decisao.
+    assert r.status_code == 401, f"um token magico passou como sessao: {r.status_code}"
     assert leads() == []
 
 
@@ -276,3 +359,70 @@ def test_link_do_admin_identifica_o_cadastro():
 def test_link_identificado_e_so_do_admin():
     r = client.post(f"/admin/twilio/resend-onboarding/{ALUNA}", headers=sessao(ALUNA))
     assert r.status_code == 403, f"um aluno emitiu link de outro: {r.status_code}"
+
+
+# ====================================== envio pelo admin, com Twilio simulado
+
+def test_envio_identificado_leva_o_TOKEN_do_cadastro_no_link(monkeypatch):
+    """Twilio SIMULADO: nenhuma mensagem real sai daqui.
+
+    O que se verifica e o que a rota entrega ao fornecedor de mensagens: a
+    variavel de link precisa ser o `/acesso#t=` DESTE cadastro. Era o elo que
+    faltava — a rota antiga mandava um link generico, igual para todo mundo.
+    """
+    enviados = {}
+
+    class MensagemFalsa:
+        sid = "SM_simulado"
+        status = "queued"
+
+    class MensagensFalsas:
+        def create(self, **kw):
+            enviados.update(kw)
+            return MensagemFalsa()
+
+    class TwilioFalso:
+        def __init__(self, *a, **kw):
+            self.messages = MensagensFalsas()
+
+    import routers.admin as admin
+    monkeypatch.setattr(admin, "TwilioClient", TwilioFalso)
+    monkeypatch.setenv("TWILIO_TEMPLATE_ONBOARDING", "HX_template_simulado")
+    monkeypatch.setenv("CLIENT_APP_URL", "https://app.exemplo.invalid")
+
+    r = client.post(f"/admin/twilio/resend-onboarding/{ALUNA}", headers=ADMIN)
+    assert r.status_code == 200, r.text
+
+    import json as _json
+    variaveis = _json.loads(enviados["content_variables"])
+    link = variaveis["2"]
+    assert "/acesso#t=" in link, f"o link nao identifica o cadastro: {link}"
+
+    # O token do link abre a sessao DESTE cadastro, e de nenhum outro.
+    from core.security import verify_magic_token
+    assert verify_magic_token(link.split("#t=")[1]) == ALUNA
+
+    # E vai para o telefone do CADASTRO, nao para um informado na chamada.
+    assert ALUNA_FONE.replace("+", "") in enviados["to"].replace("+", "")
+
+
+def test_envio_identificado_recusa_cadastro_sem_telefone(monkeypatch):
+    with engine.begin() as c:
+        c.exec_driver_sql(f"UPDATE clients SET phone = NULL WHERE id = {ALUNA}")
+    r = client.post(f"/admin/twilio/resend-onboarding/{ALUNA}", headers=ADMIN)
+    assert r.status_code == 400
+
+
+def test_rota_antiga_por_telefone_continua_para_leads(monkeypatch):
+    """Quem ainda nao tem cadastro nao tem o que identificar. A tela de Leads
+    continua usando esta rota — removê-la quebraria o fluxo de lead."""
+    class TwilioFalso:
+        def __init__(self, *a, **kw):
+            self.messages = type("M", (), {"create": lambda s, **kw: type("X", (), {"sid": "SM", "status": "queued"})()})()
+
+    import routers.admin as admin
+    monkeypatch.setattr(admin, "TwilioClient", TwilioFalso)
+    monkeypatch.setenv("TWILIO_TEMPLATE_ONBOARDING", "HX_template_simulado")
+    r = client.post("/admin/twilio/resend-onboarding",
+                    json={"phone": "+5511900001111"}, headers=ADMIN)
+    assert r.status_code == 200, r.text

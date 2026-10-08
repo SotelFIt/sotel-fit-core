@@ -85,16 +85,22 @@ def create_lead_onboarding(
     cliente_alvo = None
     if identidade:
         linha = db.execute(
-            text("SELECT id, phone FROM clients WHERE id = :cid LIMIT 1"),
+            text("SELECT id, phone, deleted_at FROM clients WHERE id = :cid LIMIT 1"),
             {"cid": identidade},
         ).fetchone()
-        if linha:
-            cliente_alvo = int(linha[0])
-            # O telefone do CADASTRO manda no vinculo operacional (WhatsApp,
-            # estado de conversa). Editar o campo do formulario nao pode mudar
-            # de quem e o onboarding nem para onde vai a mensagem.
-            if linha[1]:
-                phone_whatsapp = normalize_phone_for_whatsapp(linha[1]) or phone_whatsapp
+        if not linha or linha[2] is not None:
+            # Sessao assinada para um cadastro que nao existe mais, ou que foi
+            # excluido. NAO cai no caminho por telefone: a pessoa afirmou uma
+            # identidade, e segui-la por outro criterio gravaria as respostas
+            # sob um cadastro que ela nao pediu. O token continua com
+            # assinatura valida — o que mudou foi o cadastro.
+            raise HTTPException(status_code=401, detail="Cadastro inativo")
+        cliente_alvo = int(linha[0])
+        # O telefone do CADASTRO manda no vinculo operacional (WhatsApp,
+        # estado de conversa). Editar o campo do formulario nao pode mudar
+        # de quem e o onboarding nem para onde vai a mensagem.
+        if linha[1]:
+            phone_whatsapp = normalize_phone_for_whatsapp(linha[1]) or phone_whatsapp
 
     if cliente_alvo is None and not phone_normalized:
         # Sem sessao e sem telefone: nao ha a quem ligar estas respostas.
@@ -164,9 +170,12 @@ def create_lead_onboarding(
         # confirmacao falsa que esta correcao existe para eliminar.
         db.rollback()
         logger.error("falha ao gravar a conclusao do onboarding")
+        # A mensagem nao promete preservacao: quem preserva o formulario e a
+        # TELA, e o servidor nao tem como saber se ela o fez. O rollback aqui
+        # garante apenas que nada ficou gravado pela metade.
         raise HTTPException(
             status_code=500,
-            detail="nao foi possivel concluir agora. Suas respostas nao foram perdidas; tente de novo.",
+            detail="nao foi possivel concluir agora. Tente de novo.",
         )
 
     # So agora o sucesso e verdade: a linha existe e, se havia identidade, ela

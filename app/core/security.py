@@ -128,27 +128,33 @@ def identidade_opcional(
     `verify_dual_auth` nao serve porque ele RECUSA quem nao tem token, e aqui a
     ausencia de token e um caso legitimo, nao um erro.
 
-    Duas recusas deliberadas:
+    AUSENCIA e uma coisa; CREDENCIAL RUIM e outra.
 
-      - a API key de admin NAO e aceita. Isto resolve "qual aluno e este", e
-        admin nao e aluno nenhum. Aceita-la abriria a porta para gravar o
-        onboarding de outra pessoa com credencial de servico.
-      - token invalido ou expirado devolve `None`, nao erro. Quem decide o que
-        fazer com a ausencia de identidade e a rota, que pode ter um caminho
-        anonimo legitimo.
+      - nenhuma credencial -> `None`. O chamador pode seguir pelo caminho
+        publico, que e legitimo.
+      - credencial APRESENTADA e invalida, expirada ou de tipo errado -> 401.
+        Degradar para anonimo seria pior do que recusar: quem mandou um token
+        esta afirmando uma identidade, e tratar a afirmacao falha como "sem
+        identidade" faria a requisicao seguir por um caminho que a pessoa nao
+        pediu — gravando respostas e mexendo em cadastro sob outro criterio.
+
+    A API key de admin NAO e aceita como identidade. Isto resolve "qual aluno
+    e este", e admin nao e aluno nenhum; aceita-la abriria a porta para gravar
+    o onboarding de outra pessoa com credencial de servico. Quando ela vem
+    sozinha, a resposta e `None` — nao e credencial de aluno invalida, e sim
+    uma credencial de outro tipo, que esta rota simplesmente nao usa.
     """
     if authorization:
-        try:
-            esquema, _, credencial = authorization.partition(" ")
-            if esquema.lower() == "bearer":
-                return verify_token(credencial, token_type="access")
-        except HTTPException:
-            return None
+        esquema, _, credencial = authorization.partition(" ")
+        if esquema.lower() == "bearer":
+            # Deixa a excecao subir: token apresentado e recusado e 401.
+            return verify_token(credencial, token_type="access")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Esquema de autenticacao nao suportado",
+        )
     if x_access_token:
-        try:
-            return verify_token(x_access_token, token_type="access")
-        except HTTPException:
-            return None
+        return verify_token(x_access_token, token_type="access")
     return None
 
 
